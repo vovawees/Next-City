@@ -15,6 +15,7 @@ local SPECS = {
 	"tests/unit/events_spec.lua",
 	"tests/unit/scheduler_spec.lua",
 	"tests/unit/fsm_spec.lua",
+	"tests/unit/modules_spec.lua",
 }
 
 local source = debug.getinfo(1, "S").source
