@@ -7,7 +7,9 @@ return {
 
 	modules = {
 		-- Modules to turn off: [id] = true.
-		disabled = {},
+		disabled = {
+			example = true, -- template for new modules, see modules/example
+		},
 
 		-- Implementation to use when several modules provide one interface: [interface] = id.
 		-- Example: organism = "organism_realistic".

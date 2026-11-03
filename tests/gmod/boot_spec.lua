@@ -209,6 +209,46 @@ describe("boot", function()
 		expect(#client:Lines("(client)")):toBe(1)
 	end)
 
+	it("keeps the example module disabled by default", function()
+		local server = Env.Server():Boot()
+		expect(state(server, "example")):toBe("disabled")
+	end)
+
+	it("runs the example module on both realms when enabled", function()
+		local patch = {
+			["nextcity/gamemode/config.lua"] = function(cfg)
+				cfg.modules.disabled.example = nil
+				cfg.modules.settings.example = { interval = 2 }
+				return cfg
+			end,
+		}
+		local server = Env.Server({ patch = patch }):Boot()
+		local client = Env.Client(server):Boot()
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
+		expect(state(server, "example")):toBe("started")
+		expect(state(client, "example")):toBe("started")
+		expect(#server:Lines("[example] started, heartbeat every 2s")):toBe(1)
+		expect(#client:Lines("[example] started on the client")):toBe(1)
+
+		server:Call("PlayerInitialSpawn", Env.FakePlayer({ name = "Gordon" }), false)
+		expect(#server:Lines("Welcome to Next-City, Gordon!")):toBe(1)
+
+		local example = server:Get("NC").Modules:Instance("example")
+		for _ = 1, 6 do
+			server:Advance(1)
+		end
+		expect(example.beats):toBe(3)
+		expect(example:Greeting("Alyx")):toBe("Welcome to Next-City, Alyx!")
+
+		client:Call("InitPostEntity")
+		expect(client:Get("NC").Modules:Instance("example").worldReady):toBe(true)
+
+		server:Call("ShutDown")
+		expect(#server:Lines("[example] stopped after 3 heartbeats")):toBe(1)
+		expect(server:Get("NC").Scheduler:Has("example:heartbeat")):toBe(false)
+	end)
+
 	it("keeps every gamemode file in standard Lua syntax", function()
 		local count = 0
 		for path in pairs(Env.RepoFiles()) do
