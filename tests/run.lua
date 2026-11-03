@@ -13,6 +13,8 @@ local SPECS = {
 	"tests/unit/runner_spec.lua",
 	"tests/unit/log_spec.lua",
 	"tests/unit/events_spec.lua",
+	"tests/unit/scheduler_spec.lua",
+	"tests/unit/fsm_spec.lua",
 }
 
 local source = debug.getinfo(1, "S").source
