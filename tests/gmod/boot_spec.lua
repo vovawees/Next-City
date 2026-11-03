@@ -43,7 +43,9 @@ end
 
 local function brokenFiles()
 	local files = probeFiles()
-	files[MODULES .. "user/module.lua"] = [[return { id = "user", requires = { "probe" }, files = { sv = { "sv_user.lua" } } }]]
+	files[MODULES .. "user/module.lua"] = [[
+		return { id = "user", requires = { "probe" }, files = { sv = { "sv_user.lua" } } }
+	]]
 	files[MODULES .. "user/sv_user.lua"] = [[
 		local M = NC.Module("user")
 		function M:Start(ctx) self.probe = ctx:Require("probe") end
