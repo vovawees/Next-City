@@ -1,0 +1,19 @@
+# Как участвовать
+
+Перед работой прочитайте [архитектуру](docs/ARCHITECTURE.md) и [стиль кода](docs/CODESTYLE.md).
+
+## Локальная проверка
+
+Нужны [LuaJIT 2.1](https://luajit.org/) и [glualint](https://github.com/FPtje/GLuaFixer/releases). В CI оба шага запускаются автоматически.
+
+```sh
+luajit tests/run.lua          # юнит-тесты ядра и smoke-тест загрузки
+glualint lint gamemodes tests # линтер
+```
+
+## Правила
+
+- `main` всегда рабочий. Новая работа — в ветке `feat/<name>` или `fix/<name>`, слияние через PR с зелёным CI.
+- Один логический шаг — один коммит, сообщения по Conventional Commits.
+- Не копируйте код из Z-City, Homigrad и других проектов с несовместимой лицензией — только собственные реализации.
+- Новое архитектурное решение — строка в таблице «Ключевые решения» в `docs/ARCHITECTURE.md`.
