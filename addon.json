@@ -1,0 +1,15 @@
+{
+  "title": "Next-City",
+  "type": "gamemode",
+  "tags": ["realism", "fun"],
+  "ignore": [
+    "*.md",
+    "docs/*",
+    "tests/*",
+    ".github/*",
+    ".editorconfig",
+    ".gitattributes",
+    ".gitignore",
+    ".glualint.json"
+  ]
+}

@@ -1,0 +1,7 @@
+"nextcity"
+{
+	"base"			"base"
+	"title"			"Next-City"
+	"category"		"pvp"
+	"menusystem"	"1"
+}
