@@ -1,7 +1,9 @@
 -- Next-City platform: boot sequence, runs on both realms.
 --
--- Loads the core libraries and config, builds the kernel (logger, event bus, scheduler,
--- services, module registry), loads modules and wires the engine bridge and dev tools.
+-- Loads the core libraries and the config (config.lua with the config files of packages,
+-- platform/packages.lua), builds the kernel (logger, event bus, scheduler, services,
+-- module registry), loads the modules of every package and wires the engine bridge and
+-- dev tools.
 -- Running this file again (gamemode autorefresh) stops the previous kernel and boots a
 -- fresh one; if the gamemode has already started, the new kernel starts right away.
 
@@ -18,7 +20,10 @@ local Lib = {
 	Scope = NC.IncludeShared("core/scope.lua"),
 }
 NC.Lib = Lib
-NC.Config = NC.IncludeShared("config.lua")
+local Packages = NC.IncludeShared("platform/packages.lua")
+NC.Packages = Packages.List(NC.ROOT)
+local configProblems
+NC.Config, configProblems = Packages.Config(NC.IncludeShared("config.lua"), NC.Packages)
 local Loader = NC.IncludeShared("platform/loader.lua")
 local NetService = NC.IncludeShared("platform/net.lua")
 local I18nService = NC.IncludeShared("platform/i18n.lua")
@@ -44,6 +49,9 @@ local function consoleSink(level, tag, message)
 end
 
 local log = Lib.Log.New("core", { level = NC.Config.logLevel or "info", sink = consoleSink })
+for _, message in ipairs(configProblems) do
+	log:Error("%s", message)
+end
 
 -- Services with a Shutdown method release what they hold outside the kernel (listeners,
 -- network receivers). Their data stays readable for the services that take over.
@@ -96,8 +104,13 @@ NC.Net = NetService.New({
 	previous = previous.net,
 })
 
+local langDirs = {}
+for i, package in ipairs(NC.Packages) do
+	langDirs[i] = package.path .. "lang/"
+end
+
 NC.I18n = I18nService.New({
-	root = NC.ROOT,
+	dirs = langDirs,
 	config = NC.Config.i18n,
 	log = log:Child("i18n"),
 	events = NC.Events,
@@ -163,7 +176,9 @@ function NC.Shutdown()
 	NC.started = false
 end
 
-Loader.Load(NC.Modules, NC.Config.modules or {}, log)
+local _, sources = Loader.Load(NC.Modules, NC.Config.modules or {}, log, NC.Packages)
+-- The package of every registered module: { [id] = "core" | gamemode | "addons" }.
+NC.ModulePackages = sources
 NC.Modules:InitAll()
 
 NC.IncludeShared("platform/bridge.lua")

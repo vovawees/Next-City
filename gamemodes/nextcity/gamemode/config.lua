@@ -1,5 +1,7 @@
--- Next-City configuration.
--- This file is sent to clients: never put passwords, keys or other secrets here.
+-- Next-City configuration: the defaults of the core.
+-- A server keeps its own settings in lua/nextcity/config/server.lua and packages in their
+-- config/ folders (platform/packages.lua): they apply over this file, which stays as it is.
+-- Config files are sent to clients: never put passwords, keys or other secrets in them.
 
 return {
 	-- Console log level: "trace", "debug", "info", "warn", "error" or "off".

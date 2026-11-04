@@ -17,12 +17,27 @@
 3. В консоли сервера `nc_modules` покажет загруженные модули, `nc_perf` — профиль задач.
 4. Раунды начинаются с двух игроков, по умолчанию — Team Deathmatch; одному можно добавить бота командой `bot` в консоли сервера.
 
+## Сборка сервера
+
+Ядро — системы и их API без контента: оружие, патроны, предметы и режимы ставятся пакетами поверх него ([D15](docs/ARCHITECTURE.md#4-модули)). Пакет — обычный аддон с папкой `lua/nextcity/`: модули в `modules/<id>/`, переводы в `lang/<язык>/`, настройки в `config/`. Пакетом может быть и производный gamemode (`DeriveGamemode("nextcity")`) с теми же папками в своём `gamemode/`.
+
+Свои настройки сервер кладёт в `garrysmod/lua/nextcity/config/server.lua` — они накладываются на `config.lua` ядра и настройки пакетов, поэтому файлы ядра менять не нужно:
+
+```lua
+return {
+	modules = {
+		disabled = { mode_tdm = true },                 -- выключить модуль
+		settings = { rounds = { mode = "homicide" } },  -- настройки модуля
+	},
+}
+```
+
 ## Структура
 
 ```text
 gamemodes/nextcity/gamemode/
 ├── init.lua, cl_init.lua, shared.lua   # точки входа
-├── config.lua                          # включение модулей, провайдеры, настройки
+├── config.lua                          # настройки ядра по умолчанию (сервер — lua/nextcity/config/server.lua)
 ├── core/                               # L0: чистый Lua, тестируется вне игры
 ├── platform/                           # L1: загрузка, мост GM:*, сеть, компоненты, переводы, devtools
 ├── lang/<код>/                         # переводы: _language.lua + файл на модуль
@@ -31,7 +46,7 @@ tests/                                  # раннер, юнит-тесты яд
 docs/                                   # архитектура, стиль кода, роадмап
 ```
 
-Новый модуль начинается с копии [`modules/example`](gamemodes/nextcity/gamemode/modules/example/README.md).
+Новый модуль начинается с копии [`modules/example`](gamemodes/nextcity/gamemode/modules/example/README.md); модуль контента или режима кладётся в пакет (`lua/nextcity/modules/<id>/` своего аддона), а не в ядро.
 
 ## Языки
 

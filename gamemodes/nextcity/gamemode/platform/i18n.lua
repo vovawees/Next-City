@@ -1,9 +1,10 @@
 -- Next-City platform: translations service (ctx.i18n), runs on both realms.
 --
--- Files: lang/<code>/_language.lua (metadata) and lang/<code>/<namespace>.lua (strings),
--- see docs/ARCHITECTURE.md, section 12. The server sends every file to clients and
--- loads every language. A client loads the metadata of all languages but the strings of
--- its fallback chain only, and loads more when the language changes.
+-- Files: lang/<code>/_language.lua (metadata) and lang/<code>/<namespace>.lua (strings)
+-- of every package (platform/packages.lua), see docs/ARCHITECTURE.md, section 12: a
+-- package translates its own modules and may add languages. The server sends every file
+-- to clients and loads every language. A client loads the metadata of all languages but
+-- the strings of its fallback chain only, and loads more when the language changes.
 --
 -- Client language: config i18n.force, else the nc_language convar ("auto" or a code),
 -- else the game language (gmod_language). A change applies at once and emits
@@ -44,8 +45,9 @@ local function loadFile(path)
 	return result
 end
 
--- opts: root (gamemode root), config (NC.Config.i18n), log, events, net (the network
--- service, optional), previous (service of the previous kernel, on autorefresh).
+-- opts: dirs (the lang/ folders of the packages, the core first), config (NC.Config.i18n),
+-- log, events, net (the network service, optional), previous (service of the previous
+-- kernel, on autorefresh).
 function Service.New(opts)
 	local cfg = opts.config or {}
 	local log = opts.log
@@ -61,7 +63,7 @@ function Service.New(opts)
 		log:Warn("config i18n.force %s is not a language code, ignored", tostring(cfg.force))
 	end
 	local service = setmetatable({
-		root = opts.root,
+		dirs = opts.dirs,
 		log = log,
 		events = opts.events,
 		net = opts.net,
@@ -110,31 +112,48 @@ function Service.New(opts)
 	return service
 end
 
+-- Every language folder of every package: the namespaces of a language come from all of
+-- them in package order (a later file overrides keys of an earlier one), the metadata
+-- from the first package that has it.
 function Service:_Discover()
-	local base = self.root .. LANG_DIR
-	local _, folders = file.Find(base .. "*", "LUA")
-	for _, folder in ipairs(sortedCopy(folders)) do
-		local code = I18nLib.Normalize(folder)
-		if code ~= folder then
-			self.log:Warn("lang/%s skipped: the folder name must be a lowercase language code (en, ru, pt-br)", folder)
-		else
-			local dir = base .. folder .. "/"
-			local entry = { namespaces = {} }
-			for _, name in ipairs(sortedCopy(file.Find(dir .. "*.lua", "LUA"))) do
-				local path = dir .. name
-				if SERVER then
-					AddCSLuaFile(path)
+	local codes = {}
+	for _, base in ipairs(self.dirs) do
+		local _, folders = file.Find(base .. "*", "LUA")
+		for _, folder in ipairs(sortedCopy(folders)) do
+			local code = I18nLib.Normalize(folder)
+			if code ~= folder then
+				self.log:Warn("%s%s skipped: the folder name must be a lowercase language code (en, ru, pt-br)",
+					self:_Short(base), folder)
+			else
+				local dir = base .. folder .. "/"
+				local entry = self.files[code]
+				if entry == nil then
+					entry = { namespaces = {} }
+					self.files[code] = entry
+					codes[#codes + 1] = code
 				end
-				if name == META_FILE then
-					entry.meta = path
-				else
-					entry.namespaces[#entry.namespaces + 1] = { name = name:sub(1, -5), path = path }
+				for _, name in ipairs(sortedCopy(file.Find(dir .. "*.lua", "LUA"))) do
+					local path = dir .. name
+					if SERVER then
+						AddCSLuaFile(path)
+					end
+					if name == META_FILE then
+						entry.meta = entry.meta or path
+					else
+						entry.namespaces[#entry.namespaces + 1] = { name = name:sub(1, -5), path = path }
+					end
 				end
 			end
-			self.files[code] = entry
-			self:_LoadMeta(code, entry.meta)
 		end
 	end
+	for _, code in ipairs(codes) do
+		self:_LoadMeta(code, self.files[code].meta)
+	end
+end
+
+-- "lang/" for the folder of the core, the full path for the ones of other packages.
+function Service:_Short(base)
+	return base == self.dirs[1] and LANG_DIR or base
 end
 
 function Service:_LoadMeta(code, path)

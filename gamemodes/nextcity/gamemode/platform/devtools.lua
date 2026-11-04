@@ -1,6 +1,6 @@
 -- Next-City platform: developer console commands.
 --
---   nc_modules       module order, states and failure reasons
+--   nc_modules       module order, states, failure reasons and packages but the core
 --   nc_perf          scheduler profile: time per job and timer tag
 --   nc_perf_reset    reset the profile
 --   nc_lang [code]   languages and translation completeness; with a code: what is missing
@@ -24,9 +24,14 @@ end
 
 local function moduleLines()
 	local rows = NC.Modules:Report()
+	local packages = NC.ModulePackages or {}
 	local lines = { format("Next-City %s: %d modules (%s)", NC.VERSION, #rows, SERVER and "server" or "client") }
 	for _, row in ipairs(rows) do
 		local line = format("  %3s  %-24s %-11s", row.index and tostring(row.index) or "-", row.id, row.state)
+		local package = packages[row.id]
+		if package ~= nil and package ~= "core" then
+			line = line .. " [" .. package .. "]"
+		end
 		if row.provides ~= row.id then
 			line = line .. " provides " .. row.provides
 		end

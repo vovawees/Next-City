@@ -22,6 +22,7 @@ local SPECS = {
 	"tests/unit/params_spec.lua",
 	"tests/unit/scope_spec.lua",
 	"tests/gmod/boot_spec.lua",
+	"tests/gmod/packages_spec.lua",
 	"tests/gmod/i18n_spec.lua",
 	"tests/gmod/net_spec.lua",
 	"tests/gmod/components_spec.lua",

@@ -117,7 +117,8 @@ end
 -- modules (ids of the only repository modules to keep on; nil keeps the config as it is),
 -- visible (set of LUA paths; client realms see only these), language (gmod_language of
 -- a client, "en"), convars ({ [name] = value }: saved values of archived convars),
--- pool (network strings, shared by a server and its clients).
+-- pool (network strings, shared by a server and its clients), gamemode (the active
+-- gamemode of engine.ActiveGamemode, default ours; clients take the server's).
 function Env.New(realm, opts)
 	opts = opts or {}
 	local instance = setmetatable({
@@ -146,6 +147,7 @@ function Env.New(realm, opts)
 		newGlobals = {},
 		sources = opts.sources or {},
 		patch = opts.patch or {},
+		gamemode = opts.gamemode,
 		partial = "",
 	}, Env)
 
@@ -205,6 +207,7 @@ function Env.Client(server, opts)
 	opts.sources = server.sources
 	opts.patch = opts.patch or server.patch
 	opts.pool = server.pool
+	opts.gamemode = opts.gamemode or server.gamemode
 	return Env.New("client", opts)
 end
 
@@ -1122,6 +1125,9 @@ function Env:_CreateGame(G)
 	function G.game.GetWorld() return World.WORLD end
 	function G.game.GetAmmoName(id) return World.AMMO[id] end
 	function G.game.GetAmmoID(name) return Env.AmmoID(name) end
+	-- The active gamemode: opts.gamemode of the realm (a gamemode that derives from ours).
+	G.engine = {}
+	function G.engine.ActiveGamemode() return env.gamemode or Env.GAMEMODE end
 	if self.realm == "server" then
 		function G.game.CleanUpMap(dontSendToClients)
 			env:_CleanUpMap(dontSendToClients)
