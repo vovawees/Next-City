@@ -401,7 +401,7 @@ function M:_BuildSlot(grid, c, slot, where, receive)
 	local button = grid:Add("DButton")
 	button:SetSize(SLOT, SLOT)
 	button:SetText("")
-	button.ncContainer, button.ncSlot, button.ncWhere = c.id, slot, where
+	button.ncContainer, button.ncSlot, button.ncWhere, button.ncKind = c.id, slot, where, c.kind
 	button.Paint = paintSlot
 	button.ncReceive = receive
 	button:Receiver(DRAG, receive)
@@ -482,7 +482,7 @@ function M:OpenMenu(button)
 	end
 	local menu = DermaMenu()
 	local id, slot = button.ncContainer, button.ncSlot
-	for _, verb in ipairs(self:VerbsFor(item, button.ncWhere)) do
+	for _, verb in ipairs(self:VerbsFor(item, button.ncWhere, button.ncKind)) do
 		local verbId = verb.id
 		menu:AddOption(self:_T(verb.label, nil, verbId), function()
 			self:Act(id, slot, verbId, 0)
@@ -521,7 +521,7 @@ function M:QuickUse(button)
 		self:Act(button.ncContainer, button.ncSlot, "take", 0)
 		return
 	end
-	for _, verb in ipairs(self:VerbsFor(item, "own")) do
+	for _, verb in ipairs(self:VerbsFor(item, "own", button.ncKind)) do
 		if verb.id ~= "drop" and verb.id ~= "split" then
 			self:Act(button.ncContainer, button.ncSlot, verb.id, 0)
 			return

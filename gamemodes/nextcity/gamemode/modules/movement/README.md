@@ -6,6 +6,7 @@
 |---|---|
 | Интерфейс | `movement` |
 | Зависимости | `players`, `organism` |
+| Спрашивает | `movement.speed (factor, ply, caps) -> factor` — доля скоростей, которую оставляют другие модули (груз `equipment`); итог ограничен 0,05..2 |
 | Слушает | `organism.capabilities`, `players.spawned` (после `organism`: базовое появление сбрасывает скорости), `players.died`, `players.left`, `players.stateChanged`, `gm.StartCommand` (сервер и клиент) |
 | Настройки | `walk` = 160, `run` = 300, `slowWalk` = 90 (клавиша `+walk`), `crawl` = 45 — юнит/с здорового тела; `crouch` = 0,4 — доля ходьбы вприсядку; `jump` = 190 — сила прыжка |
 
@@ -24,4 +25,5 @@
 
 - `M:Limit(ply)` → ограничение (`{ frozen, keep, add }`) или `nil`.
 - `M.LimitOf(caps)` → ограничение для возможностей (общая функция).
-- Сервер: `M:Speeds(caps)` → ходьба, бег, медленная ходьба, доля приседа, сила прыжка; `M:Apply(ply, caps)` — применить.
+- Сервер: `M:Speeds(caps)` → ходьба, бег, медленная ходьба, доля приседа, сила прыжка; `M:Apply(ply, caps)` — применить; `M:Refresh(ply)` — применить заново, когда изменилась доля `movement.speed`.
+- Доля `movement.speed` умножает ходьбу, бег и медленную ходьбу, а прыжок — на 0,6 + 0,4 · доля (не больше 1).

@@ -63,11 +63,11 @@ inventory:Load(ply); inventory:Clear(ply); inventory:Carries(ply)
 
 ```lua
 inventory:RegisterVerb("use", { label = "medical.verb.use", order = 5,
-	Applies = function(item, def, where) return def.traits.medical ~= nil end }) -- оба realm
+	Applies = function(item, def, where, kind) return def.traits.medical ~= nil end }) -- оба realm
 inventory:HandleVerb("use", function(ply, item, container, count) return true end) -- сервер
 ```
 
-`where` — `"own"` (свои контейнеры) или `"external"` (чужие). Встроенные: `take`, `open` (сумка в чужом контейнере), `split`, `drop`.
+`where` — `"own"` (свои контейнеры) или `"external"` (чужие). `kind` — вид контейнера, где лежит предмет (`pockets`, `equipment`, `bag`, `crate`…). Встроенные: `take`, `open` (сумка в чужом контейнере), `split`, `drop`.
 
 ## Мир
 

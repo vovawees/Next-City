@@ -18,8 +18,9 @@
 -- charge, cond, label, sub }.
 --
 -- Verbs are what a player may do with an item (the menu of the screen):
---   RegisterVerb(id, { label = key, order = n, Applies = function(item, def, where) end })
--- on both realms (where: "own" for the player's containers, "external" for others), and
+--   RegisterVerb(id, { label = key, order = n, Applies = function(item, def, where, kind) end })
+-- on both realms (where: "own" for the player's containers, "external" for others; kind:
+-- of the container the item lies in), and
 -- HandleVerb(id, fn) on the server: fn(ply, item, container, count) -> true, or false
 -- and the key of a reason (a notice). Built in: take, drop, split, open (sv_inventory.lua).
 
@@ -171,13 +172,14 @@ function M:HandleVerb(id, fn)
 	self.handlers[id] = fn
 end
 
--- Whether verb `id` applies to `item` (an instance or a snapshot item) at `where`.
-function M:VerbApplies(id, item, where)
+-- Whether verb `id` applies to `item` (an instance or a snapshot item) at `where`, in a
+-- container of `kind`.
+function M:VerbApplies(id, item, where, kind)
 	local verb, def = self.verbs[id], self.defs[item.id]
 	if verb == nil or def == nil then
 		return false
 	end
-	return verb.Applies == nil or verb.Applies(item, def, where) == true
+	return verb.Applies == nil or verb.Applies(item, def, where, kind) == true
 end
 
 local function byOrder(a, b)
@@ -187,11 +189,12 @@ local function byOrder(a, b)
 	return a.id < b.id
 end
 
--- The verbs that apply to `item` at `where`, in their order: { id, label, order }.
-function M:VerbsFor(item, where)
+-- The verbs that apply to `item` at `where` in a container of `kind`, in their order:
+-- { id, label, order }.
+function M:VerbsFor(item, where, kind)
 	local list = {}
 	for id, verb in pairs(self.verbs) do
-		if self:VerbApplies(id, item, where) then
+		if self:VerbApplies(id, item, where, kind) then
 			list[#list + 1] = verb
 		end
 	end

@@ -7,3 +7,5 @@ KNOWN ISSUES / GAPS
 PITFALLS
   module tables: methods and fields share one namespace (M:Container(id) overwrote M.Container = class).
   inventory Give(player) reasons come from _Store (size/weight beat "full").
+  specs: IsValid is not a global in spec files (use ent:IsValid()).
+  movement.speed factors: modules that change theirs must call movement:Refresh(ply) (speeds are set, not polled).

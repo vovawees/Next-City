@@ -38,7 +38,7 @@ return {
 		.. "Drag things here to put them on the ground.",
 	["hint.pickup"] = "{key} — pick up",
 	["hint.search"] = "{key} — search",
-	["slot.head"] = "Head",
+	["slot.helmet"] = "Helmet",
 	["slot.vest"] = "Vest",
 	["slot.plates"] = "Plates",
 	["slot.back"] = "Back",

@@ -38,7 +38,7 @@ return {
 		.. "Перетащите вещь сюда, чтобы положить её на землю.",
 	["hint.pickup"] = "{key} — поднять",
 	["hint.search"] = "{key} — обыскать",
-	["slot.head"] = "Голова",
+	["slot.helmet"] = "Шлем",
 	["slot.vest"] = "Жилет",
 	["slot.plates"] = "Пластины",
 	["slot.back"] = "Спина",

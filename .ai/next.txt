@@ -1,6 +1,6 @@
 NEXT (ordered)
-  1 notices module (player-facing translated toasts/chat)            part of M6 groundwork
-  2 storage #2 -> actions #3 -> inventory #4 #5 #6 #7 -> equipment #8 -> medical #9 (organism:Examine) -> loot #10
+  1 done: notices, storage #2, actions #3, inventory #4-#7, equipment #8
+  2 medical #9 (organism:Examine, item trait medical, verbs use/treat) -> loot #10
   3 content package lua/nextcity #11 (weaponry, supplies) -> mode_tdm via inventory #12 -> close M6 (docs, roadmap)
   4 roles #13 -> homicide #14 -> hideseek #15 -> riot #16 -> defense #17 -> coop #18 -> dm #19
   5 city #20 -> city_economy #21 -> city_doors #22 -> city_police #23 -> city UI #24 -> close M7

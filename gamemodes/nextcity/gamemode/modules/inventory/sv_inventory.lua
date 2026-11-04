@@ -612,7 +612,7 @@ function M:Act(ply, containerId, slot, verb, count)
 		return false, "empty"
 	end
 	local handler = self.handlers[verb]
-	if handler == nil or not self:VerbApplies(verb, item, self:Where(ply, c)) then
+	if handler == nil or not self:VerbApplies(verb, item, self:Where(ply, c), c.kind) then
 		return false, "verb"
 	end
 	local ok, result, reason = xpcall(handler, traceback, ply, item, c, count or 0)

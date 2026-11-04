@@ -6,9 +6,13 @@
 --   crawling   (cannot stand) crouching forced at the crawl speed, less without the arms
 --   unconscious no input at all
 --
+-- Other modules scale the speeds (a load, a wound they model): the reduce movement.speed
+-- (factor, ply, caps) -> factor, and Refresh(ply) when their factor changed.
+--
 -- Listens: organism.capabilities, players.spawned (after the organism: the base spawn
 --          resets the speeds), players.died, players.left, players.stateChanged,
 --          gm.StartCommand.
+-- Reduces: movement.speed (1, ply, caps): the share of the speeds left.
 
 local M = NC.Module("movement")
 
@@ -75,10 +79,23 @@ function M:Apply(ply, caps)
 		return
 	end
 	local walk, run, slow, crouch, jump = self:Speeds(caps)
+	local factor = self.ctx.events:Reduce("movement.speed", 1, ply, caps)
+	if factor ~= 1 then
+		factor = max(0.05, min(2, factor))
+		walk, run, slow = max(1, walk * factor), max(1, run * factor), max(1, slow * factor)
+		jump = jump * (0.6 + 0.4 * min(1, factor))
+	end
 	ply:SetWalkSpeed(walk)
 	ply:SetRunSpeed(run)
 	ply:SetSlowWalkSpeed(slow)
 	ply:SetCrouchedWalkSpeed(crouch)
 	ply:SetJumpPower(jump)
 	self.limits[ply] = M.LimitOf(caps)
+end
+
+-- Sets the speeds of a living player again (a factor of movement.speed changed).
+function M:Refresh(ply)
+	if IsValid(ply) and ply:Alive() then
+		self:Apply(ply, self.organism:Capabilities(ply))
+	end
 end
