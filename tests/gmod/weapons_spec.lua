@@ -484,8 +484,15 @@ describe("weapons", function()
 		w.server:Command("nc_give", nil, { "Gordon", "test_pistol" })
 		expect(w.ply:GetAmmoCount("9x19_fmj")):toBe(30)
 		w.server:Command("nc_give", nil, { "Gordon", "nope" })
-		expect(#w.server:Lines("nc_give: unknown weapon 'nope'; weapons: test_rifle, test_shotgun, test_pistol"))
+		expect(#w.server:Lines("nc_give: unknown weapon 'nope'; firearms: test_rifle, test_shotgun, test_pistol"))
 			:toBe(1)
+		-- Any other scripted weapon, as the engine gives it.
+		for _, realm in ipairs({ w.server, w.client }) do
+			realm.G.weapons.Register({ Base = "weapon_base" }, "test_tool")
+		end
+		w.server:Command("nc_give", nil, { "Gordon", "test_tool" })
+		expect(#w.server:Lines("nc_give: Gordon got test_tool")):toBe(1)
+		expect(w.ply:GetActiveWeapon():GetClass()):toBe("test_tool")
 		w.server:Command("nc_give", nil, { "Nobody", "test_rifle" })
 		expect(#w.server:Lines("nc_give: no player")):toBe(1)
 		local _, why = w.weapons:Give(w.ply, "test_rifle", { ammo = "9x19_fmj" })

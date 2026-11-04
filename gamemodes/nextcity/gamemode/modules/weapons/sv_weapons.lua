@@ -1,7 +1,8 @@
 -- Weapons, server part: giving weapons and the console.
 --
 -- Commands: nc_weapons — the registered weapons; nc_give <player> <class> [reserve] — a
---           loaded weapon and rounds of its ammo in reserve (two magazines by default).
+--           loaded weapon and rounds of its ammo in reserve (two magazines by default),
+--           or any other scripted weapon as the engine gives it.
 
 local M = NC.Module("weapons")
 
@@ -68,7 +69,13 @@ function M:GiveCommand(caller, args)
 	local class = args[2]
 	local def = self.defs[class or ""]
 	if def == nil then
-		return format("nc_give: unknown weapon '%s'; weapons: %s", tostring(class),
+		-- Any other scripted weapon (melee, the hands of a package) as the engine gives it.
+		if class ~= nil and weapons.GetStored(class) ~= nil and ply:Alive() then
+			ply:Give(class)
+			ply:SelectWeapon(class)
+			return format("nc_give: %s got %s", ply:Nick(), class)
+		end
+		return format("nc_give: unknown weapon '%s'; firearms: %s", tostring(class),
 			#self.order > 0 and concat(self.order, ", ") or "none")
 	end
 	local reserve = math.max(0, math.floor(tonumber(args[3] or "") or def.magazine * 2))
