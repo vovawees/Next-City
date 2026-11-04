@@ -37,6 +37,7 @@ local SPECS = {
 	"tests/gmod/armor_spec.lua",
 	"tests/gmod/movement_spec.lua",
 	"tests/gmod/hud_spec.lua",
+	"tests/gmod/ragdoll_spec.lua",
 	"tests/gmod/soak_spec.lua",
 }
 

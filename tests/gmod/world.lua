@@ -119,6 +119,7 @@ function VectorMethods:WithinAABox(mins, maxs)
 		and self.z <= maxs.z
 end
 function VectorMethods:Unpack() return self.x, self.y, self.z end
+function VectorMethods:SetUnpacked(x, y, z) self.x, self.y, self.z = x, y, z end
 function VectorMethods:Cross(o)
 	return Vector(self.y * o.z - self.z * o.y, self.z * o.x - self.x * o.z, self.x * o.y - self.y * o.x)
 end
@@ -286,7 +287,7 @@ function Player:Team() return self.team end
 function Player:SetTeam(index) self.team = index end
 function Player:GetPos() return Vector(self.pos) end
 function Player:SetPos(pos) self.pos = Vector(pos) end
-function Player:EyePos() return Vector(self.pos.x, self.pos.y, self.pos.z + 64) end
+function Player:EyePos() return self.pos + self:GetViewOffset() end
 function Player:EyeAngles() return Angle(self.angles) end
 function Player:GetAngles() return Angle(self.angles) end
 function Player:SetEyeAngles(ang) self.angles = Angle(ang) end
@@ -418,6 +419,10 @@ function Player:LookupBone(name)
 	end
 	return World.BONE_IDS[name]
 end
+
+function Player:GetBoneName(bone) return World.BONE_NAMES[(bone or -1) + 1] end
+-- Bones are set up again (ply.setups counts the calls); positions are always current here.
+function Player:SetupBones() self.setups = (self.setups or 0) + 1 end
 
 -- World position of a bone: the skeleton turned by the yaw, lowered by 20 units above the
 -- pelvis and 14 below it while crouching; ply.bones[name] overrides (relative too).
@@ -714,6 +719,16 @@ local function anglesOf(f, l, u)
 end
 World.Rotate, World.Unrotate, World.AnglesOf = rotate, unrotate, anglesOf
 
+-- LocalToWorld and WorldToLocal of GMod: a position and angles in the frame (pos, ang).
+function World.LocalToWorld(lpos, lang, pos, ang)
+	local f, l, u = axes(lang)
+	return pos + rotate(ang, lpos), anglesOf(rotate(ang, f), rotate(ang, l), rotate(ang, u))
+end
+function World.WorldToLocal(wpos, wang, pos, ang)
+	local f, l, u = axes(wang)
+	return unrotate(ang, wpos - pos), anglesOf(unrotate(ang, f), unrotate(ang, l), unrotate(ang, u))
+end
+
 local Entity = {}
 local EntityMeta = {
 	__index = Entity,
@@ -766,6 +781,10 @@ function Entity:EyePos() return self:GetPos() end
 function Entity:EyeAngles() return self:GetAngles() end
 function Entity:LookupBone() return nil end
 function Entity:GetBonePosition() return nil end
+function Entity:GetBoneName(bone) return World.BONE_NAMES[(bone or -1) + 1] end
+function Entity:GetBoneCount() return 0 end
+-- Bones are set up again (ent.setups counts the calls); positions are always current here.
+function Entity:SetupBones() self.setups = (self.setups or 0) + 1 end
 function Entity:LookupAttachment() return 0 end
 function Entity:GetAttachment() return nil end
 function Entity:GetPhysicsObject() return World.NULL_PHYS end
@@ -981,6 +1000,7 @@ function Ragdoll:TranslateBoneToPhysBone(bone)
 	return phys and phys.num or -1
 end
 function Ragdoll:LookupBone(name) return World.BONE_IDS[name] end
+function Ragdoll:GetBoneCount() return #World.BONE_NAMES end
 -- Physics bones where their objects are; the others hang on theirs as in the skeleton.
 function Ragdoll:GetBonePosition(bone)
 	local name = World.BONE_NAMES[(bone or -1) + 1]
@@ -1189,6 +1209,8 @@ function World.Install(env, G)
 		G["MOVETYPE_" .. name] = value
 	end
 	G.DamageInfo = World.DamageInfo
+	G.LocalToWorld = World.LocalToWorld
+	G.WorldToLocal = World.WorldToLocal
 	G.MASK_PLAYERSOLID = 33636363
 	G.MASK_SOLID = 33570827
 	G.MASK_SHOT = 1174421507
@@ -1316,7 +1338,7 @@ function World.InstallDrawing(env, G)
 	env.fonts = {}
 	env.rects = {}
 	env.effects = {}
-	env.bindings = { ["+reload"] = "r" }
+	env.bindings = { ["+reload"] = "r", ["+jump"] = "space" }
 	local color = { 255, 255, 255, 255 }
 	local material = nil
 	G.TEXT_ALIGN_LEFT = 0
