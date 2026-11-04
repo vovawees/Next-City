@@ -41,6 +41,7 @@ local SPECS = {
 	"tests/gmod/ragdoll_spec.lua",
 	"tests/gmod/ragdoll_control_spec.lua",
 	"tests/gmod/ammo_spec.lua",
+	"tests/gmod/ballistics_spec.lua",
 	"tests/gmod/soak_spec.lua",
 }
 

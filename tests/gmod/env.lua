@@ -1037,10 +1037,14 @@ function Env.Geometry(realm)
 end
 
 -- A user command of `ply` with buttons (IN_* sum) and movement runs GM:StartCommand on
--- `realm` (the server or the player's client). Returns the command as modules left it.
+-- `realm` (the server or the player's client), with `ply` as the prediction player.
+-- Returns the command as modules left it.
 function Env.RunCommand(realm, ply, buttons, forward, side)
 	local cmd = World.UserCmd(buttons, forward, side)
+	local previous = realm.predictionPlayer
+	realm.predictionPlayer = ply
 	realm:Call("StartCommand", ply, cmd)
+	realm.predictionPlayer = previous
 	return cmd
 end
 

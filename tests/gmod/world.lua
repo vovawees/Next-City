@@ -269,6 +269,8 @@ end
 function Player:IsValid() return self.valid end
 function Player:IsWorld() return false end
 function Player:IsPlayer() return true end
+function Player:IsNPC() return false end
+function Player:IsNextBot() return false end
 function Player:IsBot() return self.bot end
 function Player:EntIndex() return self.index end
 function Player:UserID() return self.index end
@@ -776,6 +778,9 @@ end
 function Entity:IsValid() return self.valid end
 function Entity:IsWorld() return false end
 function Entity:IsPlayer() return false end
+-- A creature of the engine: ent.npc / ent.nextbot = true.
+function Entity:IsNPC() return self.npc == true end
+function Entity:IsNextBot() return self.nextbot == true end
 function Entity:IsRagdoll() return false end
 function Entity:IsWeapon() return false end
 function Entity:IsMarkedForDeletion() return self.removing end
@@ -1398,8 +1403,9 @@ end
 -- Effects, decals, shakes, prediction and lag compensation of a realm. Recorded:
 -- env.fx ({ name, data, filter }), env.decals ({ name, start, endpos }), env.shakes
 -- ({ pos, amplitude, frequency, duration, radius }). IsFirstTimePredicted answers
--- env.firstTimePredicted (default true); util.SharedRandom is a hash of its arguments
--- and env.commandNumber, the same on every realm.
+-- env.firstTimePredicted (default true); GetPredictionPlayer answers env.predictionPlayer
+-- (the player whose command runs, Env.RunCommand); util.SharedRandom is a hash of its
+-- arguments and env.commandNumber, the same on every realm.
 function World.InstallEffects(env, G)
 	env.fx, env.decals, env.shakes = {}, {}, {}
 	G.EffectData = World.EffectData
@@ -1415,6 +1421,9 @@ function World.InstallEffects(env, G)
 	end
 	function G.IsFirstTimePredicted()
 		return env.firstTimePredicted ~= false
+	end
+	function G.GetPredictionPlayer()
+		return env.predictionPlayer or World.NULL
 	end
 	function G.util.SharedRandom(name, low, high, seed)
 		local key = tostring(name) .. ":" .. tostring(seed or 0) .. ":" .. tostring(env.commandNumber or 0)

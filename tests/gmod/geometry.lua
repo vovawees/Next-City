@@ -3,7 +3,7 @@
 -- With geometry, util.TraceLine, util.TraceHull and util.PointContents of a realm see:
 --   boxes      geometry:Box(mins, maxs, opts), parts of the map; opts: mat (MAT_*, default
 --              MAT_CONCRETE), contents (CONTENTS_*, default CONTENTS_SOLID), sky (HitSky),
---              surface (SurfaceProps)
+--              surface (SurfaceProps), displacement (DispFlags 1: the ground)
 --   props      entities with ent.box = { mins, maxs } around their position, ent.mat and
 --              ent.contents (default CONTENTS_SOLID)
 --   players    living solid players: hitboxes around the bones of their skeleton for rays
@@ -71,7 +71,8 @@ end
 function Geometry:Box(mins, maxs, opts)
 	opts = opts or {}
 	local box = { mins = Vector(mins), maxs = Vector(maxs), mat = opts.mat or Geometry.MAT.CONCRETE,
-		contents = opts.contents or C.SOLID, sky = opts.sky == true, surface = opts.surface or 0 }
+		contents = opts.contents or C.SOLID, sky = opts.sky == true, surface = opts.surface or 0,
+		displacement = opts.displacement == true }
 	self.boxes[#self.boxes + 1] = box
 	return box
 end
@@ -161,7 +162,7 @@ function Geometry:_Shapes(mask, hull, ignoreWorld)
 		for _, box in ipairs(self.boxes) do
 			if band(box.contents, mask) ~= 0 then
 				shapes[#shapes + 1] = { box.mins, box.maxs, ent = World.WORLD, mat = box.mat, contents = box.contents,
-					sky = box.sky, surface = box.surface, world = true }
+					sky = box.sky, surface = box.surface, world = true, displacement = box.displacement }
 			end
 		end
 	end
@@ -343,6 +344,7 @@ function Geometry:Trace(trace, hull)
 		out.SurfaceProps = bestShape.surface or 0
 		out.PhysicsBone = bestShape.bone or 0
 		out.Contents = bestShape.contents
+		out.DispFlags = bestShape.displacement and 1 or 0
 		out.HitTexture = bestShape.sky and "TOOLS/TOOLSSKYBOX" or (bestShape.world and "CONCRETE/WALL" or "**studio**")
 	end
 	return out
