@@ -307,6 +307,7 @@ function Player:SetHealth(value) self.health = value end
 function Player:Team() return self.team end
 function Player:SetTeam(index) self.team = index end
 function Player:GetPos() return Vector(self.pos) end
+function Player:WorldSpaceCenter() return Vector(self.pos) + Vector(0, 0, 36) end
 function Player:SetPos(pos) self.pos = Vector(pos) end
 function Player:EyePos() return self.pos + self:GetViewOffset() end
 function Player:EyeAngles() return Angle(self.angles) end
@@ -974,6 +975,8 @@ function Entity:SetMaxHealth(value) self.maxHealth = value end
 function Entity:OBBMins() return Vector(-8, -8, -8) end
 function Entity:OBBMaxs() return Vector(8, 8, 8) end
 function Entity:OBBCenter() return Vector(0, 0, 0) end
+function Entity:WorldSpaceCenter() return self:GetPos() + self:OBBCenter() end
+function Entity:SetUseType(value) self.useType = value end
 function Entity:GetName() return self.name or "" end
 function Entity:SetName(name) self.name = name end
 function Entity:MapCreationID() return self.map and self.index or -1 end
@@ -1799,6 +1802,7 @@ function World.InstallDrawing(env, G)
 	function G.DrawMotionBlur(add, alpha, delay)
 		env.effects[#env.effects + 1] = { "blur", add, alpha, delay }
 	end
+	G.KEY_LSHIFT, G.KEY_RSHIFT, G.KEY_LALT, G.KEY_RALT, G.KEY_LCONTROL, G.KEY_RCONTROL = 79, 80, 81, 82, 83, 84
 	G.input = {
 		LookupBinding = function(bind) return env.bindings[bind] end,
 		LookupKeyBinding = function(code) return env.keyBinds and env.keyBinds[code] or nil end,
@@ -1906,6 +1910,10 @@ end
 -- type, length }), env.uiSounds, env.screenClicker.
 function World.InstallInterface(env, G)
 	env.panels, env.chatLines, env.notifications, env.uiSounds = {}, {}, {}, {}
+	G.NODOCK, G.FILL, G.LEFT, G.RIGHT, G.TOP, G.BOTTOM = 0, 1, 2, 3, 4, 5
+	-- env.dragging: a test holds a panel of drag and drop.
+	G.dragndrop = { IsDragging = function() return env.dragging == true end }
+	G.DermaMenu = function(_, parent) return G.vgui.Create("DMenu", parent) end
 	G.vgui = {
 		Create = function(class, parent)
 			local panel = setmetatable({ env = env, class = class, parent = parent, children = {} }, PanelMeta)

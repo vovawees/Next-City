@@ -4,3 +4,6 @@ KNOWN ISSUES / GAPS
   emulator: vgui panels are fakes (no layout/paint); UI tested by structure only. Check visuals in real GMod.
   emulator: doors only model lock/unlock/open/close/toggle inputs + m_bLocked/m_eDoorState.
   real GMod measurements pending for every milestone: nc_perf, nc_net budgets with 32-128 players.
+PITFALLS
+  module tables: methods and fields share one namespace (M:Container(id) overwrote M.Container = class).
+  inventory Give(player) reasons come from _Store (size/weight beat "full").

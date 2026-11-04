@@ -7,8 +7,12 @@ STATUS (update every step)
   M5 weapons           done (cbc867a removed CI)
   M6 inventory+medical IN PROGRESS
        #1 platform hooks + emulator        done fe782d2
-       #26 .ai knowledge base              in progress (skeleton)
-       #2 storage .. #12 tdm               todo
+       #26 .ai knowledge base              in progress (updated every step)
+       notices (no issue)                  done 5780ce0
+       #2 storage                          done 5c6213c
+       #3 actions                          done 7b17e4f
+       #4-#7 inventory core/net/world/UI   done (this commit)
+       #8 equipment .. #12 tdm             todo
   M7 modes             todo (#13-#24)
   docs overhaul        todo (#25)
-  last full run        38 specs, 405 passed, 0 failed; lint clean
+  last full run        40 specs, 432 passed, 0 failed; lint clean
