@@ -327,6 +327,23 @@ function M:IsUnconscious(ply)
 	return st ~= nil and not st.dead and st.unconscious
 end
 
+-- Spends `share` (0..1) of the stamina of `ply` on an effort (a swing, a throw); the body
+-- works harder for a while. Whether he had the stamina for it: false when exhausted or
+-- without a living body.
+function M:Exert(ply, share)
+	local st = self.states[ply]
+	if st == nil or st.dead then
+		return false
+	end
+	local enough = not st.exhausted and st.stamina >= share
+	st.stamina = math.max(0, st.stamina - share)
+	st.exertion = math.min(1, st.exertion + share * 2)
+	if st.stamina <= 0.02 then
+		st.exhausted = true
+	end
+	return enough
+end
+
 -- What the body can do (see sh_organism.lua), or nil without a body. Do not modify.
 function M:Capabilities(ply)
 	local st = self.states[ply]

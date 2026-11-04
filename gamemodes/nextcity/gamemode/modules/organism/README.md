@@ -37,6 +37,7 @@
 - `M:ApplyTreatment(ply, вид, opts)` → `true` или `false` и причина (`dead`, `unknown`, `target`, `nothing`, `already`, `pulse`, `not_shockable`). Предметы (M6) решают, кто, когда и как долго лечит; здесь лечение действует сразу. `M:RegisterTreatment(вид, fn(self, st, opts, now))`.
 - `M:Succumb(ply)` — сдаться (как по клавише); `false`, если ещё нельзя.
 - `M:IsSimulated(ply)`, `M:IsDead(ply)`, `M:IsUnconscious(ply)`, `M:Capabilities(ply)`, `M:Vitals(ply)`, `M:Wounds(ply)`, `M:Describe(ply)` (строки для консоли), `M:State(ply)` (внутреннее состояние — только для отладки и тестов).
+- `M:Exert(ply, доля)` — потратить долю выносливости на усилие (удар, бросок): тело работает тяжелее; `false` — сил не было (истощён или нет живого тела).
 - `M:Locate(ply, ox, oy, oz, dx, dy, dz)`, `M:Cast(...)`, `M:NearestSegment(ply, x, y, z)` — геометрия попаданий (для брони и урона).
 - `M:SetCarrier(ply, ent | nil)`, `M:Carrier(ply)`, `M:BodyEntity(ply)`, `M:PlayerOf(ent)` — носитель тела: другая сущность (регдолл упавшего игрока), с костей которой читаются попадания, а голова смотрит туда же, куда глаза модели (вложение `eyes`); дыхание под водой — по голове носителя. `PlayerOf` — обратный поиск: чьё тело несёт сущность (так `damage` переводит урон по регдоллу в попадания по игроку). У нового тела (каждое появление) носителя нет.
 - `M:SetStep(id, fn, after)` — заменить шаг физиологии или добавить новый после `after`; `M:Steps()` — порядок шагов.
