@@ -11,6 +11,13 @@
 --
 -- Console variables: GetConVar, CreateClientConVar (client), cvars change callbacks and
 -- RunConsoleCommand work synchronously; the client has gmod_language (opts.language).
+--
+-- Network: util.AddNetworkString and the net library over typed wires (tests/support/
+-- wire.lua), so a writer and a reader that disagree fail loudly. Env.Connect links a
+-- client realm to a server realm as a player; sent messages wait in the inbox of the
+-- receiving realm until Pump (or Env.Flush) delivers them, like the next network frame.
+
+local Wire = dofile(T.root .. "tests/support/wire.lua")
 
 local Env = {}
 Env.__index = Env
@@ -71,7 +78,8 @@ end
 
 -- Creates a realm. opts: files ({ [luaPath] = source }), patch ({ [luaPath] = fn(...) }),
 -- visible (set of LUA paths; client realms see only these), language (gmod_language of
--- a client, "en"), convars ({ [name] = value }: saved values of archived convars).
+-- a client, "en"), convars ({ [name] = value }: saved values of archived convars),
+-- pool (network strings, shared by a server and its clients).
 function Env.New(realm, opts)
 	opts = opts or {}
 	local instance = setmetatable({
@@ -86,6 +94,13 @@ function Env.New(realm, opts)
 		convars = {},
 		saved = opts.convars or {},
 		changeCallbacks = {},
+		pool = opts.pool or { ids = {}, names = {} },
+		receivers = {},
+		inbox = {},
+		netLog = {},
+		unhandled = {},
+		entities = {},
+		links = {},
 		baseCalls = {},
 		undefinedReads = {},
 		newGlobals = {},
@@ -122,6 +137,7 @@ function Env.Client(server, opts)
 	opts.visible = server.sent
 	opts.sources = server.sources
 	opts.patch = opts.patch or server.patch
+	opts.pool = server.pool
 	return Env.New("client", opts)
 end
 
@@ -301,7 +317,10 @@ function Env:_CreateGlobals()
 		return env.time
 	end
 
-	G.SysTime = os.clock
+	-- Real time follows game time, so rate limits refill on Advance.
+	function G.SysTime()
+		return env.time
+	end
 
 	function G.IsValid(value)
 		if value == nil or value == false then
@@ -433,6 +452,9 @@ function Env:_CreateGlobals()
 		end
 	end
 
+	self:_CreateEngineTypes(G)
+	self:_CreateNet(G)
+
 	return setmetatable(G, {
 		__index = function(_, key)
 			env.undefinedReads[key] = true
@@ -443,6 +465,320 @@ function Env:_CreateGlobals()
 			rawset(t, key, value)
 		end,
 	})
+end
+
+-- Engine types -----------------------------------------------------------------------
+
+local VectorMeta = { __tostring = function(v) return string.format("Vector(%g, %g, %g)", v.x, v.y, v.z) end }
+local AngleMeta = { __tostring = function(a) return string.format("Angle(%g, %g, %g)", a.x, a.y, a.z) end }
+
+function Env:_CreateEngineTypes(G)
+	local env = self
+	G.NULL = setmetatable({
+		__entity = true,
+		IsValid = function() return false end,
+		IsPlayer = function() return false end,
+		EntIndex = function() return 0 end,
+	}, { __tostring = function() return "[NULL Entity]" end })
+
+	function G.Entity(index)
+		return env.entities[index] or G.NULL
+	end
+
+	function G.isentity(value)
+		return type(value) == "table" and value.__entity == true
+	end
+
+	function G.istable(value)
+		return type(value) == "table"
+	end
+
+	function G.Vector(x, y, z)
+		return setmetatable({ x = x or 0, y = y or 0, z = z or 0 }, VectorMeta)
+	end
+
+	function G.Angle(p, y, r)
+		return setmetatable({ x = p or 0, y = y or 0, z = r or 0 }, AngleMeta)
+	end
+
+	function G.isvector(value)
+		return getmetatable(value) == VectorMeta
+	end
+
+	function G.isangle(value)
+		return getmetatable(value) == AngleMeta
+	end
+
+	G.vector_origin = G.Vector(0, 0, 0)
+	G.vector_up = G.Vector(0, 0, 1)
+	G.angle_zero = G.Angle(0, 0, 0)
+
+	if self.realm == "client" then
+		function G.LocalPlayer()
+			return env.localPlayer or G.NULL
+		end
+	end
+end
+
+-- Network ----------------------------------------------------------------------------
+
+local WRITERS = {
+	"WriteBool", "WriteUInt", "WriteInt", "WriteFloat", "WriteDouble", "WriteString", "WriteEntity", "WritePlayer",
+	"WriteVector", "WriteAngle", "WriteNormal", "WriteColor",
+}
+local READERS = {
+	"ReadBool", "ReadUInt", "ReadInt", "ReadFloat", "ReadDouble", "ReadString", "ReadEntity", "ReadPlayer",
+	"ReadVector", "ReadAngle", "ReadNormal", "ReadColor",
+}
+
+local function isPlayerValue(value)
+	return type(value) == "table" and value.__entity == true
+end
+
+function Env:_Deliver(target, message, sender)
+	target.inbox[#target.inbox + 1] = { name = message.name, wire = message.wire:Copy(), bits = message.wire.bits,
+		sender = sender }
+end
+
+function Env:_SendTo(message, players)
+	for _, ply in ipairs(players) do
+		local client = self.links[ply]
+		self.netLog[#self.netLog + 1] = { name = message.name, to = ply, bits = message.wire.bits }
+		if client then
+			self:_Deliver(client, message)
+		end
+	end
+end
+
+function Env:_LinkedPlayers(except)
+	local skip = {}
+	if isPlayerValue(except) then
+		skip[except] = true
+	elseif type(except) == "table" then
+		for _, ply in ipairs(except) do
+			skip[ply] = true
+		end
+	end
+	local out = {}
+	for ply in pairs(self.links) do
+		if not skip[ply] then
+			out[#out + 1] = ply
+		end
+	end
+	table.sort(out, function(a, b) return a:EntIndex() < b:EntIndex() end)
+	return out
+end
+
+function Env:_CreateNet(G)
+	local env = self
+	local pool = self.pool
+	G.util = {}
+
+	if self.realm == "server" then
+		function G.util.AddNetworkString(name)
+			assert(type(name) == "string", "util.AddNetworkString expects a string")
+			local id = pool.ids[name]
+			if id == nil then
+				id = #pool.names + 1
+				pool.names[id] = name
+				pool.ids[name] = id
+			end
+			return id
+		end
+	end
+
+	function G.util.NetworkStringToID(name)
+		return pool.ids[name] or 0
+	end
+
+	function G.util.NetworkIDToString(id)
+		return pool.names[id]
+	end
+
+	local net = { Receivers = self.receivers }
+	G.net = net
+
+	local function writing()
+		local message = env.writing
+		if message == nil then
+			error("net: writing without net.Start", 3)
+		end
+		return message.wire
+	end
+
+	local function finish()
+		local message = env.writing
+		if message == nil then
+			error("net: sending without net.Start", 3)
+		end
+		env.writing = nil
+		return message
+	end
+
+	function net.Start(name, unreliable)
+		if pool.ids[name] == nil then
+			error("Calling net.Start with unpooled message name! [" .. tostring(name) .. "]", 2)
+		end
+		env.writing = { name = name, wire = Wire.New(), unreliable = unreliable == true }
+	end
+
+	for _, fn in ipairs(WRITERS) do
+		net[fn] = function(...)
+			return writing()[fn](...)
+		end
+	end
+
+	for _, fn in ipairs(READERS) do
+		net[fn] = function(...)
+			local wire = env.reading
+			if wire == nil then
+				error("net: " .. fn .. " outside a message receiver", 2)
+			end
+			return wire[fn](...)
+		end
+	end
+
+	function net.BytesWritten()
+		local message = env.writing
+		if message == nil then
+			return nil
+		end
+		local bits = message.wire.bits + 16
+		return math.ceil(bits / 8), bits
+	end
+
+	function net.Receive(name, fn)
+		env.receivers[name:lower()] = fn
+	end
+
+	if self.realm == "server" then
+		function net.Send(target)
+			local message = finish()
+			if isPlayerValue(target) then
+				target = { target }
+			end
+			assert(type(target) == "table", "net.Send expects a player or a table of players")
+			env:_SendTo(message, target)
+		end
+
+		function net.Broadcast()
+			env:_SendTo(finish(), env:_LinkedPlayers())
+		end
+
+		function net.SendOmit(except)
+			env:_SendTo(finish(), env:_LinkedPlayers(except))
+		end
+
+		-- No visibility emulation: everybody is in the PVS and PAS.
+		function net.SendPVS()
+			env:_SendTo(finish(), env:_LinkedPlayers())
+		end
+
+		function net.SendPAS()
+			env:_SendTo(finish(), env:_LinkedPlayers())
+		end
+	else
+		function net.SendToServer()
+			local message = finish()
+			env.netLog[#env.netLog + 1] = { name = message.name, to = "server", bits = message.wire.bits }
+			if env.peer then
+				env:_Deliver(env.peer, message, env.localPlayer)
+			end
+		end
+	end
+end
+
+-- Delivers the messages waiting for this realm, in order. Returns how many arrived.
+function Env:Pump()
+	local delivered = 0
+	while self.inbox[1] ~= nil do
+		local message = table.remove(self.inbox, 1)
+		delivered = delivered + 1
+		local fn = self.receivers[message.name:lower()]
+		if fn == nil then
+			self.unhandled[#self.unhandled + 1] = message.name
+		else
+			self.reading = message.wire
+			local ok, err = pcall(fn, message.bits, message.sender)
+			self.reading = nil
+			if not ok then
+				self:_Error("net receiver " .. message.name .. ": " .. tostring(err))
+			end
+		end
+	end
+	return delivered
+end
+
+-- Pumps the realms until no message is in flight.
+function Env.Flush(...)
+	for _ = 1, 100 do
+		local delivered = 0
+		for i = 1, select("#", ...) do
+			delivered = delivered + select(i, ...):Pump()
+		end
+		if delivered == 0 then
+			return
+		end
+	end
+	error("Env.Flush: messages are still flowing after 100 rounds")
+end
+
+-- Queues a raw message for this realm from `ply` (nil on a client): fill(wire) writes
+-- the payload, so tests can send what a cheater or a broken server would.
+function Env:Inject(name, ply, fill)
+	local wire = Wire.New()
+	if fill then
+		fill(wire)
+	end
+	self.inbox[#self.inbox + 1] = { name = name, wire = wire, bits = wire.bits, sender = ply }
+end
+
+-- Messages this realm sent: { name, to (player or "server"), bits } in order.
+function Env:Sent(name)
+	local out = {}
+	for _, entry in ipairs(self.netLog) do
+		if name == nil or entry.name == name then
+			out[#out + 1] = entry
+		end
+	end
+	return out
+end
+
+-- Links `client` to `server` as player `ply`.
+function Env.Connect(server, client, ply)
+	server.links[ply] = client
+	server.entities[ply:EntIndex()] = ply
+	client.peer = server
+	client.localPlayer = ply
+	client.entities[ply:EntIndex()] = ply
+end
+
+-- A player joins: PlayerInitialSpawn on the server, a client booted from the sent files
+-- and linked to it, InitPostEntity on the client, then the messages are flushed.
+-- opts: name, superadmin, language, convars, patch. Returns the client realm and player.
+function Env.Join(server, opts)
+	opts = opts or {}
+	local ply = Env.FakePlayer(opts)
+	server.entities[ply:EntIndex()] = ply
+	server:Call("PlayerInitialSpawn", ply, false)
+	local client = Env.Client(server, { language = opts.language, convars = opts.convars, patch = opts.patch })
+	client:Boot()
+	Env.Connect(server, client, ply)
+	client:Call("InitPostEntity")
+	Env.Flush(server, client)
+	return client, ply
+end
+
+-- A player leaves: PlayerDisconnected runs, then the link is cut and the player is gone.
+function Env.Leave(server, ply)
+	server:Call("PlayerDisconnected", ply)
+	local client = server.links[ply]
+	server.links[ply] = nil
+	if client then
+		client.peer = nil
+	end
+	server.entities[ply:EntIndex()] = nil
+	ply.valid = false
 end
 
 -- Runs the realm's entry file and GM:Initialize, like the engine at startup.
@@ -501,12 +837,23 @@ function Env:Lines(fragment)
 	return out
 end
 
--- A minimal player: IsValid, IsSuperAdmin, Nick, PrintMessage (recorded in .printed) and
--- ChatPrint (recorded in .chat).
+local playerIndex = 0
+local PlayerMeta = {
+	__tostring = function(ply)
+		return string.format("Player [%d][%s]", ply.index, ply.name)
+	end,
+}
+
+-- A minimal player: IsValid, IsPlayer, EntIndex (1..128), IsSuperAdmin, Nick, PrintMessage
+-- (recorded in .printed) and ChatPrint (recorded in .chat). opts: name, superadmin, index.
 function Env.FakePlayer(opts)
 	opts = opts or {}
-	local ply = { name = opts.name or "Player", admin = opts.superadmin == true, printed = {}, chat = {} }
-	function ply:IsValid() return true end
+	playerIndex = playerIndex % 128 + 1
+	local ply = setmetatable({ __entity = true, index = opts.index or playerIndex, name = opts.name or "Player",
+		admin = opts.superadmin == true, valid = true, printed = {}, chat = {} }, PlayerMeta)
+	function ply:IsValid() return self.valid end
+	function ply:IsPlayer() return true end
+	function ply:EntIndex() return self.index end
 	function ply:IsSuperAdmin() return self.admin end
 	function ply:Nick() return self.name end
 	function ply:PrintMessage(_, text) self.printed[#self.printed + 1] = text end
