@@ -360,6 +360,28 @@ function Service:_Define(name, spec)
 	return message
 end
 
+-- Platform services: defines a message by its full network name, which starts with "nc."
+-- and must not look like a module message "nc.<module>.<name>" (components use
+-- "nc.<module>:<component>"), with a spec like in manifests. Returns the message for
+-- Send, Broadcast, SendToServer... and Handle; it counts sent, bytesOut, received and
+-- bytesIn.
+function Service:Define(name, spec)
+	if type(name) ~= "string" or name:sub(1, #PREFIX) ~= PREFIX or #name == #PREFIX then
+		error(format("net Define: name must start with \"%s\", got %s", PREFIX, tostring(name)), 2)
+	end
+	local ok, err = validateSpec(spec)
+	if not ok then
+		error(format("net message '%s': %s", name, err), 2)
+	end
+	return self:_Define(name, spec)
+end
+
+-- Platform services: sets fn(data, ply) as the handler of a message from Define (nil
+-- removes it).
+function Service:Handle(message, fn)
+	message.handler = fn
+end
+
 function Service:_Drop(message, reason)
 	message.dropped[reason] = (message.dropped[reason] or 0) + 1
 end
@@ -710,6 +732,11 @@ function Service:IsReady(ply)
 		return self.clientReady
 	end
 	return self.ready[ply] == true
+end
+
+-- Server: the number of ready players.
+function Service:ReadyCount()
+	return #self.readyList
 end
 
 -- Server: a copy of the list of ready players.

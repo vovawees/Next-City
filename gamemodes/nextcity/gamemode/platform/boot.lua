@@ -13,12 +13,14 @@ local Lib = {
 	Modules = NC.IncludeShared("core/modules.lua"),
 	Schema = NC.IncludeShared("core/schema.lua"),
 	I18n = NC.IncludeShared("core/i18n.lua"),
+	Components = NC.IncludeShared("core/components.lua"),
 }
 NC.Lib = Lib
 NC.Config = NC.IncludeShared("config.lua")
 local Loader = NC.IncludeShared("platform/loader.lua")
 local NetService = NC.IncludeShared("platform/net.lua")
 local I18nService = NC.IncludeShared("platform/i18n.lua")
+local ComponentService = NC.IncludeShared("platform/components.lua")
 
 -- Console output -----------------------------------------------------------------------
 
@@ -100,9 +102,23 @@ NC.I18n = I18nService.New({
 	previous = previous.i18n,
 })
 
--- Shared by every module context: ctx.events, ctx.scheduler, ctx.net (a facade per
--- module), ctx.i18n.
-NC.Services = { events = NC.Events, scheduler = NC.Scheduler, net = NC.Net, i18n = NC.I18n }
+NC.Components = ComponentService.New({
+	log = log:Child("components"),
+	events = NC.Events,
+	scheduler = NC.Scheduler,
+	net = NC.Net,
+	previous = previous.components,
+})
+
+-- Shared by every module context: ctx.events, ctx.scheduler, ctx.net and
+-- ctx.components (facades per module), ctx.i18n.
+NC.Services = {
+	events = NC.Events,
+	scheduler = NC.Scheduler,
+	net = NC.Net,
+	i18n = NC.I18n,
+	components = NC.Components,
+}
 
 NC.Modules = Lib.Modules.New({ log = log, services = NC.Services })
 

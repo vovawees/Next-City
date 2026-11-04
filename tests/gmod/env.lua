@@ -28,6 +28,7 @@ Env.ENTRY = { server = "nextcity/gamemode/init.lua", client = "nextcity/gamemode
 local REPO_PREFIX = "gamemodes/"
 local HOOK_NAMES = {
 	"Initialize", "Tick", "InitPostEntity", "OnReloaded", "ShutDown", "PlayerInitialSpawn", "PlayerDisconnected",
+	"EntityRemoved",
 }
 
 local function pack(...)
@@ -493,11 +494,18 @@ function Env:_CreateEngineTypes(G)
 		return type(value) == "table"
 	end
 
+	-- Vector(v) and Angle(a) copy, like in GMod.
 	function G.Vector(x, y, z)
+		if getmetatable(x) == VectorMeta then
+			x, y, z = x.x, x.y, x.z
+		end
 		return setmetatable({ x = x or 0, y = y or 0, z = z or 0 }, VectorMeta)
 	end
 
 	function G.Angle(p, y, r)
+		if getmetatable(p) == AngleMeta then
+			p, y, r = p.x, p.y, p.z
+		end
 		return setmetatable({ x = p or 0, y = y or 0, z = r or 0 }, AngleMeta)
 	end
 
@@ -744,13 +752,15 @@ function Env:Sent(name)
 	return out
 end
 
--- Links `client` to `server` as player `ply`.
+-- Links `client` to `server` as player `ply`; the client knows every server entity.
 function Env.Connect(server, client, ply)
 	server.links[ply] = client
 	server.entities[ply:EntIndex()] = ply
 	client.peer = server
 	client.localPlayer = ply
-	client.entities[ply:EntIndex()] = ply
+	for index, ent in pairs(server.entities) do
+		client.entities[index] = ent
+	end
 end
 
 -- A player joins: PlayerInitialSpawn on the server, a client booted from the sent files
@@ -769,7 +779,8 @@ function Env.Join(server, opts)
 	return client, ply
 end
 
--- A player leaves: PlayerDisconnected runs, then the link is cut and the player is gone.
+-- A player leaves: PlayerDisconnected runs, the link is cut and the player entity is
+-- removed (EntityRemoved on the server and the other clients).
 function Env.Leave(server, ply)
 	server:Call("PlayerDisconnected", ply)
 	local client = server.links[ply]
@@ -777,8 +788,59 @@ function Env.Leave(server, ply)
 	if client then
 		client.peer = nil
 	end
-	server.entities[ply:EntIndex()] = nil
-	ply.valid = false
+	Env.Remove(server, ply)
+end
+
+local entityIndex = 199
+local EntityMeta = {
+	__tostring = function(ent)
+		return string.format("Entity [%d][%s]", ent.index, ent.class)
+	end,
+}
+
+-- A networked entity (index from 200 up, or opts.index) known to the server and every
+-- linked client: IsValid, IsPlayer, EntIndex, GetClass. opts: index, class.
+function Env.Spawn(server, opts)
+	opts = opts or {}
+	local index = opts.index
+	if index == nil then
+		entityIndex = entityIndex % 8000 + 1
+		if entityIndex < 200 then
+			entityIndex = 200
+		end
+		index = entityIndex
+	end
+	local ent = setmetatable({ __entity = true, index = index, class = opts.class or "prop_physics", valid = true },
+		EntityMeta)
+	function ent:IsValid() return self.valid end
+	function ent:IsPlayer() return false end
+	function ent:EntIndex() return self.index end
+	function ent:GetClass() return self.class end
+	server.entities[index] = ent
+	for _, client in pairs(server.links) do
+		client.entities[index] = ent
+	end
+	return ent
+end
+
+-- Removes an entity: EntityRemoved on the server, then on every linked client that
+-- knows it; then the entity is invalid.
+function Env.Remove(server, ent)
+	local index = ent:EntIndex()
+	server:Call("EntityRemoved", ent, false)
+	server.entities[index] = nil
+	local clients = {}
+	for _, client in pairs(server.links) do
+		clients[#clients + 1] = client
+	end
+	table.sort(clients, function(a, b) return a.localPlayer:EntIndex() < b.localPlayer:EntIndex() end)
+	for _, client in ipairs(clients) do
+		if client.entities[index] == ent then
+			client:Call("EntityRemoved", ent, false)
+			client.entities[index] = nil
+		end
+	end
+	ent.valid = false
 end
 
 -- Runs the realm's entry file and GM:Initialize, like the engine at startup.

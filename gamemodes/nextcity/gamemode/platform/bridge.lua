@@ -40,6 +40,12 @@ function GM:ShutDown()
 	NC.Shutdown()
 end
 
+-- fullUpdate (client): the entity goes away only for a full update and comes back.
+function GM:EntityRemoved(ent, fullUpdate)
+	base(self, "EntityRemoved", ent, fullUpdate)
+	NC.Events:Emit("gm.EntityRemoved", ent, fullUpdate)
+end
+
 if SERVER then
 	function GM:PlayerInitialSpawn(ply, transition)
 		base(self, "PlayerInitialSpawn", ply, transition)

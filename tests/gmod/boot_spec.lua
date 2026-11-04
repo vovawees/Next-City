@@ -248,6 +248,8 @@ describe("boot", function()
 		Env.Flush(server, client)
 		expect(example.beats):toBe(3)
 		expect(clientExample.beats):toBe(3)
+		-- The wave is counted in the profile, which every client mirrors.
+		expect(client:Get("NC").Components:Store("example.profile"):Get(gordon)):toEqual({ waves = 1, mood = "happy" })
 
 		client:SetConVar("nc_language", "en")
 		Env.Flush(server, client)

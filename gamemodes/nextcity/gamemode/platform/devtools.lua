@@ -6,6 +6,7 @@
 --   nc_lang [code]   languages and translation completeness; with a code: what is missing
 --   nc_net           network messages: sent and received (count, bytes), drops by reason
 --   nc_net_reset     reset the network statistics
+--   nc_components    component stores: audience, rate, entries, traffic
 -- Server commands are available to the server console and superadmins; the same
 -- commands with the _cl suffix inspect the client realm.
 
@@ -100,6 +101,30 @@ end
 local function netReset()
 	NC.Net:ResetStats()
 	return { "Network statistics reset" }
+end
+
+local function componentLines()
+	local rows = NC.Components:Report()
+	local entries = 0
+	for _, row in ipairs(rows) do
+		entries = entries + row.count
+	end
+	local lines = {
+		format("Components (%s): %d, %d entries", SERVER and "server" or "client", #rows, entries),
+		format("  %-32s %-9s %5s %7s %6s %7s %10s", "component", "replicate", "rate", "entries", "fields",
+			SERVER and "sent" or "recv", SERVER and "out" or "in"),
+	}
+	for _, row in ipairs(rows) do
+		local count, bytes = row.sent, row.bytesOut
+		if CLIENT then
+			count, bytes = row.received, row.bytesIn
+		end
+		local line = format("  %-32s %-9s %5s %7d %6d %7d %10s%s", row.id, row.replicate or "local",
+			row.rate and tostring(row.rate) or "-", row.count, row.fields, count, bytesText(bytes),
+			row.alive and "" or "  STOPPED")
+		lines[#lines + 1] = line
+	end
+	return lines
 end
 
 local MAX_PROBLEMS = 100
@@ -204,3 +229,4 @@ register("nc_perf_reset", perfReset)
 register("nc_lang", langLines)
 register("nc_net", netLines)
 register("nc_net_reset", netReset)
+register("nc_components", componentLines)
