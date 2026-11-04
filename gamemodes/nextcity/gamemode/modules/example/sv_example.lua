@@ -20,7 +20,8 @@ function M:Start(ctx)
 end
 
 function M:OnPlayerJoined(ply)
-	self.ctx.log:Info("%s", self:Greeting(ply:Nick()))
+	ply:ChatPrint(self:Greeting(ply))
+	self.ctx.log:Info("greeted %s", ply:Nick())
 end
 
 function M:Heartbeat(now)

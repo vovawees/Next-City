@@ -225,7 +225,7 @@ describe("boot", function()
 			end,
 		}
 		local server = Env.Server({ patch = patch }):Boot()
-		local client = Env.Client(server):Boot()
+		local client = Env.Client(server, { language = "ru" }):Boot()
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
 		expect(state(server, "example")):toBe("started")
@@ -233,18 +233,28 @@ describe("boot", function()
 		expect(#server:Lines("[example] started, heartbeat every 2s")):toBe(1)
 		expect(#client:Lines("[example] started on the client")):toBe(1)
 
-		server:Call("PlayerInitialSpawn", Env.FakePlayer({ name = "Gordon" }), false)
-		expect(#server:Lines("Welcome to Next-City, Gordon!")):toBe(1)
+		local gordon = Env.FakePlayer({ name = "Gordon" })
+		server:Call("PlayerInitialSpawn", gordon, false)
+		expect(gordon.chat):toEqual({ "Welcome to Next-City, Gordon!" })
+		expect(#server:Lines("[example] greeted Gordon")):toBe(1)
 
 		local example = server:Get("NC").Modules:Instance("example")
 		for _ = 1, 6 do
 			server:Advance(1)
 		end
 		expect(example.beats):toBe(3)
-		expect(example:Greeting("Alyx")):toBe("Welcome to Next-City, Alyx!")
+		local alyx = Env.FakePlayer({ name = "Alyx" })
+		server:Get("NC").I18n:SetPlayerLanguage(alyx, "ru")
+		expect(example:Greeting(alyx)):toBe("Добро пожаловать в Next-City, Alyx!")
+
+		local clientExample = client:Get("NC").Modules:Instance("example")
+		expect(clientExample:Greeting(alyx)):toBe("Добро пожаловать в Next-City, Alyx!")
+		client:SetConVar("nc_language", "en")
+		expect(clientExample.language):toBe("en")
+		expect(clientExample:Greeting(alyx)):toBe("Welcome to Next-City, Alyx!")
 
 		client:Call("InitPostEntity")
-		expect(client:Get("NC").Modules:Instance("example").worldReady):toBe(true)
+		expect(clientExample.worldReady):toBe(true)
 
 		server:Call("ShutDown")
 		expect(#server:Lines("[example] stopped after 3 heartbeats")):toBe(1)

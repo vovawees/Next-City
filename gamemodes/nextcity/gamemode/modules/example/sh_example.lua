@@ -3,6 +3,8 @@
 
 local M = NC.Module("example")
 
-function M:Greeting(name)
-	return self.ctx.config.greeting .. ", " .. tostring(name) .. "!"
+-- Greeting in the language of `ply` (on the client: the client language).
+-- The text comes from lang/<code>/example.lua, key "example.greeting".
+function M:Greeting(ply)
+	return self.ctx.i18n:TFor(ply, "example.greeting", { name = ply:Nick() })
 end

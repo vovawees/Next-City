@@ -8,6 +8,9 @@
 -- The client only sees files the server sent with AddCSLuaFile, like a real client.
 -- Reads of undefined globals and creation of new globals are recorded, so tests can
 -- enforce that NC is the only global of the project.
+--
+-- Console variables: GetConVar, CreateClientConVar (client), cvars change callbacks and
+-- RunConsoleCommand work synchronously; the client has gmod_language (opts.language).
 
 local Env = {}
 Env.__index = Env
@@ -67,7 +70,8 @@ local function globMatcher(mask)
 end
 
 -- Creates a realm. opts: files ({ [luaPath] = source }), patch ({ [luaPath] = fn(...) }),
--- visible (set of LUA paths; client realms see only these).
+-- visible (set of LUA paths; client realms see only these), language (gmod_language of
+-- a client, "en"), convars ({ [name] = value }: saved values of archived convars).
 function Env.New(realm, opts)
 	opts = opts or {}
 	local instance = setmetatable({
@@ -79,6 +83,9 @@ function Env.New(realm, opts)
 		sent = {},
 		stack = {},
 		commands = {},
+		convars = {},
+		saved = opts.convars or {},
+		changeCallbacks = {},
 		baseCalls = {},
 		undefinedReads = {},
 		newGlobals = {},
@@ -98,6 +105,9 @@ function Env.New(realm, opts)
 	end
 
 	instance.G = instance:_CreateGlobals()
+	if realm == "client" then
+		instance:_CreateConVar("gmod_language", opts.language or "en", "The game language")
+	end
 	return instance
 end
 
@@ -175,6 +185,57 @@ function Env:Run(path)
 		results = pack(true, self.patch[path](unpack(results, 2, results.n)))
 	end
 	return unpack(results, 2, results.n)
+end
+
+-- Console variables ------------------------------------------------------------------
+
+local ConVar = {}
+ConVar.__index = ConVar
+
+function ConVar:GetName() return self.name end
+function ConVar:GetDefault() return self.default end
+function ConVar:GetHelpText() return self.help end
+function ConVar:GetString() return self.value end
+function ConVar:GetFloat() return tonumber(self.value) or 0 end
+function ConVar:GetInt() return math.floor(tonumber(self.value) or 0) end
+function ConVar:GetBool() return self:GetFloat() ~= 0 end
+function ConVar:SetString(value) self.env:SetConVar(self.name, value) end
+
+function Env:_CreateConVar(name, default, help)
+	local convar = self.convars[name]
+	if convar == nil then
+		local value = self.saved[name]
+		if value == nil then
+			value = default
+		end
+		convar = setmetatable({ env = self, name = name, default = tostring(default), help = help,
+			value = tostring(value) }, ConVar)
+		self.convars[name] = convar
+	end
+	return convar
+end
+
+-- Sets a console variable like the console does and runs its change callbacks.
+function Env:SetConVar(name, value)
+	local convar = assert(self.convars[name], "unknown console variable " .. name)
+	value = tostring(value)
+	local old = convar.value
+	if old == value then
+		return
+	end
+	convar.value = value
+	local list = {}
+	for i, entry in ipairs(self.changeCallbacks[name] or {}) do
+		list[i] = entry
+	end
+	for _, entry in ipairs(list) do
+		entry.fn(name, old, value)
+	end
+end
+
+-- Number of change callbacks registered for a console variable.
+function Env:ChangeCallbacks(name)
+	return #(self.changeCallbacks[name] or {})
 end
 
 function Env:_CreateGlobals()
@@ -325,6 +386,53 @@ function Env:_CreateGlobals()
 		env.commands[name] = nil
 	end
 
+	function G.GetConVar(name)
+		return env.convars[name]
+	end
+
+	if self.realm == "client" then
+		function G.CreateClientConVar(name, default, _, _, help)
+			return env:_CreateConVar(name, default, help)
+		end
+	end
+
+	G.cvars = {}
+
+	-- Callbacks with the same identifier replace each other, like in GMod.
+	function G.cvars.AddChangeCallback(name, fn, identifier)
+		local list = env.changeCallbacks[name] or {}
+		env.changeCallbacks[name] = list
+		if identifier ~= nil then
+			for _, entry in ipairs(list) do
+				if entry.id == identifier then
+					entry.fn = fn
+					return
+				end
+			end
+		end
+		list[#list + 1] = { id = identifier, fn = fn }
+	end
+
+	function G.cvars.RemoveChangeCallback(name, identifier)
+		local list = env.changeCallbacks[name] or {}
+		for i = #list, 1, -1 do
+			if list[i].id == identifier then
+				table.remove(list, i)
+			end
+		end
+	end
+
+	function G.RunConsoleCommand(name, ...)
+		local value = ...
+		if env.convars[name] then
+			env:SetConVar(name, value)
+		elseif env.commands[name] then
+			env:Command(name, nil, { ... })
+		else
+			env:_Print("Unknown command: " .. tostring(name) .. "\n")
+		end
+	end
+
 	return setmetatable(G, {
 		__index = function(_, key)
 			env.undefinedReads[key] = true
@@ -393,14 +501,16 @@ function Env:Lines(fragment)
 	return out
 end
 
--- A minimal player: IsValid, IsSuperAdmin, Nick and PrintMessage (recorded in .printed).
+-- A minimal player: IsValid, IsSuperAdmin, Nick, PrintMessage (recorded in .printed) and
+-- ChatPrint (recorded in .chat).
 function Env.FakePlayer(opts)
 	opts = opts or {}
-	local ply = { name = opts.name or "Player", admin = opts.superadmin == true, printed = {} }
+	local ply = { name = opts.name or "Player", admin = opts.superadmin == true, printed = {}, chat = {} }
 	function ply:IsValid() return true end
 	function ply:IsSuperAdmin() return self.admin end
 	function ply:Nick() return self.name end
 	function ply:PrintMessage(_, text) self.printed[#self.printed + 1] = text end
+	function ply:ChatPrint(text) self.chat[#self.chat + 1] = text end
 	return ply
 end
 
