@@ -40,6 +40,7 @@ local HOOK_NAMES = {
 	"DoPlayerDeath", "PlayerDeath", "PlayerSilentDeath", "PlayerDeathThink", "PlayerShouldTakeDamage",
 	"CanPlayerSuicide", "PlayerRequestTeam", "PostCleanupMap", "HUDPaint", "StartCommand", "OnPlayerHitGround",
 	"EntityTakeDamage", "GetFallDamage", "HUDShouldDraw", "RenderScreenspaceEffects", "PlayerBindPress",
+	"CalcView",
 }
 
 Env.World = World

@@ -12,6 +12,9 @@
 -- Questions with a "handled" answer (PlayerSpawn, PlayerDeathThink) skip the base code
 -- when a listener returns true. The scheduler is driven from GM:Tick.
 --
+-- The camera is a pipeline (client): GM:CalcView takes the view of the base gamemode,
+-- then every listener of "gm.CalcView" changes it in turn (Events:Reduce).
+--
 -- Damage (D6): the engine's health is not the model of the body. EntityTakeDamage is a
 -- question (true blocks the damage), ScalePlayerDamage is a replacement without the
 -- base scaling (head x2, limbs x0.25), falls arrive as OnPlayerHitGround and
@@ -205,5 +208,18 @@ else
 	-- Question: true blocks the bind (bind is the command, e.g. "+reload").
 	function GM:PlayerBindPress(ply, bind, pressed, code)
 		return ask(self, "PlayerBindPress", ply, bind, pressed, code)
+	end
+
+	-- Pipeline, every frame: the view of the base gamemode (vehicles, drive, the weapon),
+	-- then Reduce "gm.CalcView" (view, ply). A listener changes the view table in place
+	-- (origin, angles, fov, znear, zfar, drawviewer) or returns another one. Higher
+	-- priorities run first: cameras that move the view (the ragdoll) before the effects
+	-- that shake it (bob, recoil, pain).
+	function GM:CalcView(ply, origin, angles, fov, znear, zfar)
+		local view = base(self, "CalcView", ply, origin, angles, fov, znear, zfar)
+		if view == nil then
+			view = { origin = origin, angles = angles, fov = fov, znear = znear, zfar = zfar, drawviewer = false }
+		end
+		return NC.Events:Reduce("gm.CalcView", view, ply)
 	end
 end

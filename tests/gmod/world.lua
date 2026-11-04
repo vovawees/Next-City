@@ -64,6 +64,16 @@ local AngleMethods = {}
 local AngleMeta = {
 	__index = AngleMethods,
 	__tostring = function(a) return string.format("Angle(%g, %g, %g)", a.x, a.y, a.z) end,
+	__add = function(a, b) return Angle(a.x + b.x, a.y + b.y, a.z + b.z) end,
+	__sub = function(a, b) return Angle(a.x - b.x, a.y - b.y, a.z - b.z) end,
+	__mul = function(a, b)
+		if type(a) == "number" then
+			a, b = b, a
+		end
+		return Angle(a.x * b, a.y * b, a.z * b)
+	end,
+	__unm = function(a) return Angle(-a.x, -a.y, -a.z) end,
+	__eq = function(a, b) return a.x == b.x and a.y == b.y and a.z == b.z end,
 }
 
 World.VectorMeta = VectorMeta
@@ -648,6 +658,10 @@ World.BASE = {
 	CanPlayerSuicide = function() return true end,
 	GetFallDamage = function() return 10 end,
 	HUDShouldDraw = function() return true end,
+	-- The view of the player's eyes (no vehicle, drive or weapon view in tests).
+	CalcView = function(_, _, _, origin, angles, fov, znear, zfar)
+		return { origin = origin, angles = angles, fov = fov, znear = znear, zfar = zfar, drawviewer = false }
+	end,
 }
 
 -- Libraries ------------------------------------------------------------------------------

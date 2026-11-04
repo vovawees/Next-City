@@ -1,10 +1,11 @@
--- Engine bridge: notifications, questions and replacements of the player, damage, map
--- and HUD hooks, with the real gamemode files in emulated realms.
+-- Engine bridge: notifications, questions and replacements of the player, damage, map,
+-- HUD and camera hooks, with the real gamemode files in emulated realms.
 
 local Env = dofile(T.root .. "tests/gmod/env.lua")
 
 local MODULES = "nextcity/gamemode/modules/"
 local Vector = Env.World.Vector
+local Angle = Env.World.Angle
 local IN = Env.World.IN
 
 local PROBE = {
@@ -224,6 +225,41 @@ describe("bridge", function()
 		expect(GM:PlayerBindPress(nil, "+reload", true, 0)):toBe(true)
 		client:Call("RenderScreenspaceEffects")
 		expect(probe:Names()):toEqual({ "gm.PlayerBindPress", "gm.PlayerBindPress", "gm.RenderScreenspaceEffects" })
+		expect(client:Errors()):toEqual({})
+	end)
+
+	it("builds the camera from the base view and ordered modifiers", function()
+		local camera = {
+			[MODULES .. "camera/module.lua"] = "return { id = 'camera', files = { cl = { 'cl_camera.lua' } } }",
+			[MODULES .. "camera/cl_camera.lua"] = [[
+				local M = NC.Module("camera")
+				M.order = {}
+				function M:Start(ctx)
+					ctx:On("gm.CalcView", function(view)
+						self.order[#self.order + 1] = "shake"
+						view.angles = view.angles + Angle(1, 0, 0)
+					end)
+					ctx:On("gm.CalcView", function(view, ply)
+						self.order[#self.order + 1] = "body"
+						view.origin = ply:GetPos() + Vector(0, 0, 10)
+						view.angles = Angle(0, 90, 0)
+						view.drawviewer = true
+					end, { priority = 100 })
+				end
+			]],
+		}
+		local server = Env.Kernel({ files = camera }):Boot()
+		local client, ply = Env.Join(server)
+		ply:SetPos(Vector(5, 0, 0))
+		local probe = client:Get("NC").Modules:Instance("camera")
+		local view = client:Call("CalcView", ply, Vector(5, 0, 64), Angle(10, 0, 0), 90, 3, 30000)
+		expect(probe.order):toEqual({ "body", "shake" })
+		expect(view.origin):toEqual(Vector(5, 0, 10))
+		expect(view.angles.x):toBe(1)
+		expect(view.angles.y):toBe(90)
+		expect(view.fov):toBe(90)
+		expect(view.drawviewer):toBe(true)
+		expect(client.baseCalls[#client.baseCalls]):toBe("CalcView")
 		expect(client:Errors()):toEqual({})
 	end)
 
