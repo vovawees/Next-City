@@ -14,6 +14,7 @@ local Lib = {
 	Schema = NC.IncludeShared("core/schema.lua"),
 	I18n = NC.IncludeShared("core/i18n.lua"),
 	Components = NC.IncludeShared("core/components.lua"),
+	Params = NC.IncludeShared("core/params.lua"),
 }
 NC.Lib = Lib
 NC.Config = NC.IncludeShared("config.lua")
