@@ -21,7 +21,7 @@ M.AMMO_DEFAULTS = {
 	Pistol = PISTOL,
 	AlyxGun = PISTOL,
 	["357"] = { mass = 10.2, velocity = 440, diameter = 9.1, penetration = 55, expansion = 0.6, range = 500 },
-	SMG1 = { mass = 2, velocity = 720, diameter = 4.6, penetration = 35, range = 320 },          -- 4.6x30 mm
+	SMG1 = { mass = 2, velocity = 720, diameter = 4.6, penetration = 35, range = 320, ap = 1.4 }, -- 4.6x30 mm
 	AR2 = { mass = 4, velocity = 940, diameter = 5.7, penetration = 35, fragment = 10, fragmentFactor = 2,
 		range = 600 },                                                                            -- 5.56x45 mm
 	Buckshot = { mass = 3.5, velocity = 400, diameter = 8.4, penetration = 30, range = 100 },     -- a 00 pellet

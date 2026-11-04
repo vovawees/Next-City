@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Режим | `tdm` — «Командный бой» (`lang/<код>/mode_tdm.lua`) |
-| Зависимости | `rounds`, `teams` |
+| Зависимости | `rounds`, `teams`; необязательно `armor` |
 | Игроков | от 2 |
 | Правила | `time_limit`, `teams`, `team_score`, `respawn`, `team_elimination` |
 
@@ -24,6 +24,7 @@
 | `friendlyFire` | `false` | урон по своим |
 | `loadout` | `weapon_crowbar`, `weapon_pistol`, `weapon_smg1` | оружие при появлении; в руках — последнее |
 | `spareMags` | 3 | запасных магазинов к каждому оружию |
+| `armor` | — | броня при появлении: виды `armor` (`vest`, `helmet`, …), если модуль включён |
 
 Меняются в `config.lua` (`settings.rounds.params.tdm`) или из консоли: `nc_round param tdm scoreLimit 30`.
 

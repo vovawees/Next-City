@@ -16,7 +16,8 @@
 -- diameter mm, penetration cm of soft tissue, expansion, fragment: depth in cm where it
 -- breaks up, fragmentFactor), depth (of a blade, cm), speed (of a fall, units/s),
 -- segment (blunt: the body segment when the point is unknown), toxin (poison factor),
--- cause (lethal).
+-- cause (lethal), shield (blast: fn(ply, fragment) meets every fragment before it hits,
+-- e.g. armor; it may change the fragment, and false keeps it out).
 -- The report: kind, wounds, bleeding (ml/min added), energy (J deposited), structures
 -- (ids along the way), fractures, fatal (the cause of an instant death or nil).
 
@@ -60,6 +61,14 @@ local function clamp(v, lo, hi)
 	return v
 end
 M.clamp = clamp
+
+local function copy(t)
+	local out = {}
+	for key, value in pairs(t) do
+		out[key] = value
+	end
+	return out
+end
 
 -- Registers or replaces the handler of a kind of hit: fn(self, state, hit, report).
 function M:RegisterInjury(kind, fn)
@@ -842,7 +851,9 @@ local function blast(self, st, hit, report)
 	if R() < intensity - 0.2 then
 		self:_Knockout(st, 5 + 20 * min(1, intensity))
 	end
-	-- Fragments fly from the blast at random parts of the body.
+	-- Fragments fly from the blast at random parts of the body; armor (hit.shield) meets
+	-- each one first and may change it.
+	local shield = hit.shield
 	local _, _, _, dx, dy, dz = ray(st, hit)
 	local soft = body.soft
 	local count = floor(intensity * 5 + R())
@@ -857,9 +868,13 @@ local function blast(self, st, hit, report)
 			local length = sqrt(jx * jx + jy * jy + jz * jz)
 			if length > 1e-6 then
 				jx, jy, jz = jx / length, jy / length, jz / length
-				bullet(self, st, { kind = "fragment", attacker = hit.attacker, inflictor = hit.inflictor,
+				local fragment = { kind = "fragment", attacker = hit.attacker, inflictor = hit.inflictor,
 					type = hit.type, pos = Vector(tx - jx * 4, ty - jy * 4, tz - jz * 4), dir = Vector(jx, jy, jz),
-					projectile = M.FRAGMENT }, report)
+					projectile = copy(M.FRAGMENT) }
+				if shield == nil or shield(st.ply, fragment) ~= false then
+					local injure = self.INJURIES[fragment.kind] or bullet
+					injure(self, st, fragment, report)
+				end
 			end
 		end
 	end

@@ -11,6 +11,8 @@ local IsValid = IsValid
 local LOADOUT = { "weapon_crowbar", "weapon_pistol", "weapon_smg1" }
 
 function M:Init(ctx)
+	self.armor = ctx:Require("armor")
+	self.warned = {}
 	ctx:Require("rounds"):RegisterMode({
 		id = "tdm",
 		name = "mode_tdm.name",
@@ -24,6 +26,8 @@ function M:Init(ctx)
 			loadout = { type = "list", of = { type = "string", max = 64 }, max = 16, default = LOADOUT,
 				desc = "weapons of a spawning player" },
 			spareMags = { type = "integer", default = 3, min = 0, max = 20, desc = "spare magazines per weapon" },
+			armor = { type = "list", of = { type = "string", max = 32 }, max = 8, default = {},
+				desc = "kinds of armor a spawning player wears (the armor module)" },
 		},
 		Loadout = function(round, ply)
 			self:GiveLoadout(ply, round.params)
@@ -31,9 +35,21 @@ function M:Init(ctx)
 	}, ctx)
 end
 
--- Weapons of the loadout with spareMags magazines of reserve ammo each; the last one is
--- in the hands.
+-- Weapons of the loadout with spareMags magazines of reserve ammo each (the last one is
+-- in the hands) and the armor.
 function M:GiveLoadout(ply, params)
+	if self.armor ~= nil then
+		for _, id in ipairs(params.armor) do
+			if self.armor:Kind(id) == nil then
+				if not self.warned[id] then
+					self.warned[id] = true
+					self.ctx.log:Warn("unknown kind of armor '%s' in the parameter armor", id)
+				end
+			else
+				self.armor:Equip(ply, id)
+			end
+		end
+	end
 	local last
 	for _, class in ipairs(params.loadout) do
 		local weapon = ply:Give(class)
