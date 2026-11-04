@@ -210,6 +210,7 @@ function Player:Give(class)
 	self.weapons[#self.weapons + 1] = weapon
 	return weapon
 end
+function Player:SelectWeapon(class) self.selected = class end
 function Player:GiveAmmo(amount, ammoType)
 	self.ammo[ammoType] = (self.ammo[ammoType] or 0) + amount
 	return amount

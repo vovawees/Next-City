@@ -1,5 +1,6 @@
--- Teams module: the palette, balanced teams, spawn sides, friendly fire, elimination and
--- scores, with the real gamemode files in emulated realms.
+-- Teams module and the Team Deathmatch mode: the palette, balanced teams, spawn sides,
+-- friendly fire, elimination, scores and the full TDM round, with the real gamemode
+-- files in emulated realms.
 
 local Env = dofile(T.root .. "tests/gmod/env.lua")
 
@@ -168,5 +169,50 @@ describe("teams", function()
 		server:Advance(60)
 		expect(rounds:Round().result):toEqual({ reason = "time" })
 		expect(server:Errors()):toEqual({})
+	end)
+
+	it("plays Team Deathmatch out of the box", function()
+		local server = Env.Server()
+		for _, point in ipairs(SPAWNS) do
+			Env.Spawn(server, point)
+		end
+		server:Boot()
+		server:Call("InitPostEntity")
+		local NC = server:Get("NC")
+		local rounds = NC.Modules:Instance("rounds")
+		local teams = NC.Modules:Instance("teams")
+		local players = NC.Modules:Instance("players")
+		expect(rounds:IsAvailable("tdm")):toBe(true)
+
+		local client, gordon = Env.Join(server, { name = "Gordon", language = "ru" })
+		local barney = bots(server, "Barney")
+		expect(rounds:Phase()):toBe("preparing")
+		local round = rounds:Round()
+		expect(round.mode):toBe("tdm")
+		expect(round.params.roundTime):toBe(600)
+		expect(round.params.respawn):toBe("instant")
+		expect(gordon:Team() + barney:Team()):toBe(3)
+		expect(gordon:WeaponClasses()):toEqual({ "weapon_crowbar", "weapon_pistol", "weapon_smg1" })
+		expect(gordon:GetAmmoCount(3)):toBe(54)
+		expect(gordon:GetAmmoCount(4)):toBe(135)
+		expect(gordon.selected):toBe("weapon_smg1")
+
+		server:Advance(5)
+		expect(rounds:Phase()):toBe("active")
+		Env.Kill(barney, gordon)
+		server:Advance(0.1)
+		expect(teams:Score(gordon:Team())):toBe(1)
+		expect(players:RespawnAt(barney)):toBeCloseTo(server.time - 0.1 + 5, 1e-6)
+		server:Advance(5)
+		expect(players:IsAlive(barney)):toBe(true)
+
+		client.time = server.time
+		Env.Flush(server, client)
+		client.drawn = {}
+		client:Call("HUDPaint")
+		expect(client.drawn[1]):toBe("Командный бой: раунд 1")
+		expect(client.drawn[2]):toBe("9:55")
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
 	end)
 end)
