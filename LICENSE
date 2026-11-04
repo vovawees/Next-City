@@ -1,0 +1,124 @@
+Next-City License
+Version 1.0
+
+Copyright (c) 2026 Vovawe (https://github.com/vovawees)
+
+SPDX-License-Identifier: LicenseRef-Next-City-1.0
+
+This is a source-available license. It allows free use, modification and
+operation of game servers, including paid servers, but forbids selling the
+Software itself and lets the Licensor revoke the license for specific parties.
+
+1. Definitions
+
+"Software" means the Next-City gamemode, its core and every other file in the
+original repository (https://github.com/vovawees/Next-City), in source or any
+other form.
+
+"Derivative Work" means any work that contains, is based on, or is modified
+from the Software or any part of it.
+
+"Licensor" means Vovawe, the copyright holder of the Software.
+
+"You" means any person, group or organization exercising rights under this
+License.
+
+2. Grant of rights
+
+Subject to the conditions of this License, the Licensor grants You a
+worldwide, royalty-free, non-exclusive, non-transferable license to:
+
+  a) use, run and study the Software;
+  b) modify the Software and create Derivative Works;
+  c) distribute the Software and Derivative Works free of charge;
+  d) operate game servers that run the Software or a Derivative Work,
+     including commercial servers.
+
+3. Commercial use of servers and own content
+
+You may earn money from servers that run the Software or a Derivative Work,
+including donations, paid access, whitelist passes, subscriptions, ranks,
+privileges and in-game items or currency.
+
+You may sell your own add-ons, modules and content that are distributed
+separately and contain no part of the Software.
+
+Payments for access to a server or for server features are not a sale of the
+Software as long as the Software or a Derivative Work itself is not handed
+over for payment.
+
+4. Restrictions
+
+You may not:
+
+  a) sell, rent, lease or sublicense for a fee the Software or any Derivative
+     Work, modified or not, or otherwise charge for copies of it, for
+     downloading it, for access to its source code, or for packages, bundles
+     or "server packs" that contain it;
+  b) publish the Software or a Derivative Work on paid marketplaces or behind
+     a paywall;
+  c) remove or alter copyright notices, this License or the attribution of
+     the Licensor;
+  d) present a Derivative Work as the original Next-City or as endorsed by
+     the Licensor without the Licensor's written permission.
+
+5. Distribution conditions
+
+When You distribute the Software or a Derivative Work, You must:
+
+  a) distribute it under this License only and include a copy of it;
+  b) keep the copyright notice and state that the work is based on
+     Next-City by Vovawe, with a link to the original repository;
+  c) state that the work was modified, if it was.
+
+6. Revocation and termination
+
+The Licensor may revoke this License for any specific person, group or
+organization at any time and at the Licensor's sole discretion, with or
+without giving a reason, by a notice published in the original repository
+(file REVOKED.md) or delivered to that party directly. The revocation takes
+effect when the notice is published or delivered.
+
+This License terminates automatically for any party that breaches it.
+
+After revocation or termination the affected party must stop using, running
+and distributing the Software and Derivative Works and delete their copies.
+The rights of other licensees are not affected.
+
+7. Contributions
+
+By submitting a contribution (code, documentation, assets or other material)
+to the original repository, You grant the Licensor a perpetual, worldwide,
+irrevocable, royalty-free license to use, modify, sublicense and relicense
+the contribution under any terms, and You confirm that You have the right to
+grant it. Contributions are available to others under this License.
+
+8. Names and marks
+
+This License grants no rights to use the name "Next-City", the Licensor's
+name or logos, except for the attribution required by section 5.
+
+9. Third-party content
+
+This License covers only the Software. Maps, models, sounds and other
+third-party content keep their own licenses.
+
+10. No warranty and limitation of liability
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OF OR OTHER DEALINGS IN THE SOFTWARE.
+
+11. License versions
+
+The Licensor may publish new versions of this License. Each release of the
+Software is available under the license version included with it. The
+Licensor may offer future releases under different terms.
+
+12. Language
+
+A Russian translation is provided in docs/LICENSE.ru.md for convenience. If
+the texts differ, the English text prevails.
