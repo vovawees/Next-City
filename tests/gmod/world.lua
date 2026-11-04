@@ -1465,6 +1465,30 @@ function World.Install(env, G)
 	function G.util.PointContents(pos)
 		return env.pointContents and env.pointContents(pos) or 0
 	end
+	-- Like the engine: every entity in the sphere takes a copy of the damage, less linearly
+	-- with the distance, with a force away from the centre. env.blasts records the calls
+	-- ({ pos, radius, damage, type, attacker, inflictor }).
+	env.blasts = {}
+	function G.util.BlastDamageInfo(dmginfo, pos, radius)
+		local damage = dmginfo:GetDamage()
+		env.blasts[#env.blasts + 1] = { pos = Vector(pos), radius = radius, damage = damage,
+			type = dmginfo:GetDamageType(), attacker = dmginfo:GetAttacker(), inflictor = dmginfo:GetInflictor() }
+		for _, ent in ipairs(G.ents.FindInSphere(pos, radius)) do
+			if ent ~= World.WORLD and ent.TakeDamageInfo ~= nil and ent:IsValid() then
+				local offset = ent:GetPos() - pos
+				local share = 1 - offset:Length() / radius
+				local each = World.DamageInfo()
+				each:SetAttacker(dmginfo:GetAttacker())
+				each:SetInflictor(dmginfo:GetInflictor())
+				each:SetDamageType(dmginfo:GetDamageType())
+				each:SetDamage(damage * share)
+				each:SetDamagePosition(pos)
+				local dir = offset:LengthSqr() > 1e-6 and offset:GetNormalized() or Vector(0, 0, 1)
+				each:SetDamageForce(dir * (damage * share * 300))
+				ent:TakeDamageInfo(each)
+			end
+		end
+	end
 
 	World.InstallEffects(env, G)
 
