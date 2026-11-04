@@ -36,7 +36,7 @@
 ## API (сервер)
 
 - `M:Fire(owner, origin, dir, ammoId, opts)` → число снарядов. Выстрел патроном типа `ammoId`: его дробины летят снарядами в конусе `spread` патрона. `opts`: `inflictor` (оружие), `spread` (градусы: разброс прицела, общий для дробин), `velocity` (множитель начальной скорости — ствол), `filter` (сущность, в которую выстрел не попадёт, например машина), `lagCompensate = false` — без компенсации. Неизвестный тип — `error`.
-- `M:Launch(owner, origin, velocity, projectile, opts)` — один снаряд (осколок): `velocity` — вектор, юнит/с; `projectile` — `{ mass, diameter, penetration, range, ... }` как у патрона; `opts`: `inflictor`, `kind` (`"fragment"` по умолчанию — вид травмы), `ammo` (имя для попаданий), `filter`.
+- `M:Launch(owner, origin, velocity, projectile, opts)` — один снаряд (осколок): `velocity` — вектор, юнит/с; `projectile` — `{ mass, diameter, penetration, range, ... }` как у патрона; `opts`: `inflictor`, `kind` (`"fragment"` по умолчанию — вид травмы), `ammo` (имя для попаданий), `filter`, `hitsOwner = true` — может попасть и во владельца (осколки его же гранаты).
 - `M:Count()`, `M:Clear()`, `M:SetMaterial(mat, def)`.
 
 Попадание по телу: `kind`, `attacker`, `inflictor`, `type = DMG_BULLET`, `pos`, `dir`, `force`, `hitgroup` (у регдолла `HITGROUP_GENERIC`), `ammo`, `distance` (м пролёта), `projectile` (скорость и проникающая способность в тканях на месте), `energy`, `pellet`/`pellets`.

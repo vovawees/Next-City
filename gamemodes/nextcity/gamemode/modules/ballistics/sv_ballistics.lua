@@ -210,14 +210,21 @@ end
 
 -- Launches one projectile (see the top of the file) from `origin` with `velocity`
 -- (Vectors, units/s), e.g. a fragment. opts: inflictor, kind ("fragment" by default: the
--- injury of the organism), ammo (a name for the hits), filter (an entity it cannot hit).
+-- injury of the organism), ammo (a name for the hits), filter (an entity it cannot hit),
+-- hitsOwner (true: it can hit its owner too, like the fragments of his own grenade).
 function M:Launch(owner, origin, velocity, projectile, opts)
 	assert(type(projectile) == "table" and type(projectile.mass) == "number" and type(projectile.range) == "number",
 		"ballistics: Launch(owner, origin, velocity, projectile): projectile needs mass and range")
 	opts = opts or EMPTY
 	local speed = velocity:Length()
-	self:_Add(owner, opts.inflictor, origin.x, origin.y, origin.z, velocity.x, velocity.y, velocity.z, projectile,
-		speed * UNIT_M, opts.kind or "fragment", opts.ammo, 1, 1, opts.filter)
+	local i = self:_Add(owner, opts.inflictor, origin.x, origin.y, origin.z, velocity.x, velocity.y, velocity.z,
+		projectile, speed * UNIT_M, opts.kind or "fragment", opts.ammo, 1, 1, opts.filter)
+	if opts.hitsOwner and owner ~= nil then
+		local filter = self.filter[i]
+		if filter[1] == owner then
+			table.remove(filter, 1)
+		end
+	end
 	self.fired = self.fired + 1
 end
 
