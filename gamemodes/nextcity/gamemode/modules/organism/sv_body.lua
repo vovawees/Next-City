@@ -34,7 +34,6 @@ local sort = table.sort
 local IsValid = IsValid
 local CurTime = CurTime
 
-local FAR = 400        -- the exit of a shape is searched from this far along the ray, units
 local REF_TORSO = 23.5 -- pelvis to neck of the reference skeleton, units
 local MIN_TORSO, MAX_TORSO = 8, 60 -- bone positions with a torso outside this are not trusted
 local HEAD_PITCH = 50  -- the head follows the eyes at most this far up and down, degrees
@@ -263,7 +262,7 @@ M.BODY = { segments = segments, structures = structures }
 -- Prepares a body schema for tracing: indexes, priorities, densities, frames per
 -- segment and scratch fields for the world shapes. Returns the body.
 function M:CompileBody(body)
-	local bySeg, byId = {}, {}
+	local bySeg, byId, shapes = {}, {}, {}
 	for i, seg in ipairs(body.segments) do
 		seg.index = i
 		seg.frame = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
@@ -286,12 +285,20 @@ function M:CompileBody(body)
 		s.iv = {} -- intervals along the current ray: a1, b1, a2, b2, ...
 		s.ivn = 0
 		for _, shape in ipairs(s.shapes) do
-			shape.world = { 0, 0, 0, 0, 0, 0, 0 }
+			assert(shape.structure == nil or shape.structure == s, "organism: structure " .. s.id .. " shares a shape")
+			shape.structure = s
+			shape.frame = seg.frame
+			shape.grows = s.kind == "vessel" or s.kind == "nerve"
+			-- Ends a (1-3) and b (4-6), radius (7), unit axis (8-10), length (11), middle (12-14)
+			-- and half the length (15) of the shape in the world.
+			shape.world = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }
+			shapes[#shapes + 1] = shape
 		end
 		byId[s.id] = s
 	end
 	body.byId = byId
 	body.bySeg = bySeg
+	body.shapes = shapes -- every shape in one list: the hot loops of a cast run over it
 	body.cache = { ply = nil, time = -1 }
 	return body
 end
@@ -478,21 +485,27 @@ function M:_Frames(body, ply)
 	end
 
 	-- World shapes.
-	local list = body.structures
-	for i = 1, #list do
-		local s = list[i]
-		local f = s.segment.frame
+	local shapes = body.shapes
+	for i = 1, #shapes do
+		local shape = shapes[i]
+		local f, w = shape.frame, shape.world
 		local ox, oy, oz = f[1], f[2], f[3]
 		local xx, xy, xz, yx, yy, yz, zx, zy, zz = f[4], f[5], f[6], f[7], f[8], f[9], f[10], f[11], f[12]
-		local shapes = s.shapes
-		for k = 1, #shapes do
-			local shape = shapes[k]
-			local w = shape.world
-			local a, b, c = shape[1], shape[2], shape[3]
-			w[1], w[2], w[3] = ox + xx * a + yx * b + zx * c, oy + xy * a + yy * b + zy * c, oz + xz * a + yz * b + zz * c
-			a, b, c = shape[4], shape[5], shape[6]
-			w[4], w[5], w[6] = ox + xx * a + yx * b + zx * c, oy + xy * a + yy * b + zy * c, oz + xz * a + yz * b + zz * c
-			w[7] = shape[7] * scale
+		local a, b, c = shape[1], shape[2], shape[3]
+		w[1], w[2], w[3] = ox + xx * a + yx * b + zx * c, oy + xy * a + yy * b + zy * c, oz + xz * a + yz * b + zz * c
+		a, b, c = shape[4], shape[5], shape[6]
+		w[4], w[5], w[6] = ox + xx * a + yx * b + zx * c, oy + xy * a + yy * b + zy * c, oz + xz * a + yz * b + zz * c
+		w[7] = shape[7] * scale
+		if shape.capsule then
+			local ax, ay, az, length = normalize(w[4] - w[1], w[5] - w[2], w[6] - w[3])
+			if length > 0 then
+				w[8], w[9], w[10], w[11] = ax, ay, az, length
+			else
+				w[8], w[9], w[10], w[11] = 0, 0, 1, 0
+			end
+			w[12], w[13], w[14], w[15] = (w[1] + w[4]) * 0.5, (w[2] + w[5]) * 0.5, (w[3] + w[6]) * 0.5, length * 0.5
+		else
+			w[12], w[13], w[14], w[15] = w[1], w[2], w[3], 0
 		end
 	end
 	cache.ply, cache.time, cache.scale = ply, now, scale
@@ -511,84 +524,73 @@ end
 
 -- Ray tests -----------------------------------------------------------------------------
 
--- Distance along the ray (o, unit d) to the entry into a sphere; nil if it misses.
-local function sphereEntry(ox, oy, oz, dx, dy, dz, cx, cy, cz, r)
-	local px, py, pz = ox - cx, oy - cy, oz - cz
-	local b = px * dx + py * dy + pz * dz
-	local h = b * b - (px * px + py * py + pz * pz - r * r)
-	if h < 0 then
-		return nil
-	end
-	return -b - sqrt(h)
-end
+-- The ray of the current cast: origin and unit direction.
+local rox, roy, roz, rdx, rdy, rdz = 0, 0, 0, 0, 0, 1
 
--- Distance along the ray to the entry into a capsule (segment a-b, radius r); nil if it
--- misses. Negative when the ray starts inside.
-local function capsuleEntry(ox, oy, oz, dx, dy, dz, ax, ay, az, bx, by, bz, r)
-	local bax, bay, baz = bx - ax, by - ay, bz - az
-	local oax, oay, oaz = ox - ax, oy - ay, oz - az
-	local baba = bax * bax + bay * bay + baz * baz
-	local bard = bax * dx + bay * dy + baz * dz
-	local baoa = bax * oax + bay * oay + baz * oaz
-	local a = baba - bard * bard
-	if a < EPSILON * baba then
-		-- Along the axis: the nearer cap.
-		local ta = sphereEntry(ox, oy, oz, dx, dy, dz, ax, ay, az, r)
-		local tb = sphereEntry(ox, oy, oz, dx, dy, dz, bx, by, bz, r)
-		if ta == nil then
-			return tb
-		end
-		if tb == nil or ta < tb then
-			return ta
-		end
-		return tb
-	end
-	local rdoa = dx * oax + dy * oay + dz * oaz
-	local oaoa = oax * oax + oay * oay + oaz * oaz
-	local b = baba * rdoa - baoa * bard
-	local c = baba * oaoa - baoa * baoa - r * r * baba
-	local h = b * b - a * c
-	if h < 0 then
-		return nil
-	end
-	local t = (-b - sqrt(h)) / a
-	local y = baoa + t * bard
-	if y > 0 and y < baba then
-		return t
-	end
-	if y <= 0 then
-		return sphereEntry(ox, oy, oz, dx, dy, dz, ax, ay, az, r)
-	end
-	return sphereEntry(ox, oy, oz, dx, dy, dz, bx, by, bz, r)
-end
-
--- Interval [t0, t1] of the ray inside a shape grown by `grow`; nil if it misses.
-local function shapeInterval(shape, ox, oy, oz, dx, dy, dz, grow)
+-- Interval [t0, t1] of the current ray inside a shape grown by `grow`; nil if it misses.
+-- The bounding sphere goes first: most shapes are far from the ray, and the early miss
+-- keeps few values alive (side traces of the JIT inherit them in registers). A capsule is
+-- the union of the cylinder between its ends and the spheres at them; it is convex, so
+-- the interval runs from the first entry into a part to the last exit.
+local function shapeInterval(shape, grow)
 	local w = shape.world
 	local r = w[7] + grow
-	if r <= 0 then
+	local px, py, pz = rox - w[12], roy - w[13], roz - w[14]
+	local pd = px * rdx + py * rdy + pz * rdz
+	local bound = w[15] + r
+	if r <= 0 or pd * pd - (px * px + py * py + pz * pz) + bound * bound < 0 then
 		return nil
 	end
+	local rr = r * r
+	px, py, pz = rox - w[1], roy - w[2], roz - w[3]
+	pd = px * rdx + py * rdy + pz * rdz
+	local pp = px * px + py * py + pz * pz
 	if not shape.capsule then
-		local px, py, pz = ox - w[1], oy - w[2], oz - w[3]
-		local b = px * dx + py * dy + pz * dz
-		local h = b * b - (px * px + py * py + pz * pz - r * r)
+		local h = sqrt(max(pd * pd - pp + rr, 0))
+		return -pd - h, -pd + h
+	end
+	-- The infinite cylinder (it holds the whole capsule) cut by the slab of the axis.
+	local pu = px * w[8] + py * w[9] + pz * w[10]
+	local du = rdx * w[8] + rdy * w[9] + rdz * w[10]
+	local a = 1 - du * du
+	local t0, t1 = -1e30, 1e30
+	if a > EPSILON then
+		local b = pd - pu * du
+		local h = b * b - a * (pp - pu * pu - rr)
 		if h < 0 then
 			return nil
 		end
 		h = sqrt(h)
-		return -b - h, -b + h
+		t0, t1 = (-b - h) / a, (-b + h) / a
+	elseif pp - pu * pu > rr then
+		t0, t1 = 1e30, -1e30 -- along the axis, outside
 	end
-	local t0 = capsuleEntry(ox, oy, oz, dx, dy, dz, w[1], w[2], w[3], w[4], w[5], w[6], r)
-	if t0 == nil then
+	if du > EPSILON or du < -EPSILON then
+		local s0, s1 = -pu / du, (w[11] - pu) / du
+		t0, t1 = max(t0, min(s0, s1)), min(t1, max(s0, s1))
+	elseif pu < 0 or pu > w[11] then
+		t0, t1 = 1e30, -1e30 -- across the axis, beside the slab
+	end
+	if t0 > t1 then
+		t0, t1 = 1e30, -1e30
+	end
+	-- The spheres at the ends.
+	local h = pd * pd - pp + rr
+	if h >= 0 then
+		h = sqrt(h)
+		t0, t1 = min(t0, -pd - h), max(t1, -pd + h)
+	end
+	px, py, pz = rox - w[4], roy - w[5], roz - w[6]
+	pd = px * rdx + py * rdy + pz * rdz
+	h = pd * pd - (px * px + py * py + pz * pz) + rr
+	if h >= 0 then
+		h = sqrt(h)
+		t0, t1 = min(t0, -pd - h), max(t1, -pd + h)
+	end
+	if t0 > t1 then
 		return nil
 	end
-	local back = capsuleEntry(ox + dx * FAR, oy + dy * FAR, oz + dz * FAR, -dx, -dy, -dz, w[1], w[2], w[3], w[4], w[5],
-		w[6], r)
-	if back == nil then
-		return nil
-	end
-	return t0, FAR - back
+	return t0, t1
 end
 
 -- Adds [a, b] to the sorted, disjoint intervals of `s` (merging overlaps).
@@ -655,44 +657,53 @@ local hits = {}     -- structures the current ray touches
 local cuts = {}     -- boundaries of their intervals
 local inner = { iv = {}, ivn = 0 }
 
+-- A hollow structure: removes the inside from its intervals, then keeps each crossing of
+-- the wall by coverage.
+local function hollow(s)
+	inner.ivn = 0
+	local shapes = s.shapes
+	for k = 1, #shapes do
+		local shape = shapes[k]
+		local t0, t1 = shapeInterval(shape, -s.shell * (shape.world[7] / shape[7]))
+		if t0 ~= nil and t1 > 0 and t1 > t0 then
+			addInterval(inner, max(t0, 0), t1)
+		end
+	end
+	for k = 1, inner.ivn do
+		cutInterval(s, inner.iv[2 * k - 1], inner.iv[2 * k])
+	end
+	if s.coverage ~= nil then
+		local iv, kept = s.iv, 0
+		for k = 1, s.ivn do
+			if M.Random() < s.coverage then
+				kept = kept + 1
+				iv[2 * kept - 1], iv[2 * kept] = iv[2 * k - 1], iv[2 * k]
+			end
+		end
+		s.ivn = kept
+	end
+end
+
 -- Intervals of every structure along the ray; vessels and nerves are grown by `grow`.
 local function castStructures(body, ox, oy, oz, dx, dy, dz, grow)
+	rox, roy, roz, rdx, rdy, rdz = ox, oy, oz, dx, dy, dz
 	local list = body.structures
+	for i = 1, #list do
+		list[i].ivn = 0
+	end
+	local shapes = body.shapes
+	for i = 1, #shapes do
+		local shape = shapes[i]
+		local t0, t1 = shapeInterval(shape, shape.grows and grow or 0)
+		if t0 ~= nil and t1 > 0 and t1 > t0 then
+			addInterval(shape.structure, max(t0, 0), t1)
+		end
+	end
 	local count = 0
 	for i = 1, #list do
 		local s = list[i]
-		s.ivn = 0
-		local g = (s.kind == "vessel" or s.kind == "nerve") and grow or 0
-		local shapes = s.shapes
-		for k = 1, #shapes do
-			local t0, t1 = shapeInterval(shapes[k], ox, oy, oz, dx, dy, dz, g)
-			if t0 ~= nil and t1 > 0 and t1 > t0 then
-				addInterval(s, max(t0, 0), t1)
-			end
-		end
 		if s.ivn > 0 and s.shell ~= nil then
-			-- Hollow: remove the inside, then keep each crossing of the wall by coverage.
-			inner.ivn = 0
-			for k = 1, #shapes do
-				local shape = shapes[k]
-				local t0, t1 = shapeInterval(shape, ox, oy, oz, dx, dy, dz, -s.shell * (shape.world[7] / shape[7]))
-				if t0 ~= nil and t1 > 0 and t1 > t0 then
-					addInterval(inner, max(t0, 0), t1)
-				end
-			end
-			for k = 1, inner.ivn do
-				cutInterval(s, inner.iv[2 * k - 1], inner.iv[2 * k])
-			end
-			if s.coverage ~= nil then
-				local iv, kept = s.iv, 0
-				for k = 1, s.ivn do
-					if M.Random() < s.coverage then
-						kept = kept + 1
-						iv[2 * kept - 1], iv[2 * kept] = iv[2 * k - 1], iv[2 * k]
-					end
-				end
-				s.ivn = kept
-			end
+			hollow(s)
 		end
 		if s.ivn > 0 then
 			count = count + 1
@@ -818,57 +829,41 @@ function M:_Distance(s, x, y, z)
 	local shapes = s.shapes
 	for k = 1, #shapes do
 		local w = shapes[k].world
-		local ax, ay, az = w[1], w[2], w[3]
-		local bx, by, bz = w[4] - ax, w[5] - ay, w[6] - az
-		local px, py, pz = x - ax, y - ay, z - az
-		local bb = bx * bx + by * by + bz * bz
-		local t = 0
-		if bb > EPSILON then
-			t = (px * bx + py * by + pz * bz) / bb
-			t = t < 0 and 0 or (t > 1 and 1 or t)
-		end
-		local qx, qy, qz = px - bx * t, py - by * t, pz - bz * t
-		local d = sqrt(qx * qx + qy * qy + qz * qz) - w[7]
-		if d < best then
-			best = d
-		end
+		local px, py, pz = x - w[1], y - w[2], z - w[3]
+		-- The nearest point of the axis (a sphere has no length).
+		local t = min(max((px * w[8] + py * w[9] + pz * w[10]) / max(w[11], EPSILON), 0), 1) * w[11]
+		px, py, pz = px - w[8] * t, py - w[9] * t, pz - w[10] * t
+		best = min(best, sqrt(px * px + py * py + pz * pz) - w[7])
 	end
 	return best
 end
 
 -- Distance between the path segment p-q and the axis of structure `s` minus its radius
--- (how far an organ is from the track of a projectile).
+-- (how far an organ is from the track of a projectile). The nearest points of the path
+-- (p + u s, s in 0..1) and of an axis (a + v t, unit v, t in 0..length): s of the lines,
+-- clamped; t for it, clamped; s again for that t.
 function M:_PathDistance(s, px, py, pz, qx, qy, qz)
 	local best = math.huge
 	local ux, uy, uz = qx - px, qy - py, qz - pz
+	local uu = ux * ux + uy * uy + uz * uz
+	local inv = uu > EPSILON and 1 / uu or 0
 	local shapes = s.shapes
 	for k = 1, #shapes do
 		local w = shapes[k].world
-		local vx, vy, vz = w[4] - w[1], w[5] - w[2], w[6] - w[3]
+		local vx, vy, vz = w[8], w[9], w[10]
 		local wx, wy, wz = px - w[1], py - w[2], pz - w[3]
-		local a = ux * ux + uy * uy + uz * uz
-		local b = ux * vx + uy * vy + uz * vz
-		local c = vx * vx + vy * vy + vz * vz
-		local d = ux * wx + uy * wy + uz * wz
-		local e = vx * wx + vy * wy + vz * wz
-		local denom = a * c - b * b
-		local sc, tc
-		if denom < EPSILON then
-			sc = 0
-			tc = c > EPSILON and e / c or 0
-		else
-			sc = (b * e - c * d) / denom
-			tc = (a * e - b * d) / denom
+		local uv = ux * vx + uy * vy + uz * vz
+		local uw = ux * wx + uy * wy + uz * wz
+		local vw = vx * wx + vy * wy + vz * wz
+		local denom = uu - uv * uv
+		local sc = 0
+		if denom > EPSILON * uu then
+			sc = min(max((uv * vw - uw) / denom, 0), 1)
 		end
-		sc = sc < 0 and 0 or (sc > 1 and 1 or sc)
-		tc = tc < 0 and 0 or (tc > 1 and 1 or tc)
-		local dx = wx + ux * sc - vx * tc
-		local dy = wy + uy * sc - vy * tc
-		local dz = wz + uz * sc - vz * tc
-		local dist = sqrt(dx * dx + dy * dy + dz * dz) - w[7]
-		if dist < best then
-			best = dist
-		end
+		local tc = min(max(vw + uv * sc, 0), w[11])
+		sc = min(max((uv * tc - uw) * inv, 0), 1)
+		wx, wy, wz = wx + ux * sc - vx * tc, wy + uy * sc - vy * tc, wz + uz * sc - vz * tc
+		best = min(best, sqrt(wx * wx + wy * wy + wz * wz) - w[7])
 	end
 	return best
 end

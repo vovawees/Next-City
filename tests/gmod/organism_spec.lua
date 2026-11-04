@@ -458,4 +458,70 @@ describe("organism", function()
 		expect(#organism:Wounds(organism.list[1].ply)):toBe(0)
 		expect(server:Errors()):toEqual({})
 	end)
+	it("traces rays and measures distances in agreement with the point test of the shapes", function()
+		local server, organism, players = boot()
+		local ply = deploy(server, players, "Bob", Vector(0, 0, 0), 30)
+		local structures = organism.body.structures
+		local seed = 4242
+		local function random() -- Park-Miller: the same rays on every run
+			seed = seed * 16807 % 2147483647
+			return seed / 2147483647
+		end
+		local function within(s, x, y, z, limit)
+			return organism:_Distance(s, x, y, z) <= limit
+		end
+		local inside = 0
+		for _ = 1, 150 do
+			-- A ray from 100 units away through a point of the body.
+			local tx, ty, tz = (random() - 0.5) * 24, (random() - 0.5) * 24, 2 + random() * 66
+			local yaw, pitch = random() * 2 * math.pi, (random() - 0.5) * math.pi
+			local dx, dy, dz = math.cos(pitch) * math.cos(yaw), math.cos(pitch) * math.sin(yaw), math.sin(pitch)
+			local ox, oy, oz = tx - dx * 100, ty - dy * 100, tz - dz * 100
+			local n = organism:Cast(ply, ox, oy, oz, dx, dy, dz, 0)
+			local trace = organism.trace
+			for t = 60, 140, 0.25 do
+				local x, y, z = ox + dx * t, oy + dy * t, oz + dz * t
+				local pass
+				for i = 1, n do
+					if t > trace.t0[i] and t < trace.t1[i] then
+						pass = trace.structure[i]
+					end
+				end
+				-- A point in a pass is in its structure; a point deep in a solid one is in a pass.
+				if pass ~= nil then
+					expect(within(pass, x, y, z, 1e-6)):toBe(true)
+				end
+				for _, s in ipairs(structures) do
+					if s.shell == nil and within(s, x, y, z, -1e-3) then
+						expect(pass ~= nil):toBe(true)
+						inside = inside + 1
+						break
+					end
+				end
+			end
+		end
+		expect(inside > 1000):toBe(true)
+
+		-- The distance from a path to a structure is the nearest of its points (spheres too).
+		local worst = 0
+		for _, s in ipairs(structures) do
+			for _ = 1, 4 do
+				local px, py, pz = (random() - 0.5) * 40, (random() - 0.5) * 40, random() * 70
+				local qx, qy, qz = (random() - 0.5) * 40, (random() - 0.5) * 40, random() * 70
+				local steps = 400
+				local nearest = math.huge
+				for i = 0, steps do
+					local f = i / steps
+					local x, y, z = px + (qx - px) * f, py + (qy - py) * f, pz + (qz - pz) * f
+					nearest = math.min(nearest, organism:_Distance(s, x, y, z))
+				end
+				local length = math.sqrt((qx - px) ^ 2 + (qy - py) ^ 2 + (qz - pz) ^ 2)
+				local d = organism:_PathDistance(s, px, py, pz, qx, qy, qz)
+				expect(d <= nearest + 1e-6):toBe(true)
+				worst = math.max(worst, (nearest - d) / (length / steps))
+			end
+		end
+		expect(worst <= 0.5 + 1e-6):toBe(true)
+		expect(server:Errors()):toEqual({})
+	end)
 end)
