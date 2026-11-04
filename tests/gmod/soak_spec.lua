@@ -1,13 +1,18 @@
--- Soak test: the default gamemode (Team Deathmatch with every repository module) under
--- random kills, joins, departures, observer keys and admin commands for several minutes
--- of game time. Checks that nothing errors and that the invariants of players, teams and
--- spectating hold (a camera may lag behind a change by a tick or two, not longer).
+-- Soak tests: the default gamemode (Team Deathmatch with every repository module) for
+-- several minutes of game time under
+--   random kills, joins, departures, observer keys and admin commands: the invariants of
+--   players, teams and spectating hold (a camera may lag behind a change by a tick or two)
+--   random fire, blows, blasts, falls, armor and user commands: the engine's health is
+--   never touched, a dead body kills its player, an unconscious one has no input, the
+--   clients draw the HUD and its effects.
+-- Nothing may error.
 
 local Env = dofile(T.root .. "tests/gmod/env.lua")
 
 local World = Env.World
 local Vector = World.Vector
 local IN = World.IN
+local DMG = World.DMG
 
 -- A small deterministic generator, independent of math.random used by the gamemode.
 local function generator(seed)
@@ -15,6 +20,15 @@ local function generator(seed)
 	return function(n)
 		state = (state * 1103515245 + 12345) % 2147483648
 		return state % n + 1
+	end
+end
+
+-- The same with the high bits (Park-Miller): consecutive small rolls are independent.
+local function uniform(seed)
+	local state = seed
+	return function(n)
+		state = state * 16807 % 2147483647
+		return math.floor(state / 2147483647 * n) + 1
 	end
 end
 
@@ -131,6 +145,127 @@ describe("soak", function()
 		end
 		expect(kills > 200):toBe(true)
 		expect(phases.active and phases.ended and phases.preparing):toBe(true)
+		expect(server:Errors()):toEqual({})
+		for _, client in ipairs(clients) do
+			expect(client:Errors()):toEqual({})
+		end
+	end)
+
+	it("keeps the bodies consistent under fire, blows, blasts and falls", function()
+		math.randomseed(11)
+		local roll = uniform(777)
+		local server = Env.Server({ patch = { [Env.CONFIG] = function(cfg)
+			cfg.modules.settings.rounds = { params = { tdm = { armor = { "vest_light" }, roundTime = 120 } } }
+			cfg.modules.settings.organism = { brainDeathTime = 30 } -- bleeding out within a round
+			return cfg
+		end } })
+		for i = 0, 5 do
+			Env.Spawn(server, { class = "info_player_rebel", pos = Vector(0, i * 150, 0), map = true })
+			Env.Spawn(server, { class = "info_player_combine", pos = Vector(1500, i * 150, 0), map = true })
+		end
+		server:Boot()
+		server:Call("InitPostEntity")
+		local NC = server:Get("NC")
+		local players = NC.Modules:Instance("players")
+		local organism = NC.Modules:Instance("organism")
+		local movement = NC.Modules:Instance("movement")
+		local deaths = {}
+		NC.Events:On("organism.died", function(_, cause) deaths[cause] = (deaths[cause] or 0) + 1 end)
+		local hits = 0
+		NC.Events:On("damage.hit", function() hits = hits + 1 end)
+
+		local clients = {}
+		clients[1] = Env.Join(server, { name = "Gordon", language = "ru", index = 1 })
+		clients[2] = Env.Join(server, { name = "Alyx", language = "en", index = 2 })
+		for index = 3, 12 do
+			Env.Bot(server, { name = "Bot" .. index, index = index })
+		end
+		local AMMO = { "Pistol", "357", "SMG1", "AR2", "Buckshot", "SniperRound", "XBowBolt", "Unknown" }
+		local BONES = { "Head1", "Neck1", "Spine2", "Spine4", "Spine", "Pelvis", "L_UpperArm", "R_Forearm", "L_Thigh",
+			"R_Calf", "L_Foot", "R_Hand" }
+		local ARMOR = { "helmet", "vest", "plates", "plates_heavy", "strip", "-vest" }
+		local function jitter()
+			return Vector((roll(9) - 5) * 0.8, (roll(9) - 5) * 0.8, (roll(9) - 5) * 0.8)
+		end
+
+		local zombie = {} -- ply -> ticks alive with a dead body
+		local shots = 0
+		for tick = 1, 1500 do
+			local alive = players:List("alive")
+			for _ = 1, 3 do
+				local shooter, victim = pick(roll, alive), pick(roll, alive)
+				if shooter ~= nil and victim ~= shooter and roll(2) == 1 then
+					local ammo = pick(roll, AMMO)
+					local opts = { bone = pick(roll, BONES), offset = jitter(), ammo = ammo }
+					if ammo == "Buckshot" then
+						opts.pellets = { { bone = pick(roll, BONES) }, { bone = pick(roll, BONES) },
+							{ bone = pick(roll, BONES), offset = jitter() } }
+					end
+					Env.Shoot(shooter, victim, opts)
+					shots = shots + 1
+				end
+			end
+			local victim = pick(roll, alive)
+			if victim ~= nil then
+				local kind = roll(40)
+				if kind <= 2 then
+					local other = pick(roll, alive)
+					Env.Shoot(other, victim, { bone = pick(roll, BONES), ammo = "none", damage = 5 + roll(40),
+						type = ({ DMG.CLUB, DMG.SLASH, DMG.CLUB + DMG.SHOCK })[roll(3)] })
+				elseif kind == 3 then
+					local pos = victim:GetPos() + Vector(roll(300) - 150, roll(300) - 150, 20)
+					Env.Hurt(victim, { type = DMG.BLAST, damage = 10 + roll(200), pos = pos, attacker = pick(roll, alive),
+						force = Vector(0, 0, 5000) })
+				elseif kind == 4 then
+					Env.Fall(victim, 250 + roll(1200), roll(5) == 1)
+				elseif kind == 5 then
+					server:Command("nc_armor", nil, { victim:Nick(), pick(roll, ARMOR) })
+				elseif kind == 6 then
+					Env.Hurt(victim, { type = ({ DMG.BURN, DMG.POISON, DMG.CRUSH, DMG.SHOCK, DMG.GENERIC })[roll(5)],
+						damage = roll(60), attacker = pick(roll, alive) })
+				end
+			end
+			for _, ply in ipairs(alive) do
+				if ply:Alive() and roll(3) == 1 then
+					local buttons = Env.RunCommand(server, ply, IN.FORWARD + IN.SPEED + IN.JUMP + IN.ATTACK, 200)
+						:GetButtons()
+					if organism:IsUnconscious(ply) and ply:GetMoveType() ~= World.MOVETYPE.NOCLIP then
+						expect(buttons):toBe(IN.DUCK)
+					end
+				end
+			end
+			server:Advance(0.1)
+
+			for _, ply in ipairs(players:ReadyPlayers()) do
+				if ply:Alive() then
+					expect(ply:Health()):toBe(100) -- D6: the body decides, not the engine's health
+					expect(organism:IsSimulated(ply)):toBe(true)
+					zombie[ply] = organism:IsDead(ply) and (zombie[ply] or 0) + 1 or nil
+					if (zombie[ply] or 0) > 2 then
+						error(string.format("tick %d: %s stays alive with a dead body", tick, ply:Nick()))
+					end
+				else
+					expect(movement:Limit(ply)):toBeNil()
+				end
+			end
+			if tick % 25 == 0 then
+				for _, client in ipairs(clients) do
+					client:Advance(server.time - client.time)
+					Env.Flush(server, client)
+					client.drawn, client.rects, client.effects = {}, {}, {}
+					client:Call("RenderScreenspaceEffects")
+					client:Call("HUDPaint")
+					client:Call("HUDShouldDraw", "CHudCrosshair")
+				end
+			end
+		end
+		local died = 0
+		for _, count in pairs(deaths) do
+			died = died + count
+		end
+		expect(shots > 1000 and hits > 1000):toBe(true)
+		expect(died > 30):toBe(true)
+		expect((deaths.brain or 0) > 0 and (deaths.head or 0) > 0 and (deaths.fall or 0) > 0):toBe(true)
 		expect(server:Errors()):toEqual({})
 		for _, client in ipairs(clients) do
 			expect(client:Errors()):toEqual({})
