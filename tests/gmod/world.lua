@@ -372,7 +372,7 @@ function Player:GetAttachment(id)
 	if id ~= 1 then
 		return nil
 	end
-	return { Pos = self:EyePos(), Ang = self:EyeAngles(), Bone = World.BONE_IDS and World.BONE_IDS["ValveBiped.Bip01_Head1"] }
+	return { Pos = self:EyePos(), Ang = self:EyeAngles(), Bone = World.BONE_IDS["ValveBiped.Bip01_Head1"] }
 end
 
 -- Standing ValveBiped skeleton, facing +x; positions relative to the feet.
