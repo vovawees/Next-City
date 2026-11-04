@@ -57,6 +57,25 @@ describe("scope", function()
 		expect(next(scope.timers)):toBeNil()
 	end)
 
+	it("forgets cancelled timers and still cancels pending ones on Dispose", function()
+		local bus, sched = services()
+		local scope = Scope.New({ id = "s", events = bus, scheduler = sched })
+		for _ = 1, 10 do
+			scope:After(1, function() end):Cancel()
+		end
+		local fired = false
+		scope:After(5, function() fired = true end) -- only the scheduler holds this one
+		collectgarbage("collect")
+		local count = 0
+		for _ in pairs(scope.timers) do
+			count = count + 1
+		end
+		expect(count):toBe(1)
+		scope:Dispose()
+		sched:Update(10)
+		expect(fired):toBe(false)
+	end)
+
 	it("refuses new work after Dispose", function()
 		local bus, sched = services()
 		local scope = Scope.New({ id = "s", events = bus, scheduler = sched })

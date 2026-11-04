@@ -48,6 +48,9 @@ local MANIFEST_KEYS = {
 	id = true, provides = true, requires = true, optional = true, files = true, config = true, description = true,
 }
 local LIVE = { resolved = true, initialized = true, started = true }
+-- Pending timers are held by the scheduler; a context only has to find them on stop, so
+-- cancelled timers drop out of its set on their own.
+local WEAK_KEYS = { __mode = "k" }
 -- Context fields a service may not take.
 local RESERVED = {
 	id = true, config = true, log = true, Require = true, On = true, Every = true, After = true,
@@ -249,7 +252,7 @@ local function newContext(registry, entry)
 		_entry = entry,
 		_listeners = {},
 		_jobs = {},
-		_timers = {},
+		_timers = setmetatable({}, WEAK_KEYS),
 		_facades = {},
 		_alive = true,
 		_seq = 0,
@@ -384,7 +387,8 @@ function Context:_Dispose()
 			end
 		end
 	end
-	self._listeners, self._jobs, self._timers, self._facades = {}, {}, {}, {}
+	self._listeners, self._jobs, self._facades = {}, {}, {}
+	self._timers = setmetatable({}, WEAK_KEYS)
 end
 
 -- Registry --------------------------------------------------------------------------

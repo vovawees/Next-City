@@ -30,6 +30,10 @@ local setmetatable = setmetatable
 local format = string.format
 local traceback = debug.traceback
 
+-- Pending timers are held by the scheduler; the set only has to find them on Dispose, so
+-- cancelled timers drop out of it on their own instead of piling up in long-lived scopes.
+local WEAK_KEYS = { __mode = "k" }
+
 local COMPACT_MIN = 32
 
 local Instance = {}
@@ -80,7 +84,7 @@ function Scope.New(opts)
 		compactAt = COMPACT_MIN,
 		listeners = {},
 		jobs = {},
-		timers = {},
+		timers = setmetatable({}, WEAK_KEYS),
 		deferred = {},
 		children = {},
 	}, Instance)
@@ -193,7 +197,8 @@ function Instance:Dispose()
 		timer:Cancel()
 	end
 	local deferred = self.deferred
-	self.children, self.listeners, self.jobs, self.timers, self.deferred = {}, {}, {}, {}, {}
+	self.children, self.listeners, self.jobs, self.deferred = {}, {}, {}, {}
+	self.timers = setmetatable({}, WEAK_KEYS)
 	for i = #deferred, 1, -1 do
 		local ok, err = xpcall(deferred[i], onDeferredError, self)
 		if not ok then

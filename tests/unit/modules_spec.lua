@@ -352,6 +352,26 @@ describe("modules context", function()
 		expect(function() M.ctx:On("ping", "OnPing") end):toFail("stopped context")
 	end)
 
+	it("forgets cancelled timers of a running module", function()
+		local registry, _, scheduler = setup({ { id = "a" } })
+		registry:InitAll()
+		local ctx = registry:Instance("a").ctx
+		for _ = 1, 10 do
+			ctx:After(1, function() end):Cancel()
+		end
+		local fired = false
+		ctx:After(5, function() fired = true end)
+		collectgarbage("collect")
+		local count = 0
+		for _ in pairs(ctx._timers) do
+			count = count + 1
+		end
+		expect(count):toBe(1)
+		registry:StopAll()
+		scheduler:Update(10)
+		expect(fired):toBe(false)
+	end)
+
 	it("reports a missing handler method when the event fires", function()
 		local registry, events, _, lines = setup({ { id = "a" } })
 		registry:InitAll()
