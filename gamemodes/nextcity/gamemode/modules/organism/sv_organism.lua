@@ -4,6 +4,8 @@
 -- Every alive player has a body. The bodies advance round-robin, config.rate times a
 -- second each, spread over the ticks; injuries and treatments act at once. When the body
 -- dies the player is killed on behalf of whoever caused most of the injuries (players:Kill).
+-- Another entity may carry the body for a while (SetCarrier: the ragdoll of a fallen
+-- player): the bones of hits and the water of breathing are then read from it.
 --
 -- Listens:  players.spawned (a new body), players.died (killed by something else),
 --           players.left, players.stateChanged (no body outside the game), gm.KeyPress
@@ -331,6 +333,34 @@ end
 -- The vitals of `ply` (the replicated component), or nil. Do not modify.
 function M:Vitals(ply)
 	return self.ctx.components.vitals:Get(ply)
+end
+
+-- The entity that carries the body of `ply` instead of the player (the ragdoll of a
+-- fallen player), or nil.
+function M:Carrier(ply)
+	local st = self.states[ply]
+	local carrier = st and st.carrier
+	if carrier ~= nil and IsValid(carrier) then
+		return carrier
+	end
+	return nil
+end
+
+-- Makes `ent` carry the body of `ply` (nil: the player again). A new body (every spawn)
+-- has no carrier. Returns false if `ply` has no body.
+function M:SetCarrier(ply, ent)
+	assert(ent == nil or IsValid(ent), "organism: SetCarrier(ply, ent): ent must be a valid entity or nil")
+	local st = self.states[ply]
+	if st == nil then
+		return false
+	end
+	st.carrier = ent
+	return true
+end
+
+-- The entity whose bones hold the body of `ply`: its carrier or the player.
+function M:BodyEntity(ply)
+	return self:Carrier(ply) or ply
 end
 
 -- The inner state of the body, for tools and tests. Do not modify outside the organism.

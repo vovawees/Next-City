@@ -304,12 +304,19 @@ function M:_Skin(seg)
 end
 
 -- Point and unit direction of a hit: hit.pos and hit.dir, else the force, else from the
--- attacker, else from the front; the middle of the body without a point.
+-- attacker, else from the front; the middle of the body without a point (the root bone,
+-- the pelvis, of a carrier).
 local function ray(st, hit)
 	local ply = st.ply
+	local carrier = st.carrier
+	if carrier ~= nil and not IsValid(carrier) then
+		carrier = nil
+	end
 	local px, py, pz
 	if hit.pos ~= nil then
 		px, py, pz = hit.pos:Unpack()
+	elseif carrier ~= nil then
+		px, py, pz = carrier:GetPos():Unpack()
 	else
 		px, py, pz = ply:GetPos():Unpack()
 		pz = pz + CENTER
@@ -330,7 +337,7 @@ local function ray(st, hit)
 	end
 	local length = sqrt(dx * dx + dy * dy + dz * dz)
 	if length < 1e-6 then
-		local _, yaw = ply:GetAngles():Unpack()
+		local _, yaw = (carrier or ply):GetAngles():Unpack()
 		yaw = math.rad(yaw)
 		return px, py, pz, -math.cos(yaw), -math.sin(yaw), 0
 	end

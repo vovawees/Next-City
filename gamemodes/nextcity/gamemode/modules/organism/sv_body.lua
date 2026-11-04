@@ -5,7 +5,9 @@
 -- made of capsules and spheres in the frame of their segment. A projectile is a ray
 -- through the structures: where shapes overlap, the structure with the highest priority
 -- takes the path. Models without these bones use a standing reference skeleton turned
--- by the yaw of the player.
+-- by the yaw of the player. The bones of a body with a carrier (SetCarrier: the ragdoll
+-- of a fallen player) are read from the carrier, and its head looks where the eyes of the
+-- carrier's model look.
 --
 -- Units: 1 unit = 2.54 cm, sizes scale with the torso of the model. Torso, neck and head
 -- frames: x forward, y left, z up. Limb frames: x anterior, y medial, z along the limb
@@ -299,7 +301,7 @@ function M:CompileBody(body)
 	body.byId = byId
 	body.bySeg = bySeg
 	body.shapes = shapes -- every shape in one list: the hot loops of a cast run over it
-	body.cache = { ply = nil, time = -1 }
+	body.cache = { ent = nil, time = -1 }
 	return body
 end
 
@@ -310,6 +312,7 @@ for _, key in ipairs(BONE_KEYS) do
 	bonePos[key] = { 0, 0, 0 }
 end
 local boneIds = {} -- model -> { key -> bone id } or false without the skeleton
+local eyeIds = {}  -- model -> id of the "eyes" attachment or false without one
 
 -- Yaw of a player in radians.
 local function yawOf(ply)
@@ -363,7 +366,7 @@ local function readBones(ply)
 	local ox, oy, oz = ply:GetPos():Unpack()
 	local yaw = yawOf(ply)
 	local c, s = cos(yaw), sin(yaw)
-	local crouch = ply:Crouching()
+	local crouch = ply:IsPlayer() and ply:Crouching()
 	for i = 1, #BONE_KEYS do
 		local key = BONE_KEYS[i]
 		local ref, p = REFERENCE[key], bonePos[key]
@@ -400,14 +403,38 @@ local function setFrame(f, ox, oy, oz, xx, xy, xz, yx, yy, yz, zx, zy, zz)
 	f[10], f[11], f[12] = zx, zy, zz
 end
 
--- Builds the frames of every segment of `body` for `ply` (cached for the tick).
+-- Where the face of a carrier looks: along its "eyes" attachment, else (fx, fy, fz).
+local function faceOf(ent, fx, fy, fz)
+	local model = ent:GetModel() or ""
+	local id = eyeIds[model]
+	if id == nil then
+		id = ent:LookupAttachment("eyes")
+		if id == nil or id <= 0 then
+			id = false
+		end
+		eyeIds[model] = id
+	end
+	local eyes = id and ent:GetAttachment(id)
+	if not eyes then
+		return fx, fy, fz
+	end
+	local x, y, z = normalize(eyes.Ang:Forward():Unpack())
+	if x == 0 and y == 0 and z == 0 then
+		return fx, fy, fz
+	end
+	return x, y, z
+end
+
+-- Builds the frames of every segment of `body` for `ply` (cached for the tick), from the
+-- bones of its carrier if it has one.
 function M:_Frames(body, ply)
+	local ent = self:BodyEntity(ply)
 	local cache = body.cache
 	local now = CurTime()
-	if cache.ply == ply and cache.time == now then
+	if cache.ent == ent and cache.time == now then
 		return cache.scale
 	end
-	readBones(ply)
+	readBones(ent)
 	local p, n, h = bonePos.pelvis, bonePos.neck, bonePos.head
 	local ux, uy, uz, torso = normalize(n[1] - p[1], n[2] - p[2], n[3] - p[3])
 	if torso < EPSILON then
@@ -417,7 +444,7 @@ function M:_Frames(body, ply)
 	local al, ar = bonePos.upperarmL, bonePos.upperarmR
 	local lx, ly, lz = orthogonal(al[1] - ar[1], al[2] - ar[2], al[3] - ar[3], ux, uy, uz)
 	if lx == 0 and ly == 0 and lz == 0 then
-		local yaw = yawOf(ply)
+		local yaw = yawOf(ent)
 		lx, ly, lz = orthogonal(-sin(yaw), cos(yaw), 0, ux, uy, uz)
 	end
 	local fx, fy, fz = cross(lx, ly, lz, ux, uy, uz) -- forward = left x up
@@ -435,14 +462,20 @@ function M:_Frames(body, ply)
 	setFrame(bySeg.neck.frame, n[1], n[2], n[3], nfx * scale, nfy * scale, nfz * scale, nlx * scale, nly * scale,
 		nlz * scale, nx * scale, ny * scale, nz * scale)
 
-	-- Head: forward where the eyes look (pitch limited), up along the neck.
-	local pitch, yaw = ply:EyeAngles():Unpack()
-	if pitch > 180 then
-		pitch = pitch - 360
+	-- Head: forward where the eyes look (pitch limited; a carrier: where its face looks),
+	-- up along the neck.
+	local hfx, hfy, hfz
+	if ent == ply then
+		local pitch, yaw = ply:EyeAngles():Unpack()
+		if pitch > 180 then
+			pitch = pitch - 360
+		end
+		pitch = rad(max(-HEAD_PITCH, min(HEAD_PITCH, pitch)))
+		yaw = rad(yaw)
+		hfx, hfy, hfz = cos(pitch) * cos(yaw), cos(pitch) * sin(yaw), -sin(pitch)
+	else
+		hfx, hfy, hfz = faceOf(ent, nfx, nfy, nfz)
 	end
-	pitch = rad(max(-HEAD_PITCH, min(HEAD_PITCH, pitch)))
-	yaw = rad(yaw)
-	local hfx, hfy, hfz = cos(pitch) * cos(yaw), cos(pitch) * sin(yaw), -sin(pitch)
 	local hux, huy, huz = orthogonal(nx, ny, nz, hfx, hfy, hfz)
 	if hux == 0 and huy == 0 and huz == 0 then
 		hux, huy, huz = orthogonal(ux, uy, uz, hfx, hfy, hfz)
@@ -508,8 +541,16 @@ function M:_Frames(body, ply)
 			w[12], w[13], w[14], w[15] = w[1], w[2], w[3], 0
 		end
 	end
-	cache.ply, cache.time, cache.scale = ply, now, scale
+	cache.ent, cache.time, cache.scale = ent, now, scale
 	return scale
+end
+
+-- World position of the head of an entity with the body's skeleton (a carrier), or of
+-- its origin without one. Returns a new Vector.
+function M:_HeadOf(ent)
+	local ids = lookupBones(ent)
+	local pos = ids and ent:GetBonePosition(ids.head)
+	return pos or ent:GetPos()
 end
 
 -- Local coordinates of a world point in the frame of a segment.

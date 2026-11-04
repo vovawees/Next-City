@@ -22,6 +22,8 @@ local floor = math.floor
 local remove = table.remove
 local CurTime = CurTime
 local bor = bit.bor
+local band = bit.band
+local IsValid = IsValid
 
 local clamp = M.clamp
 
@@ -377,8 +379,21 @@ local function pleura(st, side, dt)
 	return collapse > 1 and 1 or collapse
 end
 
+-- How deep the body is in water (0..3, like Entity:WaterLevel): a carrier by whether its
+-- head (3) or its pelvis (2) is under water.
+local function waterLevel(self, st)
+	local carrier = st.carrier
+	if carrier == nil or not IsValid(carrier) then
+		return st.ply:WaterLevel()
+	end
+	if band(util.PointContents(self:_HeadOf(carrier)), CONTENTS_WATER) ~= 0 then
+		return 3
+	end
+	return band(util.PointContents(carrier:GetPos()), CONTENTS_WATER) ~= 0 and 2 or 0
+end
+
 STEPS.respiration = function(self, st, dt, t)
-	local water = st.ply:WaterLevel()
+	local water = waterLevel(self, st)
 	st.water = water
 	local drive = 1
 	local cord = st.cord
