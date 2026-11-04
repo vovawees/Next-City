@@ -4,9 +4,13 @@
 -- respawn by the base gamemode) makes the player an observer, and the base auto-respawn
 -- is off. An alive player that something else respawns stays alive.
 --
+-- Kill is the death on behalf of an attacker (D6: the model of the body decides when a
+-- player dies, the engine only carries the death out): an engine damage that nothing
+-- may refuse, so frags, the kill feed and the ragdoll credit the attacker.
+--
 -- Listens:  gm.PlayerInitialSpawn, net.ready, gm.PlayerSpawn and gm.PlayerSelectSpawn and
---           gm.PlayerDeathThink (answers), gm.PlayerSpawned, gm.PlayerLoadout,
---           gm.PlayerDeath, gm.PlayerSilentDeath, gm.PlayerDisconnected.
+--           gm.PlayerDeathThink and gm.PlayerShouldTakeDamage (answers), gm.PlayerSpawned,
+--           gm.PlayerLoadout, gm.PlayerDeath, gm.PlayerSilentDeath, gm.PlayerDisconnected.
 -- Emits:    players.ready (ply)                         loaded, now a spectator
 --           players.stateChanged (ply, state, old)
 --           players.loadout (ply)                       a deployed player gets equipment
@@ -20,12 +24,14 @@
 local M = NC.Module("players")
 
 local EMPTY = {}
+local KILL_DAMAGE = 1e6 -- more than any health and suit armor can take
 
 function M:Init(ctx)
 	self.lists = { connecting = {}, spectator = {}, alive = {}, dead = {} }
 	self.slots = {}      -- ply -> position in the list of its state
 	self.deploying = {}  -- ply -> { spawn, pos, ang } while Deploy runs
 	self.silencing = {}  -- ply -> true while MakeSpectator kills silently
+	self.killing = {}    -- ply -> true while Kill runs
 	self.spawnCursor = 0
 	ctx.commands:Add("nc_players", { help = "players and their life states" }, "ListCommand")
 end
@@ -36,6 +42,8 @@ function M:Start(ctx)
 	ctx:On("gm.PlayerSpawn", "AnswerSpawn")
 	ctx:On("gm.PlayerSelectSpawn", "AnswerSelectSpawn")
 	ctx:On("gm.PlayerDeathThink", "AnswerDeathThink")
+	-- Above the rules of rounds and modes: nothing refuses the damage of Kill.
+	ctx:On("gm.PlayerShouldTakeDamage", "AnswerTakeDamage", { priority = 1000 })
 	ctx:On("gm.PlayerSpawned", "OnSpawned")
 	ctx:On("gm.PlayerLoadout", "OnLoadout")
 	ctx:On("gm.PlayerDeath", "OnDeath")
@@ -166,6 +174,7 @@ function M:OnDisconnected(ply)
 	local state = self:State(ply)
 	self.deploying[ply] = nil
 	self.silencing[ply] = nil
+	self.killing[ply] = nil
 	if state == nil then
 		return
 	end
@@ -298,6 +307,58 @@ end
 function M:OnSilentDeath(ply)
 	if not self.silencing[ply] then
 		self:OnDeath(ply, nil, nil)
+	end
+end
+
+-- Kills an alive player with an engine damage that credits the attacker. opts: attacker
+-- and inflictor (entities; invalid ones become the world, the inflictor defaults to the
+-- attacker), damageType (DMG_*, default generic), force and position (Vectors: the push
+-- of the ragdoll). If the engine refuses (god mode), the player dies by ply:Kill().
+-- Returns true if the player is dead afterwards.
+function M:Kill(ply, opts)
+	if not (IsValid(ply) and ply:Alive()) then
+		return false
+	end
+	opts = opts or EMPTY
+	local attacker = opts.attacker
+	if not IsValid(attacker) then
+		attacker = game.GetWorld()
+	end
+	local inflictor = opts.inflictor
+	if not IsValid(inflictor) then
+		inflictor = attacker
+	end
+	local dmginfo = DamageInfo()
+	dmginfo:SetAttacker(attacker)
+	dmginfo:SetInflictor(inflictor)
+	dmginfo:SetDamage(KILL_DAMAGE)
+	dmginfo:SetDamageType(opts.damageType or DMG_GENERIC)
+	if opts.force ~= nil then
+		dmginfo:SetDamageForce(opts.force)
+	end
+	if opts.position ~= nil then
+		dmginfo:SetDamagePosition(opts.position)
+	end
+	self.killing[ply] = true
+	local ok, err = pcall(ply.TakeDamageInfo, ply, dmginfo)
+	self.killing[ply] = nil
+	if not ok then
+		self.ctx.log:Error("killing %s failed: %s", tostring(ply), tostring(err))
+	end
+	if ply:Alive() then
+		ply:Kill()
+	end
+	return not ply:Alive()
+end
+
+-- True while Kill damages the player: damage handlers let that damage through.
+function M:IsKilling(ply)
+	return self.killing[ply] == true
+end
+
+function M:AnswerTakeDamage(ply)
+	if self.killing[ply] then
+		return true
 	end
 end
 

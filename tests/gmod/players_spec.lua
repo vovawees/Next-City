@@ -49,7 +49,17 @@ local RECORDER = {
 
 local function boot(opts)
 	opts = opts or {}
-	local server = Env.Server({ files = RECORDER, modules = { "players" }, patch = opts.patch })
+	local files = RECORDER
+	if opts.files ~= nil then
+		files = {}
+		for path, source in pairs(RECORDER) do
+			files[path] = source
+		end
+		for path, source in pairs(opts.files) do
+			files[path] = source
+		end
+	end
+	local server = Env.Server({ files = files, modules = { "players" }, patch = opts.patch })
 	for _, point in ipairs(opts.spawns or {}) do
 		Env.Spawn(server, point)
 	end
@@ -159,6 +169,50 @@ describe("players", function()
 		recorder:Take()
 		alyx:KillSilent()
 		expect(recorder:Take()):toEqual({ "players.stateChanged Alyx alive>dead", "players.died Alyx by -" })
+	end)
+
+	it("kills on behalf of an attacker, whatever the rules say", function()
+		local server, players, recorder = boot({ files = {
+			[MODULES .. "rules/module.lua"] = "return { id = 'rules', files = { sv = { 'sv_rules.lua' } } }",
+			[MODULES .. "rules/sv_rules.lua"] = [[
+				local M = NC.Module("rules")
+				function M:Start(ctx)
+					ctx:On("gm.PlayerShouldTakeDamage", function() return false end)
+					ctx:On("gm.EntityTakeDamage", function(ent)
+						if not NC.Modules:Instance("players"):IsKilling(ent) then
+							return true
+						end
+					end)
+				end
+			]],
+		} })
+		local alyx, barney = bot(server, "Alyx"), bot(server, "Barney")
+		players:Deploy(alyx)
+		players:Deploy(barney)
+		recorder:Take()
+
+		-- Ordinary damage is refused by the rules.
+		Env.Hurt(alyx, { damage = 1000, attacker = barney })
+		expect(alyx:Alive()):toBe(true)
+
+		local weapon = barney:Give("weapon_smg1")
+		expect(players:Kill(alyx, { attacker = barney, inflictor = weapon, damageType = World.DMG.BULLET,
+			force = Vector(0, 0, 100) })):toBe(true)
+		expect(recorder:Take()):toEqual({ "players.stateChanged Alyx alive>dead", "players.died Alyx by Barney" })
+		expect(barney:Frags()):toBe(1)
+		expect(alyx.deathInfo:GetInflictor()):toBe(weapon)
+		expect(alyx.deathInfo:GetDamageType()):toBe(World.DMG.BULLET)
+		expect(alyx.deathInfo:GetDamageForce()):toEqual(Vector(0, 0, 100))
+		expect(players:IsKilling(alyx)):toBe(false)
+		expect(players:Kill(alyx, { attacker = barney })):toBe(false)
+
+		-- An attacker that left becomes the world; god mode falls back to a suicide.
+		players:Deploy(alyx)
+		alyx:GodEnable()
+		expect(players:Kill(alyx, { attacker = World.NULL })):toBe(true)
+		expect(alyx.deathInfo:GetAttacker()):toBe(alyx)
+		expect(barney:Frags()):toBe(1)
+		expect(server:Errors()):toEqual({})
 	end)
 
 	it("refuses to deploy players that are still loading", function()

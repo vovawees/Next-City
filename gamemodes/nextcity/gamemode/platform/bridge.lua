@@ -11,8 +11,20 @@
 --
 -- Questions with a "handled" answer (PlayerSpawn, PlayerDeathThink) skip the base code
 -- when a listener returns true. The scheduler is driven from GM:Tick.
+--
+-- Damage (D6): the engine's health is not the model of the body. EntityTakeDamage is a
+-- question (true blocks the damage), ScalePlayerDamage is a replacement without the
+-- base scaling (head x2, limbs x0.25), falls arrive as OnPlayerHitGround and
+-- GetFallDamage. StartCommand runs for every user command (shared and predicted).
 
 local CurTime = CurTime
+
+-- "gm.<Hook>" names built once, so hot questions do not concatenate strings.
+local EVENT = setmetatable({}, { __index = function(names, hookName)
+	local name = "gm." .. hookName
+	names[hookName] = name
+	return name
+end })
 
 local function base(gm, name, ...)
 	local baseClass = gm.BaseClass
@@ -24,7 +36,7 @@ end
 
 -- Question: the first non-nil answer of the bus, otherwise the base result.
 local function ask(gm, name, ...)
-	local answer = NC.Events:Query("gm." .. name, ...)
+	local answer = NC.Events:Query(EVENT[name], ...)
 	if answer ~= nil then
 		return answer
 	end
@@ -72,6 +84,26 @@ end
 function GM:PostCleanupMap()
 	base(self, "PostCleanupMap")
 	NC.Events:Emit("gm.PostCleanupMap")
+end
+
+-- Shared and predicted: every user command of a player before the engine runs it, so
+-- modules can take buttons and movement away (cmd is the CUserCmd).
+function GM:StartCommand(ply, cmd)
+	base(self, "StartCommand", ply, cmd)
+	NC.Events:Emit("gm.StartCommand", ply, cmd)
+end
+
+-- Replacement and question: a bullet hit a player (shared; before EntityTakeDamage on
+-- the server). The base scaling is off: the damage module decides what a hit does.
+-- An answer true blocks the damage.
+function GM:ScalePlayerDamage(ply, hitgroup, dmginfo)
+	return NC.Events:Query("gm.ScalePlayerDamage", ply, hitgroup, dmginfo)
+end
+
+-- Question (shared and predicted): a player lands; speed is the fall speed, units/s.
+-- An answer true skips the engine's landing (fall damage and view punch).
+function GM:OnPlayerHitGround(ply, inWater, onFloater, speed)
+	return ask(self, "OnPlayerHitGround", ply, inWater, onFloater, speed)
 end
 
 if SERVER then
@@ -133,6 +165,17 @@ if SERVER then
 		return ask(self, "PlayerShouldTakeDamage", ply, attacker)
 	end
 
+	-- Question: true blocks the damage; without an answer the engine applies it.
+	function GM:EntityTakeDamage(ent, dmginfo)
+		return ask(self, "EntityTakeDamage", ent, dmginfo)
+	end
+
+	-- Question: the health a fall at `speed` (units/s) takes; called only for falls faster
+	-- than the engine's safe speed (526.5 units/s).
+	function GM:GetFallDamage(ply, speed)
+		return ask(self, "GetFallDamage", ply, speed)
+	end
+
 	function GM:CanPlayerSuicide(ply)
 		return ask(self, "CanPlayerSuicide", ply)
 	end
@@ -147,5 +190,20 @@ else
 	function GM:HUDPaint()
 		base(self, "HUDPaint")
 		NC.Events:Emit("gm.HUDPaint")
+	end
+
+	-- Question, asked for every HUD element every frame: false hides the element.
+	function GM:HUDShouldDraw(name)
+		return ask(self, "HUDShouldDraw", name)
+	end
+
+	function GM:RenderScreenspaceEffects()
+		base(self, "RenderScreenspaceEffects")
+		NC.Events:Emit("gm.RenderScreenspaceEffects")
+	end
+
+	-- Question: true blocks the bind (bind is the command, e.g. "+reload").
+	function GM:PlayerBindPress(ply, bind, pressed, code)
+		return ask(self, "PlayerBindPress", ply, bind, pressed, code)
 	end
 end

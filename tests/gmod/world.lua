@@ -1,12 +1,19 @@
 -- Emulated game world for the GMod test environment (tests/gmod/env.lua): vectors and
 -- angles, players with the engine methods the gamemode uses (spawn, death, observer
--- modes, teams, weapons, frags), the base gamemode behaviour of player hooks, the
--- player, team, ents and game libraries, hull traces and the 2D drawing API of clients.
+-- modes, teams, weapons, frags, damage, bones, movement speeds), damage infos and user
+-- commands, the base gamemode behaviour of player hooks, the player, team, ents and game
+-- libraries, hull traces and the 2D drawing API of clients.
 --
 -- Player actions run gamemode hooks like the engine does: ply:Spawn() calls
 -- GM:PlayerSelectSpawn and GM:PlayerSpawn, ply:Kill() calls GM:DoPlayerDeath and
--- GM:PlayerDeath, ply:KillSilent() calls GM:PlayerSilentDeath. A player object is shared
--- by the server realm and the clients, like networked state that is always up to date.
+-- GM:PlayerDeath, ply:KillSilent() calls GM:PlayerSilentDeath, ply:TakeDamageInfo()
+-- calls GM:EntityTakeDamage and GM:PlayerShouldTakeDamage and kills at zero health.
+-- A player object is shared by the server realm and the clients, like networked state
+-- that is always up to date.
+--
+-- Bones: every player has the ValveBiped skeleton of a standing man (World.SKELETON,
+-- units, x forward, y left, z up from the feet), turned by the yaw of the player and
+-- lowered while crouching; tests may move single bones (ply.bones[name] = Vector).
 
 local World = {}
 
@@ -17,8 +24,21 @@ World.TEAM_SPECTATOR = 1002
 World.OBS_MODE = { NONE = 0, DEATHCAM = 1, FREEZECAM = 2, FIXED = 3, IN_EYE = 4, CHASE = 5, ROAMING = 6 }
 World.IN = {
 	ATTACK = 1, JUMP = 2, DUCK = 4, FORWARD = 8, BACK = 16, USE = 32, MOVELEFT = 512, MOVERIGHT = 1024,
-	ATTACK2 = 2048, RELOAD = 8192, SCORE = 65536,
+	ATTACK2 = 2048, RELOAD = 8192, SCORE = 65536, SPEED = 131072, WALK = 262144,
 }
+World.DMG = {
+	GENERIC = 0, CRUSH = 1, BULLET = 2, SLASH = 4, BURN = 8, VEHICLE = 16, FALL = 32, BLAST = 64, CLUB = 128,
+	SHOCK = 256, SONIC = 512, ENERGYBEAM = 1024, PREVENT_PHYSICS_FORCE = 2048, NEVERGIB = 4096, ALWAYSGIB = 8192,
+	DROWN = 16384, PARALYZE = 32768, NERVEGAS = 65536, POISON = 131072, RADIATION = 262144,
+	DROWNRECOVER = 524288, ACID = 1048576, SLOWBURN = 2097152, REMOVENORAGDOLL = 4194304, PHYSGUN = 8388608,
+	PLASMA = 16777216, AIRBOAT = 33554432, DISSOLVE = 67108864, BLAST_SURFACE = 134217728, DIRECT = 268435456,
+	BUCKSHOT = 536870912, SNIPER = 1073741824,
+}
+World.HITGROUP = { GENERIC = 0, HEAD = 1, CHEST = 2, STOMACH = 3, LEFTARM = 4, RIGHTARM = 5, LEFTLEG = 6,
+	RIGHTLEG = 7, GEAR = 10 }
+-- Ammo types of Half-Life 2 by id, like game.GetAmmoName.
+World.AMMO = { "AR2", "AR2AltFire", "Pistol", "SMG1", "357", "XBowBolt", "Buckshot", "RPG_Round", "SMG1_Grenade",
+	"Grenade" }
 
 -- Vectors and angles -------------------------------------------------------------------
 
@@ -35,10 +55,15 @@ local VectorMeta = {
 		end
 		return Vector(a.x * b, a.y * b, a.z * b)
 	end,
+	__div = function(a, b) return Vector(a.x / b, a.y / b, a.z / b) end,
 	__unm = function(a) return Vector(-a.x, -a.y, -a.z) end,
 	__eq = function(a, b) return a.x == b.x and a.y == b.y and a.z == b.z end,
 }
-local AngleMeta = { __tostring = function(a) return string.format("Angle(%g, %g, %g)", a.x, a.y, a.z) end }
+local AngleMethods = {}
+local AngleMeta = {
+	__index = AngleMethods,
+	__tostring = function(a) return string.format("Angle(%g, %g, %g)", a.x, a.y, a.z) end,
+}
 
 World.VectorMeta = VectorMeta
 World.AngleMeta = AngleMeta
@@ -71,16 +96,60 @@ function VectorMethods:WithinAABox(mins, maxs)
 	return self.x >= mins.x and self.x <= maxs.x and self.y >= mins.y and self.y <= maxs.y and self.z >= mins.z
 		and self.z <= maxs.z
 end
+function VectorMethods:Unpack() return self.x, self.y, self.z end
+function VectorMethods:Cross(o)
+	return Vector(self.y * o.z - self.z * o.y, self.z * o.x - self.x * o.z, self.x * o.y - self.y * o.x)
+end
+function VectorMethods:GetNormalized()
+	local length = self:Length()
+	if length == 0 then
+		return Vector(0, 0, 0)
+	end
+	return Vector(self.x / length, self.y / length, self.z / length)
+end
+function VectorMethods:Normalize()
+	local n = self:GetNormalized()
+	self.x, self.y, self.z = n.x, n.y, n.z
+end
+function VectorMethods:IsZero() return self.x == 0 and self.y == 0 and self.z == 0 end
+
+-- Source conventions: pitch down is positive, Forward = (cos p cos y, cos p sin y, -sin p).
+function AngleMethods:Unpack() return self.x, self.y, self.z end
+function AngleMethods:Forward()
+	local p, y = math.rad(self.x), math.rad(self.y)
+	return Vector(math.cos(p) * math.cos(y), math.cos(p) * math.sin(y), -math.sin(p))
+end
+function AngleMethods:Right()
+	local p, y, r = math.rad(self.x), math.rad(self.y), math.rad(self.z)
+	local sp, cp, sy, cy, sr, cr = math.sin(p), math.cos(p), math.sin(y), math.cos(y), math.sin(r), math.cos(r)
+	return Vector(-sr * sp * cy + cr * sy, -sr * sp * sy - cr * cy, -sr * cp)
+end
+function AngleMethods:Up()
+	local p, y, r = math.rad(self.x), math.rad(self.y), math.rad(self.z)
+	local sp, cp, sy, cy, sr, cr = math.sin(p), math.cos(p), math.sin(y), math.cos(y), math.sin(r), math.cos(r)
+	return Vector(cr * sp * cy + sr * sy, cr * sp * sy - sr * cy, cr * cp)
+end
 
 -- Entities -------------------------------------------------------------------------------
 
 World.NULL = setmetatable({
 	__entity = true,
 	IsValid = function() return false end,
+	IsWorld = function() return false end,
 	IsPlayer = function() return false end,
 	EntIndex = function() return 0 end,
 	GetClass = function() return "" end,
 }, { __tostring = function() return "[NULL Entity]" end })
+
+-- The world (game.GetWorld()): entity 0, not valid, like in GMod.
+World.WORLD = setmetatable({
+	__entity = true,
+	IsValid = function() return false end,
+	IsWorld = function() return true end,
+	IsPlayer = function() return false end,
+	EntIndex = function() return 0 end,
+	GetClass = function() return "worldspawn" end,
+}, { __tostring = function() return "Entity [0][worldspawn]" end })
 
 local function isValid(value)
 	return type(value) == "table" and type(value.IsValid) == "function" and value:IsValid() == true
@@ -104,6 +173,7 @@ local WeaponMeta = {
 }
 
 function WeaponMethods:IsValid() return self.valid end
+function WeaponMethods:IsWorld() return false end
 function WeaponMethods:IsPlayer() return false end
 function WeaponMethods:IsWeapon() return true end
 function WeaponMethods:GetClass() return self.class end
@@ -151,10 +221,27 @@ function World.FakePlayer(opts)
 		weapons = {},
 		ammo = {},
 		spawns = 0,
+		armor = 0,
+		god = false,
+		lastHitGroup = 0,
+		waterLevel = 0,
+		keys = {},
+		velocity = Vector(0, 0, 0),
+		crouching = false,
+		onGround = true,
+		walkSpeed = 200,
+		runSpeed = 400,
+		slowWalkSpeed = 100,
+		crouchedWalkSpeed = 0.3,
+		jumpPower = 200,
+		bones = {},
+		viewPunches = {},
+		damage = {},
 	}, PlayerMeta)
 end
 
 function Player:IsValid() return self.valid end
+function Player:IsWorld() return false end
 function Player:IsPlayer() return true end
 function Player:IsBot() return self.bot end
 function Player:EntIndex() return self.index end
@@ -188,6 +275,101 @@ function Player:AddDeaths(n) self.deaths = self.deaths + n end
 function Player:SetFrags(n) self.frags = n end
 function Player:SetDeaths(n) self.deaths = n end
 function Player:SetupHands() self.hands = true end
+function Player:Armor() return self.armor end
+function Player:SetArmor(value) self.armor = value end
+function Player:HasGodMode() return self.god end
+function Player:GodEnable() self.god = true end
+function Player:GodDisable() self.god = false end
+function Player:LastHitGroup() return self.lastHitGroup end
+function Player:WaterLevel() return self.waterLevel end
+function Player:KeyDown(key) return self.keys[key] == true end
+function Player:GetVelocity() return Vector(self.velocity) end
+function Player:Crouching() return self.crouching end
+function Player:IsOnGround() return self.onGround end
+function Player:OnGround() return self.onGround end
+function Player:GetShootPos() return self:EyePos() end
+function Player:GetAimVector() return self.angles:Forward() end
+function Player:ViewPunch(ang) self.viewPunches[#self.viewPunches + 1] = ang end
+function Player:GetWalkSpeed() return self.walkSpeed end
+function Player:SetWalkSpeed(value) self.walkSpeed = value end
+function Player:GetRunSpeed() return self.runSpeed end
+function Player:SetRunSpeed(value) self.runSpeed = value end
+function Player:GetSlowWalkSpeed() return self.slowWalkSpeed end
+function Player:SetSlowWalkSpeed(value) self.slowWalkSpeed = value end
+function Player:GetCrouchedWalkSpeed() return self.crouchedWalkSpeed end
+function Player:SetCrouchedWalkSpeed(value) self.crouchedWalkSpeed = value end
+function Player:GetJumpPower() return self.jumpPower end
+function Player:SetJumpPower(value) self.jumpPower = value end
+
+-- Standing ValveBiped skeleton, facing +x; positions relative to the feet.
+World.SKELETON = {
+	["ValveBiped.Bip01_Pelvis"] = Vector(0, 0, 38.5),
+	["ValveBiped.Bip01_Spine"] = Vector(0, 0, 42.5),
+	["ValveBiped.Bip01_Spine1"] = Vector(0, 0, 47),
+	["ValveBiped.Bip01_Spine2"] = Vector(0, 0, 51.5),
+	["ValveBiped.Bip01_Spine4"] = Vector(0, 0, 57),
+	["ValveBiped.Bip01_Neck1"] = Vector(0.3, 0, 62),
+	["ValveBiped.Bip01_Head1"] = Vector(0.6, 0, 65.5),
+	["ValveBiped.Bip01_L_Clavicle"] = Vector(1, 1.2, 60),
+	["ValveBiped.Bip01_R_Clavicle"] = Vector(1, -1.2, 60),
+	["ValveBiped.Bip01_L_UpperArm"] = Vector(0, 7, 59),
+	["ValveBiped.Bip01_R_UpperArm"] = Vector(0, -7, 59),
+	["ValveBiped.Bip01_L_Forearm"] = Vector(0, 8, 48),
+	["ValveBiped.Bip01_R_Forearm"] = Vector(0, -8, 48),
+	["ValveBiped.Bip01_L_Hand"] = Vector(2, 8, 38),
+	["ValveBiped.Bip01_R_Hand"] = Vector(2, -8, 38),
+	["ValveBiped.Bip01_L_Thigh"] = Vector(0, 3.8, 37.5),
+	["ValveBiped.Bip01_R_Thigh"] = Vector(0, -3.8, 37.5),
+	["ValveBiped.Bip01_L_Calf"] = Vector(0.5, 3.8, 20.5),
+	["ValveBiped.Bip01_R_Calf"] = Vector(0.5, -3.8, 20.5),
+	["ValveBiped.Bip01_L_Foot"] = Vector(-0.5, 3.8, 3.5),
+	["ValveBiped.Bip01_R_Foot"] = Vector(-0.5, -3.8, 3.5),
+	["ValveBiped.Bip01_L_Toe0"] = Vector(4.5, 3.8, 0.8),
+	["ValveBiped.Bip01_R_Toe0"] = Vector(4.5, -3.8, 0.8),
+}
+World.BONE_NAMES = {}
+for name in pairs(World.SKELETON) do
+	World.BONE_NAMES[#World.BONE_NAMES + 1] = name
+end
+table.sort(World.BONE_NAMES)
+World.BONE_IDS = {}
+for id, name in ipairs(World.BONE_NAMES) do
+	World.BONE_IDS[name] = id - 1
+end
+
+-- Bone ids of the skeleton (nil for unknown names or a player with ply.noBones).
+function Player:LookupBone(name)
+	if self.noBones then
+		return nil
+	end
+	return World.BONE_IDS[name]
+end
+
+-- World position of a bone: the skeleton turned by the yaw, lowered by 20 units above the
+-- pelvis and 14 below it while crouching; ply.bones[name] overrides (relative too).
+function Player:GetBonePosition(id)
+	local name = World.BONE_NAMES[(id or -1) + 1]
+	if name == nil then
+		return nil
+	end
+	local rel = self.bones[name] or World.SKELETON[name]
+	local x, y, z = rel.x, rel.y, rel.z
+	if self.crouching then
+		z = z > 38.5 and z - 20 or z * 0.65
+	end
+	local yaw = math.rad(self.angles.y)
+	local c, s = math.cos(yaw), math.sin(yaw)
+	return Vector(self.pos.x + x * c - y * s, self.pos.y + x * s + y * c, self.pos.z + z), Angle(0, self.angles.y, 0)
+end
+
+function Player:GetActiveWeapon()
+	for _, weapon in ipairs(self.weapons) do
+		if weapon.class == self.selected then
+			return weapon
+		end
+	end
+	return self.weapons[#self.weapons] or World.NULL
+end
 function Player:SetModel(model) self.model = model end
 function Player:GetModel() return self.model end
 
@@ -248,6 +430,7 @@ function Player:Spawn()
 	self.observerMode = World.OBS_MODE.NONE
 	self.observerTarget = nil
 	self.health = 100
+	self.lastHitGroup = 0
 	self.spawns = self.spawns + 1
 	local server = self.server
 	if server == nil then
@@ -262,16 +445,51 @@ function Player:Spawn()
 	server:Call("PlayerSpawn", self, false)
 end
 
+-- Damage infos ----------------------------------------------------------------------------
+
 local DamageInfo = {}
 DamageInfo.__index = DamageInfo
+World.DamageInfoMeta = DamageInfo
+
+-- A new damage info (the global DamageInfo()).
+function World.DamageInfo()
+	return setmetatable({ attacker = World.NULL, inflictor = World.NULL, damage = 0, maxDamage = 0, baseDamage = 0,
+		type = 0, position = Vector(0, 0, 0), reported = Vector(0, 0, 0), force = Vector(0, 0, 0), ammo = -1,
+		custom = 0 }, DamageInfo)
+end
+
 function DamageInfo:GetAttacker() return self.attacker end
+function DamageInfo:SetAttacker(ent) self.attacker = ent end
 function DamageInfo:GetInflictor() return self.inflictor end
+function DamageInfo:SetInflictor(ent) self.inflictor = ent end
 function DamageInfo:GetDamage() return self.damage end
-function DamageInfo:GetDamageType() return 0 end
-function DamageInfo:IsDamageType() return false end
+function DamageInfo:SetDamage(value) self.damage = value end
+function DamageInfo:AddDamage(value) self.damage = self.damage + value end
+function DamageInfo:SubtractDamage(value) self.damage = self.damage - value end
+function DamageInfo:ScaleDamage(scale) self.damage = self.damage * scale end
+function DamageInfo:GetMaxDamage() return self.maxDamage end
+function DamageInfo:SetMaxDamage(value) self.maxDamage = value end
+function DamageInfo:GetBaseDamage() return self.baseDamage end
+function DamageInfo:GetDamageType() return self.type end
+function DamageInfo:SetDamageType(value) self.type = value end
+function DamageInfo:IsDamageType(value) return bit.band(self.type, value) ~= 0 end
+function DamageInfo:IsBulletDamage() return bit.band(self.type, World.DMG.BULLET + World.DMG.BUCKSHOT) ~= 0 end
+function DamageInfo:IsExplosionDamage() return bit.band(self.type, World.DMG.BLAST) ~= 0 end
+function DamageInfo:IsFallDamage() return bit.band(self.type, World.DMG.FALL) ~= 0 end
+function DamageInfo:GetDamagePosition() return Vector(self.position) end
+function DamageInfo:SetDamagePosition(pos) self.position = Vector(pos) end
+function DamageInfo:GetReportedPosition() return Vector(self.reported) end
+function DamageInfo:SetReportedPosition(pos) self.reported = Vector(pos) end
+function DamageInfo:GetDamageForce() return Vector(self.force) end
+function DamageInfo:SetDamageForce(force) self.force = Vector(force) end
+function DamageInfo:GetAmmoType() return self.ammo end
+function DamageInfo:SetAmmoType(id) self.ammo = id end
+function DamageInfo:GetDamageCustom() return self.custom end
+function DamageInfo:SetDamageCustom(value) self.custom = value end
 
 -- Kills `victim`: DoPlayerDeath, then PlayerDeath, like the engine. Weapons are lost.
-function World.Die(victim, attacker, inflictor)
+-- dmginfo: the killing damage (default: generic damage of the remaining health).
+function World.Die(victim, attacker, inflictor, dmginfo)
 	if not victim.alive then
 		return
 	end
@@ -281,11 +499,77 @@ function World.Die(victim, attacker, inflictor)
 	inflictor = inflictor or attacker
 	local server = victim.server
 	if server ~= nil then
-		local dmginfo = setmetatable({ attacker = attacker, inflictor = inflictor, damage = victim.health }, DamageInfo)
+		if dmginfo == nil then
+			dmginfo = World.DamageInfo()
+			dmginfo:SetAttacker(attacker)
+			dmginfo:SetInflictor(inflictor)
+			dmginfo:SetDamage(victim.health)
+		end
+		victim.deathInfo = dmginfo
 		server:Call("DoPlayerDeath", victim, attacker, dmginfo)
 		server:Call("PlayerDeath", victim, inflictor, attacker)
 	end
 end
+
+-- The engine damage: GM:EntityTakeDamage (true blocks), god mode, then
+-- GM:PlayerShouldTakeDamage (false blocks); the health drops and at zero the player dies.
+-- Every damage that reached the health is recorded in ply.damage.
+function Player:TakeDamageInfo(dmginfo)
+	if not self.alive then
+		return
+	end
+	local server = self.server
+	if server ~= nil then
+		if server:Call("EntityTakeDamage", self, dmginfo) == true then
+			return
+		end
+		if self.god or server:Call("PlayerShouldTakeDamage", self, dmginfo:GetAttacker()) == false then
+			return
+		end
+	end
+	self.damage[#self.damage + 1] = dmginfo
+	self.health = self.health - dmginfo:GetDamage()
+	if self.health <= 0 then
+		World.Die(self, dmginfo:GetAttacker(), dmginfo:GetInflictor(), dmginfo)
+	end
+end
+
+function Player:TakeDamage(amount, attacker, inflictor)
+	local dmginfo = World.DamageInfo()
+	dmginfo:SetDamage(amount)
+	dmginfo:SetAttacker(attacker or World.WORLD)
+	dmginfo:SetInflictor(inflictor or attacker or World.WORLD)
+	self:TakeDamageInfo(dmginfo)
+end
+
+-- User commands ----------------------------------------------------------------------------
+
+local UserCmd = {}
+UserCmd.__index = UserCmd
+
+-- A user command (CUserCmd) with buttons and movement.
+function World.UserCmd(buttons, forward, side)
+	return setmetatable({ buttons = buttons or 0, forward = forward or 0, side = side or 0, up = 0,
+		impulse = 0 }, UserCmd)
+end
+
+function UserCmd:GetButtons() return self.buttons end
+function UserCmd:SetButtons(buttons) self.buttons = buttons end
+function UserCmd:KeyDown(key) return bit.band(self.buttons, key) ~= 0 end
+function UserCmd:AddKey(key) self.buttons = bit.bor(self.buttons, key) end
+function UserCmd:RemoveKey(key) self.buttons = bit.band(self.buttons, bit.bnot(key)) end
+function UserCmd:ClearButtons() self.buttons = 0 end
+function UserCmd:ClearMovement()
+	self.forward, self.side, self.up = 0, 0, 0
+end
+function UserCmd:GetForwardMove() return self.forward end
+function UserCmd:SetForwardMove(value) self.forward = value end
+function UserCmd:GetSideMove() return self.side end
+function UserCmd:SetSideMove(value) self.side = value end
+function UserCmd:GetUpMove() return self.up end
+function UserCmd:SetUpMove(value) self.up = value end
+function UserCmd:GetImpulse() return self.impulse end
+function UserCmd:SetImpulse(value) self.impulse = value end
 
 function Player:Kill()
 	World.Die(self, self, self)
@@ -308,6 +592,9 @@ end
 World.BASE = {
 	PlayerSpawn = function(_, gm, ply, transition)
 		ply:UnSpectate()
+		ply:SetWalkSpeed(200)
+		ply:SetRunSpeed(400)
+		ply:SetJumpPower(200)
 		ply:SetupHands()
 		if not transition then
 			gm:PlayerLoadout(ply)
@@ -349,6 +636,8 @@ World.BASE = {
 	end,
 	PlayerShouldTakeDamage = function() return true end,
 	CanPlayerSuicide = function() return true end,
+	GetFallDamage = function() return 10 end,
+	HUDShouldDraw = function() return true end,
 }
 
 -- Libraries ------------------------------------------------------------------------------
@@ -380,6 +669,13 @@ function World.Install(env, G)
 	for name, value in pairs(World.IN) do
 		G["IN_" .. name] = value
 	end
+	for name, value in pairs(World.DMG) do
+		G["DMG_" .. name] = value
+	end
+	for name, value in pairs(World.HITGROUP) do
+		G["HITGROUP_" .. name] = value
+	end
+	G.DamageInfo = World.DamageInfo
 	G.MASK_PLAYERSOLID = 33636363
 	G.MASK_SOLID = 33570827
 	G.HUD_PRINTNOTIFY = 1

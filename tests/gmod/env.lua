@@ -38,7 +38,8 @@ local HOOK_NAMES = {
 	"Initialize", "Tick", "InitPostEntity", "OnReloaded", "ShutDown", "PlayerInitialSpawn", "PlayerDisconnected",
 	"EntityRemoved", "KeyPress", "PlayerSpawn", "PlayerSelectSpawn", "PlayerLoadout", "PlayerSetModel",
 	"DoPlayerDeath", "PlayerDeath", "PlayerSilentDeath", "PlayerDeathThink", "PlayerShouldTakeDamage",
-	"CanPlayerSuicide", "PlayerRequestTeam", "PostCleanupMap", "HUDPaint",
+	"CanPlayerSuicide", "PlayerRequestTeam", "PostCleanupMap", "HUDPaint", "StartCommand", "OnPlayerHitGround",
+	"EntityTakeDamage", "GetFallDamage", "HUDShouldDraw", "RenderScreenspaceEffects", "PlayerBindPress",
 }
 
 Env.World = World
@@ -871,6 +872,132 @@ function Env.Press(server, ply, key)
 	server:Call("KeyPress", ply, key)
 end
 
+-- Damage --------------------------------------------------------------------------------
+
+-- `victim` takes damage like from the engine: a damage info from opts, then
+-- ply:TakeDamageInfo (GM:EntityTakeDamage, GM:PlayerShouldTakeDamage, the health).
+-- opts: damage (default 10), type (DMG_*, default generic), attacker, inflictor (default
+-- the attacker), pos, force (Vectors), ammo (an ammo name), hitgroup (HITGROUP_*).
+-- Returns the damage info.
+function Env.Hurt(victim, opts)
+	opts = opts or {}
+	local dmginfo = World.DamageInfo()
+	dmginfo:SetDamage(opts.damage or 10)
+	dmginfo:SetDamageType(opts.type or 0)
+	dmginfo:SetAttacker(opts.attacker or World.WORLD)
+	dmginfo:SetInflictor(opts.inflictor or opts.attacker or World.WORLD)
+	if opts.pos ~= nil then
+		dmginfo:SetDamagePosition(opts.pos)
+		dmginfo:SetReportedPosition(opts.pos)
+	end
+	if opts.force ~= nil then
+		dmginfo:SetDamageForce(opts.force)
+	end
+	if opts.ammo ~= nil then
+		dmginfo:SetAmmoType(Env.AmmoID(opts.ammo))
+	end
+	if opts.hitgroup ~= nil then
+		victim.lastHitGroup = opts.hitgroup
+	end
+	victim:TakeDamageInfo(dmginfo)
+	return dmginfo
+end
+
+-- Id of an ammo type of Half-Life 2 (-1 if unknown), like game.GetAmmoID.
+function Env.AmmoID(name)
+	for id, ammo in ipairs(World.AMMO) do
+		if ammo == name then
+			return id
+		end
+	end
+	return -1
+end
+
+local BONE_HITGROUPS = {
+	Head1 = World.HITGROUP.HEAD, Neck1 = World.HITGROUP.HEAD, Spine2 = World.HITGROUP.CHEST,
+	Spine4 = World.HITGROUP.CHEST, Spine = World.HITGROUP.STOMACH, Spine1 = World.HITGROUP.STOMACH,
+	Pelvis = World.HITGROUP.STOMACH,
+}
+
+-- Hitgroup of a ValveBiped bone, like the hitboxes of a player model.
+function Env.BoneHitGroup(bone)
+	local short = bone:match("Bip01_(.+)$") or bone
+	if BONE_HITGROUPS[short] then
+		return BONE_HITGROUPS[short]
+	end
+	local side, part = short:match("^([LR])_(.+)$")
+	if side == nil then
+		return World.HITGROUP.GENERIC
+	end
+	local arm = part == "Clavicle" or part == "UpperArm" or part == "Forearm" or part == "Hand"
+	if side == "L" then
+		return arm and World.HITGROUP.LEFTARM or World.HITGROUP.LEFTLEG
+	end
+	return arm and World.HITGROUP.RIGHTARM or World.HITGROUP.RIGHTLEG
+end
+
+-- `shooter` (a player, or nil with opts.from) shoots `victim` at a bone like a bullet of
+-- the engine: GM:ScalePlayerDamage with the hitgroup of the bone, then the bullet damage
+-- at the point opts.depth units (default 8) before the aim point, with a force along the
+-- shot. opts: bone ("Spine2"; short or full ValveBiped name), offset (Vector added to the
+-- aim point), from (Vector, default the shooter's eyes), damage (default 12), ammo
+-- (default "Pistol"), type (default DMG_BULLET), force (default 1000 along the shot).
+-- Returns the damage info.
+function Env.Shoot(shooter, victim, opts)
+	opts = opts or {}
+	local bone = opts.bone or "Spine2"
+	if not bone:find("ValveBiped", 1, true) then
+		bone = "ValveBiped.Bip01_" .. bone
+	end
+	local aim = victim:GetBonePosition(victim:LookupBone(bone) or World.BONE_IDS[bone])
+	if opts.offset ~= nil then
+		aim = aim + opts.offset
+	end
+	local from = opts.from or shooter:EyePos()
+	local dir = (aim - from):GetNormalized()
+	local pos = aim - dir * (opts.depth or 8)
+	local hitgroup = opts.hitgroup or Env.BoneHitGroup(bone)
+	local dmginfo = World.DamageInfo()
+	dmginfo:SetDamage(opts.damage or 12)
+	dmginfo:SetDamageType(opts.type or World.DMG.BULLET)
+	dmginfo:SetAttacker(shooter or World.WORLD)
+	dmginfo:SetInflictor(shooter or World.WORLD)
+	dmginfo:SetDamagePosition(pos)
+	dmginfo:SetReportedPosition(from)
+	dmginfo:SetDamageForce(dir * (opts.force or 1000))
+	dmginfo:SetAmmoType(Env.AmmoID(opts.ammo or "Pistol"))
+	victim.lastHitGroup = hitgroup
+	local server = victim.server
+	if server ~= nil and server:Call("ScalePlayerDamage", victim, hitgroup, dmginfo) == true then
+		return dmginfo
+	end
+	victim:TakeDamageInfo(dmginfo)
+	return dmginfo
+end
+
+-- `ply` lands at `speed` units/s: GM:OnPlayerHitGround; unless it answers true and if
+-- the speed is above the engine's safe speed, GM:GetFallDamage and the fall damage.
+function Env.Fall(ply, speed, inWater)
+	local server = ply.server
+	if server:Call("OnPlayerHitGround", ply, inWater == true, false, speed) == true or inWater then
+		return
+	end
+	if speed > 526.5 then
+		local amount = server:Call("GetFallDamage", ply, speed)
+		if type(amount) == "number" and amount > 0 then
+			Env.Hurt(ply, { damage = amount, type = World.DMG.FALL })
+		end
+	end
+end
+
+-- A user command of `ply` with buttons (IN_* sum) and movement runs GM:StartCommand on
+-- `realm` (the server or the player's client). Returns the command as modules left it.
+function Env.RunCommand(realm, ply, buttons, forward, side)
+	local cmd = World.UserCmd(buttons, forward, side)
+	realm:Call("StartCommand", ply, cmd)
+	return cmd
+end
+
 local entityIndex = 199
 local EntityMethods = {}
 local EntityMeta = {
@@ -965,6 +1092,9 @@ function Env:_CreateGame(G)
 	function G.game.GetMap() return env.map or "gm_test" end
 	function G.game.SinglePlayer() return false end
 	function G.game.MaxPlayers() return 128 end
+	function G.game.GetWorld() return World.WORLD end
+	function G.game.GetAmmoName(id) return World.AMMO[id] end
+	function G.game.GetAmmoID(name) return Env.AmmoID(name) end
 	if self.realm == "server" then
 		function G.game.CleanUpMap(dontSendToClients)
 			env:_CleanUpMap(dontSendToClients)

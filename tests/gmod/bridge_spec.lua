@@ -15,11 +15,13 @@ local PROBE = {
 		M.answers = {}
 		local NOTIFY = {
 			"gm.PlayerSpawned", "gm.PlayerLoadout", "gm.DoPlayerDeath", "gm.PlayerDeath", "gm.PlayerSilentDeath",
-			"gm.KeyPress", "gm.PlayerRequestTeam", "gm.PostCleanupMap", "gm.HUDPaint",
+			"gm.KeyPress", "gm.PlayerRequestTeam", "gm.PostCleanupMap", "gm.HUDPaint", "gm.StartCommand",
+			"gm.RenderScreenspaceEffects",
 		}
 		local ASK = {
 			"gm.PlayerSpawn", "gm.PlayerSelectSpawn", "gm.PlayerDeathThink", "gm.PlayerShouldTakeDamage",
-			"gm.CanPlayerSuicide",
+			"gm.CanPlayerSuicide", "gm.EntityTakeDamage", "gm.ScalePlayerDamage", "gm.GetFallDamage",
+			"gm.OnPlayerHitGround", "gm.HUDShouldDraw", "gm.PlayerBindPress",
 		}
 		function M:Start(ctx)
 			for _, name in ipairs(NOTIFY) do
@@ -146,6 +148,83 @@ describe("bridge", function()
 		local fresh = server:Get("ents").FindByClass("info_player_start")
 		expect(#fresh):toBe(1)
 		expect(fresh[1]):notToBe(spawn)
+	end)
+
+	it("asks modules about damage, lets it through without an answer and never scales hits", function()
+		local server, probe = boot()
+		local victim, attacker = Env.Bot(server), Env.Bot(server)
+		probe:Names()
+		local DMG = Env.World.DMG
+		Env.Hurt(victim, { damage = 30, type = DMG.CLUB, attacker = attacker })
+		expect(probe:Names()):toEqual({ "gm.EntityTakeDamage", "gm.PlayerShouldTakeDamage" })
+		expect(victim:Health()):toBe(70)
+
+		-- ScalePlayerDamage keeps the amount: no base head x2 or limbs x0.25.
+		local dmginfo = Env.Shoot(attacker, victim, { bone = "Head1", damage = 20 })
+		expect(probe.seen[1][1]):toBe("gm.ScalePlayerDamage")
+		expect(probe.seen[1][3]):toBe(Env.World.HITGROUP.HEAD)
+		expect(dmginfo:GetDamage()):toBe(20)
+		expect(victim:Health()):toBe(50)
+		probe:Names()
+
+		probe.answers["gm.EntityTakeDamage"] = true
+		Env.Hurt(victim, { damage = 500, attacker = attacker })
+		expect(probe:Names()):toEqual({ "gm.EntityTakeDamage" })
+		expect(victim:Health()):toBe(50)
+		expect(victim:Alive()):toBe(true)
+		probe.answers["gm.EntityTakeDamage"] = nil
+
+		probe.answers["gm.ScalePlayerDamage"] = true
+		Env.Shoot(attacker, victim, { damage = 100 })
+		expect(probe:Names()):toEqual({ "gm.ScalePlayerDamage" })
+		expect(victim:Health()):toBe(50)
+		expect(server:Errors()):toEqual({})
+	end)
+
+	it("asks about falls and forwards user commands", function()
+		local server, probe = boot()
+		local ply = Env.Bot(server)
+		probe:Names()
+		Env.Fall(ply, 700)
+		expect(probe:Names()):toEqual({ "gm.OnPlayerHitGround", "gm.GetFallDamage", "gm.EntityTakeDamage",
+			"gm.PlayerShouldTakeDamage" })
+		expect(ply:Health()):toBe(90) -- the base fall damage
+
+		probe.answers["gm.GetFallDamage"] = 0
+		Env.Fall(ply, 700)
+		expect(probe:Names()):toEqual({ "gm.OnPlayerHitGround", "gm.GetFallDamage" })
+		probe.answers["gm.OnPlayerHitGround"] = true
+		Env.Fall(ply, 900)
+		expect(probe:Names()):toEqual({ "gm.OnPlayerHitGround" })
+		expect(ply:Health()):toBe(90)
+
+		local cmd = Env.RunCommand(server, ply, IN.ATTACK + IN.JUMP, 200)
+		expect(probe.seen[1]):toEqual({ "gm.StartCommand", ply, cmd })
+		expect(cmd:KeyDown(IN.ATTACK)):toBe(true)
+		expect(server:Errors()):toEqual({})
+	end)
+
+	it("asks the client about HUD elements and binds and forwards screen effects", function()
+		local server = boot()
+		local client = Env.Client(server):Boot()
+		local probe = client:Get("NC").Modules:Instance("probe")
+		local GM = client:Get("GM")
+		expect(GM:HUDShouldDraw("CHudHealth")):toBe(true)
+		probe.answers["gm.HUDShouldDraw"] = function(name)
+			if name == "CHudHealth" then
+				return false
+			end
+		end
+		expect(GM:HUDShouldDraw("CHudHealth")):toBe(false)
+		expect(GM:HUDShouldDraw("CHudAmmo")):toBe(true)
+		probe:Names()
+
+		expect(GM:PlayerBindPress(nil, "+reload", true, 0)):toBeNil()
+		probe.answers["gm.PlayerBindPress"] = true
+		expect(GM:PlayerBindPress(nil, "+reload", true, 0)):toBe(true)
+		client:Call("RenderScreenspaceEffects")
+		expect(probe:Names()):toEqual({ "gm.PlayerBindPress", "gm.PlayerBindPress", "gm.RenderScreenspaceEffects" })
+		expect(client:Errors()):toEqual({})
 	end)
 
 	it("paints the HUD after the base gamemode on the client", function()
