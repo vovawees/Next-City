@@ -38,9 +38,11 @@
 - `M.Overpressure(z)` → кПа; `M.FragmentSpeed(заряд, корпус)` → м/с; `M.Chunk(масса г)` → диаметр (мм), дальность (м), проникание (см).
 
 ```lua
--- Пакет: граната взрывается через 4 секунды после броска.
-explosions:Explode(ent:GetPos(), { attacker = ent.thrower, inflictor = ent, charge = 0.06, casing = 0.3,
-	fragments = 250, filter = ent })
+-- Пакет: граната (`throwables`) взрывается там, где сработал запал.
+detonate = function(ent, thrower, pos)
+	explosions:Explode(pos, { attacker = thrower, inflictor = ent, charge = 0.06, casing = 0.3, fragments = 250,
+		filter = ent })
+end
 ```
 
 ## Проверить в реальном GMod
