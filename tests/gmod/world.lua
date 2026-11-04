@@ -34,6 +34,7 @@ World.DMG = {
 	PLASMA = 16777216, AIRBOAT = 33554432, DISSOLVE = 67108864, BLAST_SURFACE = 134217728, DIRECT = 268435456,
 	BUCKSHOT = 536870912, SNIPER = 1073741824,
 }
+World.MOVETYPE = { NONE = 0, WALK = 2, NOCLIP = 8, LADDER = 9, OBSERVER = 10 }
 World.HITGROUP = { GENERIC = 0, HEAD = 1, CHEST = 2, STOMACH = 3, LEFTARM = 4, RIGHTARM = 5, LEFTLEG = 6,
 	RIGHTLEG = 7, GEAR = 10 }
 -- Ammo types of Half-Life 2 by id, like game.GetAmmoName.
@@ -233,6 +234,7 @@ function World.FakePlayer(opts)
 		runSpeed = 400,
 		slowWalkSpeed = 100,
 		crouchedWalkSpeed = 0.3,
+		moveType = World.MOVETYPE.WALK,
 		jumpPower = 200,
 		bones = {},
 		viewPunches = {},
@@ -296,6 +298,8 @@ function Player:SetVelocity(v)
 	self.pushes[#self.pushes + 1] = Vector(v)
 	self.velocity = self.velocity + v
 end
+function Player:GetMoveType() return self.moveType end
+function Player:SetMoveType(value) self.moveType = value end
 function Player:GetWalkSpeed() return self.walkSpeed end
 function Player:SetWalkSpeed(value) self.walkSpeed = value end
 function Player:GetRunSpeed() return self.runSpeed end
@@ -680,6 +684,9 @@ function World.Install(env, G)
 	end
 	for name, value in pairs(World.HITGROUP) do
 		G["HITGROUP_" .. name] = value
+	end
+	for name, value in pairs(World.MOVETYPE) do
+		G["MOVETYPE_" .. name] = value
 	end
 	G.DamageInfo = World.DamageInfo
 	G.MASK_PLAYERSOLID = 33636363
