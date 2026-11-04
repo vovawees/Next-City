@@ -54,3 +54,42 @@ end
 function M:Count(state)
 	return #(self:List(state) or EMPTY)
 end
+
+-- Finds a player by the text of a console argument: nothing or "^" is `caller`, "#n" or
+-- a number the player with that entity index, otherwise the player with exactly that
+-- name or the only one whose name contains the text (any case). Returns the player, or
+-- nil and the problem.
+function M:Find(text, caller)
+	if text == nil or text == "" or text == "^" then
+		if IsValid(caller) then
+			return caller
+		end
+		return nil, "no player given"
+	end
+	local index = tonumber(text:match("^#?(%d+)$") or "")
+	if index ~= nil then
+		local ply = Entity(index)
+		if IsValid(ply) and ply:IsPlayer() then
+			return ply
+		end
+		return nil, "no player #" .. index
+	end
+	local lower = text:lower()
+	local found, count = nil, 0
+	for _, ply in ipairs(player.GetAll()) do
+		local name = ply:Nick()
+		if name == text then
+			return ply
+		end
+		if name:lower():find(lower, 1, true) ~= nil then
+			found, count = ply, count + 1
+		end
+	end
+	if count == 1 then
+		return found
+	end
+	if count == 0 then
+		return nil, "no player matches '" .. text .. "'"
+	end
+	return nil, count .. " players match '" .. text .. "'"
+end
