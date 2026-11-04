@@ -175,6 +175,7 @@ function Player:Team() return self.team end
 function Player:SetTeam(index) self.team = index end
 function Player:GetPos() return Vector(self.pos) end
 function Player:SetPos(pos) self.pos = Vector(pos) end
+function Player:EyePos() return Vector(self.pos.x, self.pos.y, self.pos.z + 64) end
 function Player:EyeAngles() return Angle(self.angles) end
 function Player:GetAngles() return Angle(self.angles) end
 function Player:SetEyeAngles(ang) self.angles = Angle(ang) end

@@ -30,6 +30,7 @@ local SPECS = {
 	"tests/gmod/players_spec.lua",
 	"tests/gmod/rounds_spec.lua",
 	"tests/gmod/teams_spec.lua",
+	"tests/gmod/spectator_spec.lua",
 }
 
 local source = debug.getinfo(1, "S").source
@@ -184,6 +185,19 @@ function Expect:toContain(item)
 		end
 	end
 	check(false, "expected " .. inspect(value) .. " to contain " .. inspect(item))
+end
+
+-- The opposite of toContain.
+function Expect:notToContain(item)
+	local value = self.value
+	if type(value) == "string" then
+		check(value:find(item, 1, true) == nil, "expected " .. inspect(value) .. " not to contain " .. inspect(item))
+		return
+	end
+	check(type(value) == "table", "expected a string or a table, got " .. inspect(value))
+	for i = 1, #value do
+		check(not deepEqual(value[i], item), "expected " .. inspect(value) .. " not to contain " .. inspect(item))
+	end
 end
 
 -- The value must be a function that raises an error containing `fragment` (if given).
