@@ -357,7 +357,47 @@ function Player:ViewPunch(ang) self.viewPunches[#self.viewPunches + 1] = ang end
 -- The punch of the view now (.viewPunch, set by tests): the engine decays it.
 function Player:GetViewPunchAngles() return Angle(self.viewPunch or Angle(0, 0, 0)) end
 function Player:SetViewPunchAngles(ang) self.viewPunch = Angle(ang) end
-function Player:GetViewModel() return World.NULL end
+-- The view model of the player on the realm whose code runs (tests read
+-- ply.viewModels[realm]): LookupSequence answers an index for any name, the sequences sent
+-- are recorded by name in vm.sequences, SequenceDuration answers vm.duration (0.5 s).
+local ViewModel = {}
+ViewModel.__index = ViewModel
+World.SEQUENCE_NAMES = {}
+function ViewModel:IsValid() return true end
+function ViewModel:LookupSequence(name)
+	local names = World.SEQUENCE_NAMES
+	for i, known in ipairs(names) do
+		if known == name then
+			return i - 1
+		end
+	end
+	names[#names + 1] = name
+	return #names - 1
+end
+function ViewModel:SendViewModelMatchingSequence(seq)
+	self.sequences[#self.sequences + 1] = World.SEQUENCE_NAMES[seq + 1]
+end
+function ViewModel:SequenceDuration() return self.duration end
+function ViewModel:SetPlaybackRate(rate) self.rate = rate end
+function ViewModel:GetPlaybackRate() return self.rate end
+function Player:GetViewModel()
+	self.viewModels = self.viewModels or {}
+	local key = World.realm or false
+	local vm = self.viewModels[key]
+	if vm == nil then
+		vm = setmetatable({ owner = self, sequences = {}, duration = 0.5, rate = 1 }, ViewModel)
+		self.viewModels[key] = vm
+	end
+	return vm
+end
+-- What the player stands on: ply.groundEntity (set by tests), else the world on the
+-- ground, else NULL.
+function Player:GetGroundEntity()
+	if self.groundEntity ~= nil then
+		return self.groundEntity
+	end
+	return self.onGround and World.WORLD or World.NULL
+end
 -- Like for players in GMod, this adds to the velocity; every push is recorded.
 function Player:SetVelocity(v)
 	self.pushes[#self.pushes + 1] = Vector(v)
@@ -1564,6 +1604,10 @@ function World.InstallEffects(env, G)
 	G.engine = G.engine or {}
 	function G.engine.TickInterval()
 		return env.tickInterval or 0.015
+	end
+	-- Ticks so far: the game time over the tick interval.
+	function G.engine.TickCount()
+		return math.floor(env.time / (env.tickInterval or 0.015) + 0.5)
 	end
 end
 
