@@ -941,22 +941,25 @@ end
 -- at the point opts.depth units (default 8) before the aim point, with a force along the
 -- shot. opts: bone ("Spine2"; short or full ValveBiped name), offset (Vector added to the
 -- aim point), from (Vector, default the shooter's eyes), damage (default 12), ammo
--- (default "Pistol"), type (default DMG_BULLET), force (default 1000 along the shot).
--- Returns the damage info.
-function Env.Shoot(shooter, victim, opts)
-	opts = opts or {}
-	local bone = opts.bone or "Spine2"
+-- (default "Pistol"), type (default DMG_BULLET), force (default 1000 along the shot),
+-- pellets (a list of { bone, offset, depth, hitgroup }: a shell of shot; like the
+-- engine's multi-damage, every pellet gets its GM:ScalePlayerDamage and the pellets that
+-- were not blocked then hurt once with their damage added up).
+-- Returns the damage info of the damage.
+local function pelletInfo(shooter, victim, opts, pellet)
+	local bone = pellet.bone or opts.bone or "Spine2"
 	if not bone:find("ValveBiped", 1, true) then
 		bone = "ValveBiped.Bip01_" .. bone
 	end
 	local aim = victim:GetBonePosition(victim:LookupBone(bone) or World.BONE_IDS[bone])
-	if opts.offset ~= nil then
-		aim = aim + opts.offset
+	local offset = pellet.offset or opts.offset
+	if offset ~= nil then
+		aim = aim + offset
 	end
 	local from = opts.from or shooter:EyePos()
 	local dir = (aim - from):GetNormalized()
-	local pos = aim - dir * (opts.depth or 8)
-	local hitgroup = opts.hitgroup or Env.BoneHitGroup(bone)
+	local pos = aim - dir * (pellet.depth or opts.depth or 8)
+	local hitgroup = pellet.hitgroup or opts.hitgroup or Env.BoneHitGroup(bone)
 	local dmginfo = World.DamageInfo()
 	dmginfo:SetDamage(opts.damage or 12)
 	dmginfo:SetDamageType(opts.type or World.DMG.BULLET)
@@ -966,13 +969,30 @@ function Env.Shoot(shooter, victim, opts)
 	dmginfo:SetReportedPosition(from)
 	dmginfo:SetDamageForce(dir * (opts.force or 1000))
 	dmginfo:SetAmmoType(Env.AmmoID(opts.ammo or "Pistol"))
-	victim.lastHitGroup = hitgroup
+	return dmginfo, hitgroup
+end
+
+function Env.Shoot(shooter, victim, opts)
+	opts = opts or {}
 	local server = victim.server
-	if server ~= nil and server:Call("ScalePlayerDamage", victim, hitgroup, dmginfo) == true then
-		return dmginfo
+	local total
+	for _, pellet in ipairs(opts.pellets or { {} }) do
+		local dmginfo, hitgroup = pelletInfo(shooter, victim, opts, pellet)
+		victim.lastHitGroup = hitgroup
+		if server == nil or server:Call("ScalePlayerDamage", victim, hitgroup, dmginfo) ~= true then
+			if total == nil then
+				total = dmginfo
+			else
+				total:AddDamage(dmginfo:GetDamage())
+				total:SetDamagePosition(dmginfo:GetDamagePosition())
+				total:SetDamageForce(total:GetDamageForce() + dmginfo:GetDamageForce())
+			end
+		end
 	end
-	victim:TakeDamageInfo(dmginfo)
-	return dmginfo
+	if total ~= nil then
+		victim:TakeDamageInfo(total)
+	end
+	return total
 end
 
 -- `ply` lands at `speed` units/s: GM:OnPlayerHitGround; unless it answers true and if

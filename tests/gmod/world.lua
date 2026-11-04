@@ -236,6 +236,7 @@ function World.FakePlayer(opts)
 		jumpPower = 200,
 		bones = {},
 		viewPunches = {},
+		pushes = {},
 		damage = {},
 	}, PlayerMeta)
 end
@@ -290,6 +291,11 @@ function Player:OnGround() return self.onGround end
 function Player:GetShootPos() return self:EyePos() end
 function Player:GetAimVector() return self.angles:Forward() end
 function Player:ViewPunch(ang) self.viewPunches[#self.viewPunches + 1] = ang end
+-- Like for players in GMod, this adds to the velocity; every push is recorded.
+function Player:SetVelocity(v)
+	self.pushes[#self.pushes + 1] = Vector(v)
+	self.velocity = self.velocity + v
+end
 function Player:GetWalkSpeed() return self.walkSpeed end
 function Player:SetWalkSpeed(value) self.walkSpeed = value end
 function Player:GetRunSpeed() return self.runSpeed end

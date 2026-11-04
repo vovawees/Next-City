@@ -32,6 +32,7 @@ local SPECS = {
 	"tests/gmod/teams_spec.lua",
 	"tests/gmod/spectator_spec.lua",
 	"tests/gmod/organism_spec.lua",
+	"tests/gmod/damage_spec.lua",
 	"tests/gmod/soak_spec.lua",
 }
 
