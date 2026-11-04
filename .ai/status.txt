@@ -12,8 +12,9 @@ STATUS (update every step)
        #2 storage                          done 5c6213c
        #3 actions                          done 7b17e4f
        #4-#7 inventory core/net/world/UI   done d229dd6
-       #8 equipment                        done (this commit)
-       #9 medical .. #12 tdm               todo
+       #8 equipment                        done be82edd
+       #9 medical                          done (this commit)
+       #10 loot .. #12 tdm                 todo
   M7 modes             todo (#13-#24)
   docs overhaul        todo (#25)
-  last full run        41 specs, 438 passed, 0 failed; lint clean
+  last full run        42 specs, 442 passed, 0 failed; lint clean

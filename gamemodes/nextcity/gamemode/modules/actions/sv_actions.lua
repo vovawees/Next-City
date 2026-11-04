@@ -7,6 +7,7 @@
 --   	allowMove = false,        -- moving more than config.tolerance cancels
 --   	allowDamage = false,      -- a hit cancels
 --   	Check = function(ply, target) return true end,     -- every check: false, reason cancels
+--   	Tick = function(ply, target, action, now) end,     -- every check after it: true completes now
 --   	OnComplete = function(ply, target, action) end,
 --   	OnCancel = function(ply, reason, target, action) end,
 --   	quiet = false,            -- true: no notice to the player when it is cancelled
@@ -15,8 +16,10 @@
 -- Begin returns true, or false and the reason: "dead", "unconscious", "busy" (another
 -- action), "target", "range" or the reason of Check. Reasons of cancelling: "dead",
 -- "left", "unconscious", "moved", "hurt", "target", "range", "cancelled" (Cancel) or the
--- reason of Check. A duration of 0 completes at once. With notices the player is told
--- why his action stopped ("actions.stopped.<reason>", when the language files have it).
+-- reason of Check. A duration of 0 completes at once; Complete(ply) completes the action
+-- under way now. With notices the player is told why his action stopped
+-- ("actions.stopped.<reason>", when the language files have it). The bar names the target:
+-- a player or the player whose body an entity carries (a fallen body).
 --
 -- Listens: players.died, players.left, players.stateChanged, damage.hit.
 -- Emits:   actions.started (ply, id), actions.completed (ply, id),
@@ -62,12 +65,16 @@ local function center(ent)
 	return ent:GetPos()
 end
 
-local function targetName(target)
+local function targetName(self, target)
 	if not IsValid(target) then
 		return ""
 	end
 	if target:IsPlayer() then
 		return target:Nick()
+	end
+	local owner = self.organism ~= nil and self.organism:PlayerOf(target) or nil
+	if owner ~= nil and IsValid(owner) then
+		return owner:Nick()
 	end
 	return ""
 end
@@ -124,6 +131,7 @@ function M:Begin(ply, spec)
 		allowMove = spec.allowMove == true,
 		allowDamage = spec.allowDamage == true,
 		Check = spec.Check,
+		Tick = spec.Tick,
 		OnComplete = spec.OnComplete,
 		OnCancel = spec.OnCancel,
 		quiet = spec.quiet == true,
@@ -143,7 +151,7 @@ function M:Begin(ply, spec)
 		end
 	end
 	self.current[ply] = action
-	self.ctx.components.action:Add(ply, { label = action.label, target = targetName(action.target):sub(1, 48),
+	self.ctx.components.action:Add(ply, { label = action.label, target = targetName(self, action.target):sub(1, 48),
 		startedAt = now, duration = action.duration })
 	self.ctx.events:Emit("actions.started", ply, action.id)
 	if action.duration <= 0 then
@@ -181,11 +189,24 @@ function M:_Finish(ply)
 end
 
 function M:_Complete(ply, action)
+	if self.current[ply] ~= action then
+		return
+	end
 	self:_Finish(ply)
 	if type(action.OnComplete) == "function" then
 		self:_Call(action.OnComplete, action.id, ply, action.target, action)
 	end
 	self.ctx.events:Emit("actions.completed", ply, action.id)
+end
+
+-- Completes the action of `ply` now; true if there was one.
+function M:Complete(ply)
+	local action = self.current[ply]
+	if action == nil then
+		return false
+	end
+	self:_Complete(ply, action)
+	return true
 end
 
 -- Cancels the action of `ply` (reason default "cancelled"); true if there was one.
@@ -223,8 +244,14 @@ function M:Check(now)
 		end
 		if problem ~= nil then
 			self:Cancel(ply, problem)
-		elseif now >= action.endsAt then
-			self:_Complete(ply, action)
+		else
+			local done = false
+			if type(action.Tick) == "function" then
+				done = self:_Call(action.Tick, action.id, ply, action.target, action, now) == true
+			end
+			if self.current[ply] == action and (done or now >= action.endsAt) then
+				self:_Complete(ply, action)
+			end
 		end
 	end
 end

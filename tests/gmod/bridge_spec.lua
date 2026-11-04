@@ -17,7 +17,8 @@ local PROBE = {
 		local NOTIFY = {
 			"gm.PlayerSpawned", "gm.PlayerLoadout", "gm.DoPlayerDeath", "gm.PlayerDeath", "gm.PlayerSilentDeath",
 			"gm.KeyPress", "gm.PlayerRequestTeam", "gm.PostCleanupMap", "gm.HUDPaint", "gm.StartCommand",
-			"gm.RenderScreenspaceEffects", "gm.WeaponEquip", "gm.OnNPCKilled",
+			"gm.RenderScreenspaceEffects", "gm.WeaponEquip", "gm.OnNPCKilled", "gm.ShowHelp", "gm.ShowTeam",
+			"gm.ShowSpare1", "gm.ShowSpare2",
 		}
 		local ASK = {
 			"gm.PlayerSpawn", "gm.PlayerSelectSpawn", "gm.PlayerDeathThink", "gm.PlayerShouldTakeDamage",
@@ -138,6 +139,11 @@ describe("bridge", function()
 		local calls = #server.baseCalls
 		server:Get("GM"):PlayerRequestTeam(ply, 2)
 		expect(probe.seen[1]):toEqual({ "gm.PlayerRequestTeam", ply, 2 })
+		for _, key in ipairs({ "ShowHelp", "ShowTeam", "ShowSpare1", "ShowSpare2" }) do
+			probe.seen = {}
+			server:Call(key, ply)
+			expect(probe.seen[1]):toEqual({ "gm." .. key, ply })
+		end
 		expect(#server.baseCalls):toBe(calls)
 		probe:Names()
 

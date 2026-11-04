@@ -21,7 +21,8 @@
 -- GetFallDamage. StartCommand runs for every user command (shared and predicted).
 --
 -- Interaction (D17): PlayerUse and PlayerCanPickupWeapon are questions (false blocks),
--- WeaponEquip and OnNPCKilled notifications. Chat and voice: PlayerSay is a question
+-- WeaponEquip and OnNPCKilled notifications, the F1-F4 keys (ShowHelp, ShowTeam,
+-- ShowSpare1, ShowSpare2) replacements. Chat and voice: PlayerSay is a question
 -- whose answer replaces the text ("" drops the message), PlayerCanSeePlayersChat a
 -- question, PlayerCanHearPlayersVoice a question answered with true, false or "3d"
 -- (heard, positional). On the client HUDDrawTargetID is a question: true hides the
@@ -194,6 +195,24 @@ if SERVER then
 	-- handles it nobody switches teams on their own.
 	function GM:PlayerRequestTeam(ply, teamIndex)
 		NC.Events:Emit("gm.PlayerRequestTeam", ply, teamIndex)
+	end
+
+	-- Replacements: the F1-F4 keys (gm_showhelp, gm_showteam, gm_showspare1/2) of a player.
+	-- The base gamemode would open its team menu on F2; modules decide what the keys do.
+	function GM:ShowHelp(ply)
+		NC.Events:Emit("gm.ShowHelp", ply)
+	end
+
+	function GM:ShowTeam(ply)
+		NC.Events:Emit("gm.ShowTeam", ply)
+	end
+
+	function GM:ShowSpare1(ply)
+		NC.Events:Emit("gm.ShowSpare1", ply)
+	end
+
+	function GM:ShowSpare2(ply)
+		NC.Events:Emit("gm.ShowSpare2", ply)
 	end
 
 	-- Question, every tick while the use key is held on `ent`: false blocks the use (and

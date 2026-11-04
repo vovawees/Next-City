@@ -9,3 +9,5 @@ PITFALLS
   inventory Give(player) reasons come from _Store (size/weight beat "full").
   specs: IsValid is not a global in spec files (use ent:IsValid()).
   movement.speed factors: modules that change theirs must call movement:Refresh(ply) (speeds are set, not polled).
+  specs: test traces must compare masks with server:Get("MASK_SHOT") (spec globals are not the realm's).
+  pockets take size 1 only: test items of size 2 need a bag or they are never given.

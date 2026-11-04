@@ -50,6 +50,7 @@ local SPECS = {
 	"tests/gmod/services_spec.lua",
 	"tests/gmod/inventory_spec.lua",
 	"tests/gmod/equipment_spec.lua",
+	"tests/gmod/medical_spec.lua",
 	"tests/gmod/soak_spec.lua",
 }
 

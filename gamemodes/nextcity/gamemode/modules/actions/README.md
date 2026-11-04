@@ -22,20 +22,22 @@ local ok, reason = actions:Begin(ply, {
 	allowMove = false,         -- сдвиг больше tolerance прерывает
 	allowDamage = false,       -- попадание прерывает
 	Check = function(ply, target) return true end,          -- false, причина — прервать
+	Tick = function(ply, target, action, now) end,         -- после каждой проверки: true — завершить сейчас
 	OnComplete = function(ply, target, action) end,
 	OnCancel = function(ply, reason, target, action) end,
 	quiet = false,             -- true — без уведомления о прерывании
 })
-actions:Cancel(ply, reason); actions:Current(ply); actions:IsBusy(ply); actions:Progress(ply)
+actions:Cancel(ply, reason); actions:Complete(ply); actions:Current(ply); actions:IsBusy(ply); actions:Progress(ply)
 ```
 
 - Отказ при старте: `dead`, `unconscious`, `busy`, `target`, `range` или причина `Check`.
 - Причины прерывания: `dead`, `left`, `unconscious`, `moved`, `hurt`, `target`, `range`, `cancelled` или причина `Check`. Игрок видит уведомление `actions.stopped.<причина>`, если для причины есть перевод.
-- Нулевая длительность завершает действие сразу.
+- Нулевая длительность завершает действие сразу; `Complete(ply)` завершает текущее действие досрочно (`OnComplete` вызывается).
+- `Tick` — работа по ходу действия (компрессии СЛР каждую секунду); `true` завершает действие.
 
 ## Клиент
 
-Полоса внизу по центру: переведённая подпись (параметр `{target}` — имя цели) и оставшиеся секунды.
+Полоса внизу по центру: переведённая подпись (параметр `{target}` — имя цели: игрок или тот, чьё тело несёт сущность-цель, например регдолл упавшего) и оставшиеся секунды.
 
 ## Проверить в реальном GMod
 

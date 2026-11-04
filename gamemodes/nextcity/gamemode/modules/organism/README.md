@@ -34,7 +34,8 @@
 
 - `M:Injure(ply, hit)` → отчёт `{ kind, wounds, bleeding, energy, structures, fractures, fatal }` или `nil` (нет живого тела). Поля попадания (все необязательны, кроме `kind`): `attacker`, `inflictor`, `type` (DMG_*), `pos`, `dir`, `force`, `amount` (урон движка), `energy` (Дж), `projectile` (`mass` г, `velocity` м/с, `diameter` мм, `penetration` см, `expansion`, `fragment`, `fragmentFactor`), `depth` (клинок, см), `speed` (падение, юнит/с), `segment`, `toxin`, `cause`; взрыв: `shield` (`fn(ply, fragment)` встречает каждый осколок до попадания — например, броня; может изменить осколок, `false` — не пускает) и `fragments` (сколько осколков попадает; по умолчанию по силе взрыва, `0` — осколки летят своими снарядами).
 - Виды: `bullet`, `fragment` (луч), `stab`, `slash` (клинок), `blunt`, `crush`, `vehicle`, `fall`, `blast`, `burn`, `shock`, `stun`, `poison`, `generic`, `lethal`. `M:RegisterInjury(вид, fn(self, st, hit, report))` добавляет или заменяет вид.
-- `M:ApplyTreatment(ply, вид, opts)` → `true` или `false` и причина (`dead`, `unknown`, `target`, `nothing`, `already`, `pulse`, `not_shockable`). Предметы (M6) решают, кто, когда и как долго лечит; здесь лечение действует сразу. `M:RegisterTreatment(вид, fn(self, st, opts, now))`.
+- `M:ApplyTreatment(ply, вид, opts)` → `true` или `false` и причина (`dead`, `unknown`, `target`, `nothing`, `already`, `pulse`, `not_shockable`). Предметы (модуль `medical`) решают, кто, когда и как долго лечит; здесь лечение действует сразу. `M:CanTreat(ply, вид, opts)` отвечает так же, ничего не меняя. `M:RegisterTreatment(вид, fn(self, st, opts, now), check)` — `check(self, st, opts, now)` для `CanTreat` (без него лечение считается возможным).
+- `M:Examine(ply)` — что находит осмотр: сознание, пульс и ритм, давление, дыхание, SpO2, температура, доля крови, кровь в дыхательных путях, внутреннее кровотечение, раны (`bleeding`: область, конечность, мл/мин, артериальная, повязка, под жгутом — худшие первыми), переломы, вывихи, жгуты (минуты), грудь по сторонам (сосущая рана, напряжение, спадение, кровь, дренаж), тампонада, кровь в черепе, уровень травмы спинного мозга.
 - `M:Succumb(ply)` — сдаться (как по клавише); `false`, если ещё нельзя.
 - `M:IsSimulated(ply)`, `M:IsDead(ply)`, `M:IsUnconscious(ply)`, `M:Capabilities(ply)`, `M:Vitals(ply)`, `M:Wounds(ply)`, `M:Describe(ply)` (строки для консоли), `M:State(ply)` (внутреннее состояние — только для отладки и тестов).
 - `M:Exert(ply, доля)` — потратить долю выносливости на усилие (удар, бросок): тело работает тяжелее; `false` — сил не было (истощён или нет живого тела).
@@ -67,7 +68,7 @@
 | `saline`, `blood` | `ml` (500), `seconds` (120) | инфузия |
 | `heal` | — | новое здоровое тело |
 
-Конечности: `arm_l`, `arm_r`, `leg_l`, `leg_r`; стороны: `l`, `r` (по умолчанию — худшая).
+Конечности: `arm_l`, `arm_r`, `leg_l`, `leg_r`; стороны: `l`, `r` (по умолчанию — худшая). Жгут без конечности ложится на ту, что кровит сильнее всех; `tourniquet_off` без конечности снимает самый старый.
 
 ## Консоль
 
