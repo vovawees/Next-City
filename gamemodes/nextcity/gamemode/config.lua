@@ -5,6 +5,12 @@ return {
 	-- Console log level: "trace", "debug", "info", "warn", "error" or "off".
 	logLevel = "info",
 
+	net = {
+		-- Check outgoing messages against their schemas and log problems (development aid:
+		-- costs time on every send).
+		checkOutgoing = false,
+	},
+
 	-- Translations live in lang/<code>/ (docs/ARCHITECTURE.md, section 12). Players pick a
 	-- language with nc_language: "auto" follows the game language.
 	i18n = {

@@ -7,9 +7,10 @@
 --
 -- Client language: config i18n.force, else the nc_language convar ("auto" or a code),
 -- else the game language (gmod_language). A change applies at once and emits
--- "i18n.changed" (code). The server keeps the language each player reported and uses it
--- in TFor; until a report arrives (and always with i18n.force) it uses the server
--- language: i18n.force or i18n.default.
+-- "i18n.changed" (code). The client reports the language as client info "language"
+-- (platform/net.lua: it arrives with the hello, before "net.ready"). The server keeps
+-- the language of each player and uses it in TFor; until a report arrives (and always
+-- with i18n.force) it uses the server language: i18n.force or i18n.default.
 --
 --   ctx.i18n:T("rounds.win", { team = "red" })   -- client language (server: its own)
 --   ctx.i18n:TFor(ply, "rounds.kicked")          -- language of a player (server)
@@ -43,8 +44,8 @@ local function loadFile(path)
 	return result
 end
 
--- opts: root (gamemode root), config (NC.Config.i18n), log, events, previous (service of
--- the previous kernel, on autorefresh).
+-- opts: root (gamemode root), config (NC.Config.i18n), log, events, net (the network
+-- service, optional), previous (service of the previous kernel, on autorefresh).
 function Service.New(opts)
 	local cfg = opts.config or {}
 	local log = opts.log
@@ -63,6 +64,7 @@ function Service.New(opts)
 		root = opts.root,
 		log = log,
 		events = opts.events,
+		net = opts.net,
 		default = default,
 		force = force,
 		catalog = I18nLib.New({ default = default, log = log }),
@@ -89,6 +91,11 @@ function Service.New(opts)
 		service.listeners[1] = service.events:On("gm.PlayerDisconnected", function(ply)
 			service:ForgetPlayer(ply)
 		end, { id = "i18n:disconnect" })
+		if service.net then
+			service.net:OnInfo("language", function(ply, code)
+				service:SetPlayerLanguage(ply, code)
+			end)
+		end
 	else
 		service.convar = CreateClientConVar(CONVAR, "auto", true, false,
 			"Next-City language: auto (the game language) or a code such as en, ru")
@@ -190,6 +197,9 @@ function Service:_Apply(silent)
 		self:Load(code)
 	end
 	self.translator = self.catalog:Translator(requested)
+	if self.net then
+		self.net:SetInfo("language", requested)
+	end
 	local code = self.translator:Code()
 	local changed = code ~= self.code
 	self.code = code

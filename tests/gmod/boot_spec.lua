@@ -225,36 +225,37 @@ describe("boot", function()
 			end,
 		}
 		local server = Env.Server({ patch = patch }):Boot()
-		local client = Env.Client(server, { language = "ru" }):Boot()
 		expect(server:Errors()):toEqual({})
-		expect(client:Errors()):toEqual({})
 		expect(state(server, "example")):toBe("started")
-		expect(state(client, "example")):toBe("started")
 		expect(#server:Lines("[example] started, heartbeat every 2s")):toBe(1)
-		expect(#client:Lines("[example] started on the client")):toBe(1)
 
-		local gordon = Env.FakePlayer({ name = "Gordon" })
-		server:Call("PlayerInitialSpawn", gordon, false)
-		expect(gordon.chat):toEqual({ "Welcome to Next-City, Gordon!" })
+		-- The language arrives with the hello, so the greeting is already in Russian.
+		local client, gordon = Env.Join(server, { name = "Gordon", language = "ru" })
+		expect(client:Errors()):toEqual({})
+		expect(state(client, "example")):toBe("started")
+		expect(#client:Lines("[example] started on the client")):toBe(1)
+		expect(gordon.chat):toEqual({ "Добро пожаловать в Next-City, Gordon!" })
 		expect(#server:Lines("[example] greeted Gordon")):toBe(1)
+		expect(#server:Lines("[example] Gordon waves (happy)")):toBe(1)
 
 		local example = server:Get("NC").Modules:Instance("example")
+		local clientExample = client:Get("NC").Modules:Instance("example")
+		expect(clientExample.ready):toBe(true)
+		expect(clientExample.beats):toBe(0)
 		for _ = 1, 6 do
 			server:Advance(1)
 		end
+		Env.Flush(server, client)
 		expect(example.beats):toBe(3)
-		local alyx = Env.FakePlayer({ name = "Alyx" })
-		server:Get("NC").I18n:SetPlayerLanguage(alyx, "ru")
-		expect(example:Greeting(alyx)):toBe("Добро пожаловать в Next-City, Alyx!")
+		expect(clientExample.beats):toBe(3)
 
-		local clientExample = client:Get("NC").Modules:Instance("example")
-		expect(clientExample:Greeting(alyx)):toBe("Добро пожаловать в Next-City, Alyx!")
 		client:SetConVar("nc_language", "en")
+		Env.Flush(server, client)
 		expect(clientExample.language):toBe("en")
-		expect(clientExample:Greeting(alyx)):toBe("Welcome to Next-City, Alyx!")
-
-		client:Call("InitPostEntity")
-		expect(clientExample.worldReady):toBe(true)
+		expect(example:Greeting(gordon)):toBe("Welcome to Next-City, Gordon!")
+		expect(clientExample:Greeting(gordon)):toBe("Welcome to Next-City, Gordon!")
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
 
 		server:Call("ShutDown")
 		expect(#server:Lines("[example] stopped after 3 heartbeats")):toBe(1)

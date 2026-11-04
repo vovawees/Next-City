@@ -4,6 +4,8 @@
 --   nc_perf          scheduler profile: time per job and timer tag
 --   nc_perf_reset    reset the profile
 --   nc_lang [code]   languages and translation completeness; with a code: what is missing
+--   nc_net           network messages: sent and received (count, bytes), drops by reason
+--   nc_net_reset     reset the network statistics
 -- Server commands are available to the server console and superadmins; the same
 -- commands with the _cl suffix inspect the client realm.
 
@@ -54,6 +56,50 @@ end
 local function perfReset()
 	NC.Scheduler:ResetStats()
 	return { "Scheduler profile reset" }
+end
+
+local function bytesText(n)
+	if n >= 1048576 then
+		return format("%.1f MiB", n / 1048576)
+	end
+	if n >= 1024 then
+		return format("%.1f KiB", n / 1024)
+	end
+	return format("%d B", n)
+end
+
+local function netLines()
+	local service = NC.Net
+	local stats = service:Stats()
+	local state
+	if SERVER then
+		state = format("ready players: %d", #service:ReadyPlayers())
+	else
+		state = service:IsReady() and "ready" or "not ready"
+	end
+	local lines = {
+		format("Network (%s): %d messages, %s", SERVER and "server" or "client", #stats, state),
+		format("  %-32s %-6s %7s %10s %7s %10s  %s", "message", "from", "sent", "out", "recv", "in", "dropped, errors"),
+	}
+	for _, row in ipairs(stats) do
+		local notes = {}
+		for reason, count in pairs(row.dropped) do
+			notes[#notes + 1] = reason .. "=" .. count
+		end
+		table.sort(notes)
+		if row.errors > 0 then
+			notes[#notes + 1] = "errors=" .. row.errors
+		end
+		local line = format("  %-32s %-6s %7d %10s %7d %10s  %s", row.name, row.from, row.sent, bytesText(row.bytesOut),
+			row.received, bytesText(row.bytesIn), table.concat(notes, " "))
+		lines[#lines + 1] = line:match("^(.-)%s*$")
+	end
+	return lines
+end
+
+local function netReset()
+	NC.Net:ResetStats()
+	return { "Network statistics reset" }
 end
 
 local MAX_PROBLEMS = 100
@@ -156,3 +202,5 @@ register("nc_modules", moduleLines)
 register("nc_perf", perfLines)
 register("nc_perf_reset", perfReset)
 register("nc_lang", langLines)
+register("nc_net", netLines)
+register("nc_net_reset", netReset)
