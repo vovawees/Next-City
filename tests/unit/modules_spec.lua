@@ -375,3 +375,152 @@ describe("modules context", function()
 		expect(events:Count("e")):toBe(2)
 	end)
 end)
+
+describe("modules services", function()
+	-- A service that claims the "net" manifest key and records facades it creates.
+	local function facadeService(name)
+		local service = { name = name, created = {}, disposed = {} }
+		function service:ValidateManifest(section)
+			if type(section) ~= "table" then
+				return false, "must be a table"
+			end
+			if section.explode then
+				error("kaboom")
+			end
+			return section.bad == nil, "bad section"
+		end
+		function service:ForModule(ctx, section)
+			if section and section.refuse then
+				error("refused")
+			end
+			local facade = { id = ctx.id, section = section }
+			function facade.Dispose()
+				if section and section.brokenDispose then
+					error("dispose blew up")
+				end
+				service.disposed[#service.disposed + 1] = ctx.id
+			end
+			self.created[#self.created + 1] = ctx.id
+			return facade
+		end
+		return service
+	end
+
+	local function setupServices(services, manifests)
+		local lines = {}
+		local log = Log.New("test", {
+			level = "trace",
+			sink = function(level, _, message) lines[#lines + 1] = { level = level, message = message } end,
+		})
+		services.events = services.events or Events.New()
+		services.scheduler = services.scheduler or Scheduler.New()
+		local registry = Modules.New({ log = log, services = services })
+		local results = {}
+		for i, manifest in ipairs(manifests) do
+			results[i] = { registry:Register(manifest) }
+		end
+		return registry, lines, results
+	end
+
+	it("exposes plain services on the context", function()
+		local clock = { now = 5 }
+		local registry = setupServices({ clock = clock }, { { id = "a" } })
+		registry:Resolve({})
+		registry:InitAll()
+		local ctx = registry:Instance("a").ctx
+		expect(ctx.clock):toBe(clock)
+		expect(ctx.events ~= nil and ctx.scheduler ~= nil):toBe(true)
+	end)
+
+	it("validates manifest sections claimed by services", function()
+		local _, _, results = setupServices({ net = facadeService("net") }, {
+			{ id = "good", net = { ping = true } },
+			{ id = "bad", net = { bad = true } },
+			{ id = "scalar", net = 5 },
+			{ id = "explode", net = { explode = true } },
+			{ id = "other", other = {} },
+		})
+		expect(results[1]):toEqual({ true })
+		expect(results[2][2]):toBe("module 'bad': net: bad section")
+		expect(results[3][2]):toBe("module 'scalar': net: must be a table")
+		expect(results[4][2]):toContain("module 'explode': net: validator failed:")
+		expect(results[5][2]):toBe("module 'other': unknown manifest key 'other'")
+		expect(Modules.Validate({ id = "x", net = {} })):toBe(false)
+		expect(Modules.Validate({ id = "x", net = {} }, { net = function() return true end })):toBe(true)
+	end)
+
+	it("gives each module its own facade and disposes it on stop", function()
+		local net = facadeService("net")
+		local registry = setupServices({ net = net }, {
+			{ id = "a", net = { ping = true } },
+			{ id = "b", requires = { "a" } },
+		})
+		registry:Resolve({})
+		registry:InitAll()
+		registry:StartAll()
+		local a, b = registry:Instance("a").ctx, registry:Instance("b").ctx
+		expect(a.net.id):toBe("a")
+		expect(a.net.section):toEqual({ ping = true })
+		expect(b.net.id):toBe("b")
+		expect(b.net.section):toBeNil()
+		expect(net.created):toEqual({ "a", "b" })
+		registry:StopAll()
+		expect(net.disposed):toEqual({ "b", "a" })
+	end)
+
+	it("fails a module whose facade cannot be created and disposes the others", function()
+		local alpha, net = facadeService("alpha"), facadeService("net")
+		alpha.ValidateManifest = nil
+		local registry = setupServices({ alpha = alpha, net = net }, {
+			{ id = "a", net = { refuse = true } },
+			{ id = "b", requires = { "a" } },
+			{ id = "c" },
+		})
+		registry:Resolve({})
+		registry:InitAll()
+		local state, reason = registry:State("a")
+		expect(state):toBe("failed")
+		expect(reason):toContain("service 'net' failed:")
+		expect(reason):toContain("refused")
+		expect(registry:State("b")):toBe("failed")
+		expect(registry:State("c")):toBe("initialized")
+		expect(alpha.disposed):toEqual({ "a" })
+	end)
+
+	it("disposes facades of a module that fails at runtime and logs broken disposers", function()
+		local net = facadeService("net")
+		local registry, lines = setupServices({ net = net }, {
+			{ id = "a" },
+			{ id = "b", net = { brokenDispose = true } },
+		})
+		registry:Resolve({})
+		registry:InitAll()
+		registry:StartAll()
+		registry:Fail("a", "test")
+		expect(net.disposed):toEqual({ "a" })
+		registry:StopAll()
+		expect(hasLine(lines, "error", "module 'b': disposing a service facade failed")):toBe(true)
+	end)
+
+	it("rejects reserved and clashing service names", function()
+		expect(function() Modules.New({ services = { config = {} } }) end):toFail("bad service name config")
+		expect(function() Modules.New({ services = { Handler = {} } }) end):toFail("bad service name Handler")
+		expect(function() Modules.New({ services = { files = facadeService("files") } }) end)
+			:toFail("clashes with a manifest key")
+	end)
+
+	it("binds handlers late for services", function()
+		local registry = setupServices({}, { { id = "a" } })
+		registry:Resolve({})
+		registry:InitAll()
+		local instance = registry:Instance("a")
+		local handler = instance.ctx:Handler("OnThing", "net 'thing'")
+		function instance:OnThing(value) return value * 2 end
+		expect(handler(21)):toBe(42)
+		function instance:OnThing(value) return value * 3 end
+		expect(handler(2)):toBe(6)
+		expect(function() instance.ctx:Handler(5, "net 'thing'") end):toFail("must be a function or a method name")
+		instance.OnThing = nil
+		expect(function() handler(1) end):toFail("has no method 'OnThing' (net 'thing')")
+	end)
+end)

@@ -3,7 +3,7 @@
 --
 -- Pure Lua (LuaJIT 2.x), no GMod API. See docs/ARCHITECTURE.md, section 4.
 --
---   local registry = Modules.New({ log = log, services = { events = bus, scheduler = sched } })
+--   local registry = Modules.New({ log = log, services = { events = bus, scheduler = sched, net = net } })
 --   registry:Register(manifest)            -- for every discovered module.lua
 --   registry:Resolve(config.modules)       -- providers, dependencies, order, settings
 --   -- the platform loader includes the files of registry:Order() here
@@ -19,6 +19,14 @@
 --              or a failed hard dependency
 -- A failure never takes the rest down: the module and everything that hard-depends on
 -- it are switched off with a readable reason (see Report), other modules keep working.
+--
+-- Services become fields of every module context (ctx.events, ctx.i18n...). A service
+-- may also implement:
+--   service:ValidateManifest(section) -> ok, err   claims the manifest key with its name
+--                                                  (e.g. net = { ... }) and checks it
+--   service:ForModule(ctx, section) -> facade      a per-module object put on ctx instead
+--                                                  of the service; facade:Dispose() runs
+--                                                  when the module stops or fails
 
 local Modules = {}
 
@@ -40,6 +48,11 @@ local MANIFEST_KEYS = {
 	id = true, provides = true, requires = true, optional = true, files = true, config = true, description = true,
 }
 local LIVE = { resolved = true, initialized = true, started = true }
+-- Context fields a service may not take.
+local RESERVED = {
+	id = true, config = true, log = true, Require = true, On = true, Every = true, After = true,
+	IsAlive = true, Handler = true,
+}
 
 Modules.ID_PATTERN = ID_PATTERN
 Modules.REALMS = REALMS
@@ -139,7 +152,9 @@ local function validateFiles(files)
 	return out
 end
 
-local function validate(manifest)
+-- sections: { [key] = validator(value) -> ok, err } for manifest keys claimed by services.
+local function validate(manifest, sections)
+	sections = sections or {}
 	if type(manifest) ~= "table" then
 		return nil, "manifest must be a table"
 	end
@@ -150,9 +165,21 @@ local function validate(manifest)
 	local function fail(message)
 		return nil, format("module '%s': %s", id, message)
 	end
-	for key in pairs(manifest) do
-		if not MANIFEST_KEYS[key] then
+	local claimed = {}
+	for key, value in pairs(manifest) do
+		if sections[key] then
+			claimed[key] = value
+		elseif not MANIFEST_KEYS[key] then
 			return fail(format("unknown manifest key '%s'", tostring(key)))
+		end
+	end
+	for key, value in pairs(claimed) do
+		local ok, valid, err = pcall(sections[key], value)
+		if not ok then
+			return fail(format("%s: validator failed: %s", key, tostring(valid)))
+		end
+		if not valid then
+			return fail(format("%s: %s", key, tostring(err)))
 		end
 	end
 	local provides = manifest.provides or id
@@ -191,6 +218,7 @@ local function validate(manifest)
 		requiresSet = requiresSet,
 		optionalSet = optionalSet,
 		files = files,
+		sections = claimed,
 		defaults = manifest.config or {},
 		state = "registered",
 		reason = nil,
@@ -201,8 +229,9 @@ local function validate(manifest)
 end
 
 -- Checks a manifest without registering it. Returns true, or false and a message.
-function Modules.Validate(manifest)
-	local entry, err = validate(manifest)
+-- sections: optional { [key] = validator } for keys claimed by services.
+function Modules.Validate(manifest, sections)
+	local entry, err = validate(manifest, sections)
 	return entry ~= nil, err
 end
 
@@ -216,13 +245,12 @@ local function newContext(registry, entry)
 		id = entry.id,
 		config = entry.config,
 		log = registry.rootLog:Child(entry.id),
-		events = registry.services.events,
-		scheduler = registry.services.scheduler,
 		_registry = registry,
 		_entry = entry,
 		_listeners = {},
 		_jobs = {},
 		_timers = {},
+		_facades = {},
 		_alive = true,
 		_seq = 0,
 	}, Context)
@@ -236,12 +264,12 @@ end
 
 -- Turns a function or a method name into a callable. Method names are looked up on
 -- every call, so a reloaded file takes effect immediately.
-local function handlerOf(ctx, handler, what)
+local function handlerOf(ctx, handler, what, level)
 	if type(handler) == "function" then
 		return handler
 	end
 	if type(handler) ~= "string" then
-		error(format("module '%s': handler for %s must be a function or a method name", ctx.id, what), 3)
+		error(format("module '%s': handler for %s must be a function or a method name", ctx.id, what), level or 3)
 	end
 	local instance = ctx._entry.instance
 	local id = ctx.id
@@ -252,6 +280,11 @@ local function handlerOf(ctx, handler, what)
 		end
 		return method(instance, ...)
 	end
+end
+
+-- Public form of the late binding above, for services: ctx:Handler("OnVote", "net 'vote'").
+function Context:Handler(handler, what)
+	return handlerOf(self, handler, what or "handler", 3)
 end
 
 -- Returns the API of a declared interface. A missing required interface is an error,
@@ -341,7 +374,17 @@ function Context:_Dispose()
 	for timer in pairs(self._timers) do
 		timer:Cancel()
 	end
-	self._listeners, self._jobs, self._timers = {}, {}, {}
+	local facades = self._facades
+	for i = #facades, 1, -1 do
+		local facade = facades[i]
+		if type(facade.Dispose) == "function" then
+			local ok, err = pcall(facade.Dispose, facade)
+			if not ok then
+				self._registry.log:Error("module '%s': disposing a service facade failed: %s", self.id, tostring(err))
+			end
+		end
+	end
+	self._listeners, self._jobs, self._timers, self._facades = {}, {}, {}, {}
 end
 
 -- Registry --------------------------------------------------------------------------
@@ -354,10 +397,23 @@ Registry.__index = Registry
 function Modules.New(opts)
 	opts = opts or {}
 	local rootLog = opts.log or NULL_LOG
+	local services = opts.services or {}
+	local sections = {}
+	for name, service in pairs(services) do
+		assert(isId(name) and not RESERVED[name], "Modules.New: bad service name " .. tostring(name))
+		if type(service) == "table" and type(service.ValidateManifest) == "function" then
+			assert(not MANIFEST_KEYS[name], "Modules.New: service '" .. name .. "' clashes with a manifest key")
+			sections[name] = function(value)
+				return service:ValidateManifest(value)
+			end
+		end
+	end
 	return setmetatable({
 		rootLog = rootLog,
 		log = rootLog:Child("modules"),
-		services = opts.services or {},
+		services = services,
+		serviceNames = sortedKeys(services),
+		sections = sections,
 		protected = opts.protected ~= false,
 		entries = {},
 		order = {},
@@ -379,7 +435,7 @@ function Registry:Register(manifest)
 		self:_Error(message)
 		return false, message
 	end
-	local entry, err = validate(manifest)
+	local entry, err = validate(manifest, self.sections)
 	if entry == nil then
 		self:_Error(err)
 		return false, err
@@ -825,19 +881,49 @@ function Registry:Fail(id, reason)
 	return true
 end
 
+-- Builds the context of a module and attaches the services (facades where provided).
+-- Returns the context, or nil and a message; partly built facades are disposed.
+function Registry:_NewContext(entry)
+	local ctx = newContext(self, entry)
+	for _, name in ipairs(self.serviceNames) do
+		local service = self.services[name]
+		if type(service) == "table" and type(service.ForModule) == "function" then
+			local ok, facade
+			if self.protected then
+				ok, facade = xpcall(service.ForModule, onCallError, service, ctx, entry.sections[name])
+			else
+				ok, facade = true, service:ForModule(ctx, entry.sections[name])
+			end
+			if not ok or type(facade) ~= "table" then
+				ctx:_Dispose()
+				return nil, format("service '%s' failed: %s", name, ok and "ForModule must return a table" or tostring(facade))
+			end
+			ctx[name] = facade
+			ctx._facades[#ctx._facades + 1] = facade
+		else
+			ctx[name] = service
+		end
+	end
+	return ctx
+end
+
 -- Creates contexts and calls Init(ctx) in dependency order.
 function Registry:InitAll()
 	for _, entry in ipairs(self.order) do
 		if entry.state == "resolved" then
-			local ctx = newContext(self, entry)
-			entry.ctx = ctx
-			entry.instance.id = entry.id
-			entry.instance.ctx = ctx
-			local ok, err = self:_Call(entry, "Init", ctx)
-			if ok then
-				entry.state = "initialized"
+			local ctx, ctxErr = self:_NewContext(entry)
+			if ctx == nil then
+				self:Fail(entry.id, ctxErr)
 			else
-				self:Fail(entry.id, "Init failed: " .. tostring(err))
+				entry.ctx = ctx
+				entry.instance.id = entry.id
+				entry.instance.ctx = ctx
+				local ok, err = self:_Call(entry, "Init", ctx)
+				if ok then
+					entry.state = "initialized"
+				else
+					self:Fail(entry.id, "Init failed: " .. tostring(err))
+				end
 			end
 		end
 	end
