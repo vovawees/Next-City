@@ -14,7 +14,7 @@ TESTING
   boot spec  all repo modules except `example` must start with 0 failures and no WARN log lines
              -> package modules must be inert unless their mode is active.
   forbidden module ids in packages (used by spec virtual modules): arsenal armory bombs recorder probe pack_items
-             shared_id zc_mode. Package lang file must not be named common.lua; packages must not ship config/*.lua
+             shared_id zc_mode testkit gearkit medkit lootkit. Package lang file must not be named common.lua; packages must not ship config/*.lua
              (tests merge them into core config).
   i18n spec  every key present in en and ru, no problems.
   lint       glualint lint gamemodes tests -> must be empty (warnings fail): line <=120, double quotes, no shadowing,

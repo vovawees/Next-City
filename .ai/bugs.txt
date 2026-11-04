@@ -11,3 +11,4 @@ PITFALLS
   movement.speed factors: modules that change theirs must call movement:Refresh(ply) (speeds are set, not polled).
   specs: test traces must compare masks with server:Get("MASK_SHOT") (spec globals are not the realm's).
   pockets take size 1 only: test items of size 2 need a bag or they are never given.
+  emulator: server:Advance(s) is ONE tick (scheduler jobs fire once); step in small chunks for periodic jobs.
