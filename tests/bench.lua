@@ -21,6 +21,7 @@ T = { root = root, gamemode = root .. "gamemodes/nextcity/gamemode/" }
 local Env = dofile(root .. "tests/gmod/env.lua")
 local World = Env.World
 local Vector = World.Vector
+local Angle = World.Angle
 local IN = World.IN
 local clock = os.clock
 
@@ -138,6 +139,51 @@ report("StartCommand, limited", time(200000, function()
 	cmd:SetButtons(IN.FORWARD + IN.SPEED + IN.JUMP)
 	movement:OnStartCommand(limited, cmd)
 end), 200000, "us")
+
+-- Bodies on a flat floor, on a server of their own: players down in them look around,
+-- crawl and reach. Without the physics of the emulator.
+do
+	local bodies = Env.Server({ modules = { "players", "organism", "damage", "ragdoll", "ragdoll_control" } })
+	bodies:Boot()
+	bodies:Call("InitPostEntity")
+	bodies.traceLine = function(trace)
+		local a, b = trace.start, trace.endpos
+		if a.z >= 0 and b.z <= 0 and a.z ~= b.z then
+			local t = a.z / (a.z - b.z)
+			return { Hit = true, HitWorld = true, StartSolid = false, Fraction = t, PhysicsBone = 0,
+				HitPos = Vector(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, 0), Entity = World.WORLD }
+		end
+		return { Hit = false, HitWorld = false, StartSolid = false, Fraction = 1, HitPos = Vector(b), Entity = World.NULL }
+	end
+	local modules = bodies:Get("NC").Modules
+	local ragdoll, control = modules:Instance("ragdoll"), modules:Instance("ragdoll_control")
+	local list = {}
+	for i = 1, ragdoll.ctx.config.ragdolls do
+		list[i] = Env.Bot(bodies, { name = "Body" .. i })
+	end
+	bodies:Advance(0.1)
+	for i, ply in ipairs(list) do
+		modules:Instance("players"):Deploy(ply)
+		ply:SetPos(Vector((i % 8) * 100, math.floor(i / 8) * 100, 0))
+		World.LayRagdoll(ragdoll:Fall(ply).ent)
+		ply:SetEyeAngles(Angle(30, i * 37 % 360, 0))
+		Env.RunCommand(bodies, ply, IN.FORWARD + IN.ATTACK, 200, 0)
+	end
+	local now = bodies.time
+	report(string.format("ragdoll think, %d bodies", #list), time(ticks, function()
+		now = now + TICK
+		ragdoll:Think(now)
+	end), ticks, "ms")
+	report(string.format("ragdoll control, %d bodies", #list), time(ticks, function()
+		now = now + TICK
+		control:Control(now, TICK)
+	end), ticks, "ms")
+	local errors = bodies:Errors()
+	if #errors > 0 then
+		print("errors:\n" .. table.concat(errors, "\n"))
+		os.exit(1)
+	end
+end
 
 print("client")
 if not gordon:Alive() then
