@@ -772,6 +772,8 @@ function Entity:SetMaterial(value) self.material = value end
 function Entity:GetCollisionGroup() return self.collisionGroup end
 function Entity:SetCollisionGroup(value) self.collisionGroup = value end
 function Entity:GetNoDraw() return self.noDraw end
+function Entity:GetMoveType() return self.moveType or World.MOVETYPE.NONE end
+function Entity:SetMoveType(value) self.moveType = value end
 function Entity:SetNoDraw(value) self.noDraw = value == true end
 function Entity:GetOwner() return self.owner or World.NULL end
 function Entity:SetOwner(ent) self.owner = ent end
@@ -878,6 +880,7 @@ function Phys:AddVelocity(v)
 	self.vel = self.vel + v
 	self.asleep = false
 end
+-- The angular velocity is local to the object (degrees/s about its axes), like in GMod.
 function Phys:GetAngleVelocity() return Vector(self.angvel) end
 function Phys:AddAngleVelocity(v)
 	self.angvel = self.angvel + v
@@ -902,6 +905,20 @@ function Phys:IsMotionEnabled() return self.motion end
 function Phys:EnableGravity(value) self.gravity = value == true end
 function Phys:IsGravityEnabled() return self.gravity end
 function Phys:SetDamping(linear, angular) self.damping = { linear, angular } end
+function Phys:WorldToLocalVector(v) return unrotate(self.ang, v) end
+function Phys:LocalToWorldVector(v) return rotate(self.ang, v) end
+
+-- Gives a plain entity (a prop) one physics object where it is: physics moves it.
+function World.AddPhysics(ent, mass)
+	local phys = newPhys(ent, 0, nil, mass or 10)
+	phys.pos = Vector(ent.pos)
+	phys.ang = Angle(ent.ang)
+	ent.moveType = World.MOVETYPE.VPHYSICS
+	ent.GetPhysicsObject = function() return phys end
+	ent.GetPhysicsObjectCount = function() return 1 end
+	ent.GetPhysicsObjectNum = function(_, num) return num == 0 and phys or World.NULL_PHYS end
+	return phys
+end
 
 -- Ragdolls -------------------------------------------------------------------------------------
 
@@ -935,6 +952,7 @@ function World.NewRagdoll(realm, index, class)
 	local ent = World.NewEntity(realm, index, class or "prop_ragdoll")
 	ent.phys = {}
 	ent.physByBone = {}
+	ent.moveType = World.MOVETYPE.VPHYSICS
 	return setmetatable(ent, RagdollMeta)
 end
 
