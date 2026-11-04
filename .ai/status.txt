@@ -1,0 +1,14 @@
+STATUS (update every step)
+  M0 foundation        done
+  M1 net and data      done
+  M2 players, rounds   done
+  M3 damage, organism  done
+  M4 ragdoll           done
+  M5 weapons           done (cbc867a removed CI)
+  M6 inventory+medical IN PROGRESS
+       #1 platform hooks + emulator        done fe782d2
+       #26 .ai knowledge base              in progress (skeleton)
+       #2 storage .. #12 tdm               todo
+  M7 modes             todo (#13-#24)
+  docs overhaul        todo (#25)
+  last full run        38 specs, 405 passed, 0 failed; lint clean

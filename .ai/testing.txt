@@ -1,0 +1,22 @@
+TESTING
+  runner     tests/run.lua: zero deps; globals describe/it/expect (matchers with colon: toBe, notToBe, toEqual,
+             toBeTruthy, toBeFalsy, toBeNil, toBeCloseTo, toContain, notToContain, toFail) + T (root, gamemode,
+             load(path)); SPECS list (add every new spec file there!); `luajit tests/run.lua [filter]`
+  unit       tests/unit/*_spec.lua: pure core (events, scheduler, fsm, modules, schema, i18n, components, params, scope)
+  support    tests/support/json.lua (util.TableToJSON/JSONToTable clone), tests/support/wire.lua (net bit transport)
+  emulator   tests/gmod/env.lua  Env.Server()/Env.Client(server)/Env.Kernel(opts): boots real platform + modules in a
+                                 fake GMod; REPO_ROOTS gamemodes/ and lua/; Env.RepoFiles(), Env.RepoModules() (core +
+                                 package modules), Env.PackageModules(); opts.data shares DATA folder between servers.
+             tests/gmod/world.lua entities, players, physics, weapons, NPCs, doors (Fire inputs), file/DATA, vgui fakes,
+                                 chat/notification/surface fakes, input helpers, net transport between envs.
+  helpers    Env.UseEntity(server, ply, ent); Env.Say(server, ply, text, team) -> text, seen list;
+             Env.KillNPC(npc, attacker); Env.BindPress(client, bind, pressed); World.FindPanels(env, fn, all)
+  boot spec  all repo modules except `example` must start with 0 failures and no WARN log lines
+             -> package modules must be inert unless their mode is active.
+  forbidden module ids in packages (used by spec virtual modules): arsenal armory bombs recorder probe pack_items
+             shared_id zc_mode. Package lang file must not be named common.lua; packages must not ship config/*.lua
+             (tests merge them into core config).
+  i18n spec  every key present in en and ru, no problems.
+  lint       glualint lint gamemodes tests -> must be empty (warnings fail): line <=120, double quotes, no shadowing,
+             no unused vars, GLua syntax allowed but repo uses plain Lua syntax.
+  emulator vs GMod gaps: see bugs.txt

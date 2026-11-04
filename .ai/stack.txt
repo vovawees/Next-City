@@ -1,0 +1,25 @@
+STACK
+  target        Garry's Mod (Source, LuaJIT 2.1 / Lua 5.1 semantics, GLua extensions: != && || ! continue, // comments)
+  code          GLua; gamemode folder gamemodes/nextcity; content packages in lua/nextcity (addon layout)
+  style         docs/CODESTYLE.md: tabs, double quotes only, max line 120, no shadowing, english comments,
+                docs in russian (README.md, docs/*.md, module README.md)
+  tests         plain LuaJIT 2.1 + own GMod emulator (tests/gmod/*.lua, tests/support/*.lua); no busted
+  lint          glualint (config .glualint.json at repo root); warnings are treated as errors
+  ci            none (GitHub Actions removed on purpose, cbc867a); checks are local: tests + lint before push
+  packaging     addon.json (type gamemode; ignore lists for *.md, docs, tests, tools, .ai, dotfiles)
+
+TOOLCHAIN (agent sandbox, resets between sessions)
+  /data/tools/luajit/bin/luajit     LuaJIT 2.1 built from source
+  /data/tools/glualint/glualint     glualint linux binary
+  export PATH=/data/tools/luajit/bin:/data/tools/glualint:$PATH
+  rebuild if missing: git clone https://github.com/LuaJIT/LuaJIT && make && make install PREFIX=/data/tools/luajit
+                      glualint release binary from github.com/FPtje/GLuaFixer/releases
+
+TOOLCHAIN (VPS, persistent) see vps.txt
+  /home/opc/ai_workspace/next-city/tools/luajit/bin/luajit  (LuaJIT 2.1, aarch64, built in tmux next-city_build)
+
+COMMANDS
+  luajit tests/run.lua            all specs (~15 s), exit code != 0 on failure
+  luajit tests/run.lua <filter>   only specs whose path contains <filter> (first arg only)
+  glualint lint gamemodes tests   lint; must print nothing
+  luajit tools/modmap.lua         module map for .ai/modules.txt

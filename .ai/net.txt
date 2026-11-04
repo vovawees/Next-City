@@ -1,0 +1,17 @@
+NET
+  names     each message = own net string "nc.<module>.<name>" (pooled by platform/net.lua); budget 256 strings total
+            (engine limit is 4096, our self-limit for headroom); components use platform strings.
+  client->server checks (cheap first): ready (nc.hello received) -> token bucket per player+message (rate/s, burst)
+            -> size within schema minBits/maxBits -> parse with validation (NaN/inf, ranges, lengths, enums, entities)
+            -> handler in xpcall. Violations counted (nc_net), logged <=1/s per player, event net.violation.
+  defaults  client rate 10/s, burst 20.
+  schema types (core/schema.lua): bool; uint/int (bits or min/max); float; double; quant(min,max,bits); string(max bytes);
+            enum(values); array(of,max); struct(fields); entity; player; vector; angle; normal; color; optional=true.
+  components (platform/components.lua): fields schema syntax, <=31 fields, no optional; replicate nil (local per realm),
+            "all" (every ready player), "owner" (only the owner player; key = player); rate = flushes/s; changes are
+            batched per tick into one message per store; client OnChange(index, data, mask).
+  stats     nc_net (sent/received/dropped by reason: notReady, rate, size, invalid, noHandler, unpooled), nc_net_reset.
+
+MESSAGES BY MODULE (from manifests; regenerate with luajit tools/modmap.lua)
+  rounds: state<server>, result<server>      teams: scores<server>
+  (M6/M7 additions are listed in modules.txt)

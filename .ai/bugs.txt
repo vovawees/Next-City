@@ -1,0 +1,6 @@
+KNOWN ISSUES / GAPS
+  emulator: weapons are stripped BEFORE gm.DoPlayerDeath (real GMod: weapons still exist in DoPlayerDeath) ->
+            code that reads weapon state at death must also sync periodically.
+  emulator: vgui panels are fakes (no layout/paint); UI tested by structure only. Check visuals in real GMod.
+  emulator: doors only model lock/unlock/open/close/toggle inputs + m_bLocked/m_eDoorState.
+  real GMod measurements pending for every milestone: nc_perf, nc_net budgets with 32-128 players.

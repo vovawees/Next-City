@@ -1,0 +1,32 @@
+GITHUB
+  repo        https://github.com/vovawees/Next-City (public, default branch main)
+  auth        token only from the environment of the agent machine; never committed, never written to files in repo
+  push        git push https://x-access-token:<token>@github.com/vovawees/Next-City.git main
+  commits     Conventional Commits: feat(<module>): ..., fix(...), test(gmod): ..., docs: ..., chore: ...
+              reference issues (#N), "Closes #N" in the commit that finishes an issue; push after every logical step
+  ci          none (no .github/workflows)
+
+MILESTONES
+  M6 Inventory and medicine  (#7)   issues #1-#12
+  M7 Modes                   (#8)   issues #13-#24
+  M8 Services                (#9)
+  M9 Polish                  (#10)
+
+ISSUES
+  #1  platform: engine hooks (use, pickups, chat, voice, NPC, target id) + emulator   [closed fe782d2]
+  #2  storage: persistent JSON data in DATA
+  #3  actions: timed actions with progress and cancel rules
+  #4  inventory: item registry, instances, containers
+  #5  inventory: replication of containers and client intents
+  #6  inventory: world items, crates, corpse loot
+  #7  inventory: UI
+  #8  equipment: body and weapon slots, armor, bags, weight, weapons as items
+  #9  medical: treatment items on organism
+  #10 loot: tables, crates, spawn points, round rule
+  #11 content package lua/nextcity (weaponry, supplies)
+  #12 mode_tdm loadout via inventory
+  #13 roles: hidden roles
+  #14 mode_homicide   #15 mode_hideseek   #16 mode_riot   #17 mode_defense   #18 mode_coop   #19 mode_dm
+  #20 City mode + jobs  #21 City economy  #22 City doors  #23 City police  #24 City UI (F4 + HUD)
+  #25 docs: README showcase and docs overhaul
+  #26 .ai knowledge base

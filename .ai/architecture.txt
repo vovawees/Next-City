@@ -1,0 +1,55 @@
+ARCHITECTURE (full text: docs/ARCHITECTURE.md, russian)
+
+LAYERS (dependencies point down only, D2)
+  L0 core      gamemode/core/*.lua      pure Lua, no GMod API: modules (registry/resolve), events (bus: Emit/Query/Reduce),
+                                        scheduler (timers on CurTime), fsm, log, schema (bit-packed messages), components
+                                        (stores), params (typed mode params), scope (per-module ownership), i18n (tables)
+  L1 platform  gamemode/platform/*.lua  GMod glue: boot, packages, loader (discover/resolve/include/AddCSLuaFile), bridge
+                                        (only file defining GM:*), net (schemas -> net strings, rate limits, readiness),
+                                        components (replication), i18n (lang files, client language), commands (nc_*),
+                                        devtools (nc_perf, nc_net, autorefresh)
+  L2 systems   gamemode/modules/<id>/    players, teams, spectator, rounds, organism, damage, armor, movement, hud, ragdoll,
+                                        ragdoll_control, ammo, ballistics, weapons, melee, hands, explosions, throwables,
+                                        (M6) notices, storage, actions, inventory, equipment, medical, loot, roles
+  L3 modes     modules mode_*           mode_tdm in core (reference); other modes in package lua/nextcity
+  L4 client    cl_* files of modules    HUD, menus, camera pipeline
+
+PACKAGES (D15: core has no content)
+  lookup order: core (gamemodes/nextcity/gamemode) -> derived gamemode (gamemodes/<active>/gamemode) -> addons
+  (lua/nextcity/{modules,lang,config}); first package owning a module id keeps it; duplicate id later = error.
+  config: core config.lua, then package config/*.lua by name, server.lua last; tables merge, lists replace; sent to clients.
+
+MODULE CONTRACT
+  modules/<id>/module.lua returns manifest:
+    id, description, provides{iface}, requires{id|iface}, optional{id|iface}, files{sh={},sv={},cl={}},
+    config{defaults}, net{name={from="server"|"client", rate, burst, unreliable, fields}},
+    components{name={replicate="all"|"owner"|nil, rate, fields, defaults, desc}}
+  files: local M = NC.Module("<id>"); function M:Init(ctx) ... end; M:Start(ctx); M:Stop()
+  ctx: On(event, "Method"|fn, {priority, once, id}), Every(id, sec, h), After(sec, h), Require(iface), Has(id),
+       net (Receive/Send/Broadcast/SendOmit/SendPVS/SendToServer), components.<name>, commands:Add, i18n:T/TFor/Has,
+       log:Info/Warn/Error/Debug, events:Emit/Query/Reduce, config (merged)
+  other modules: ctx:Require("<id>") returns the module object (public methods = API); only declared deps allowed.
+  stop: everything registered via ctx is undone automatically (scope); autorefresh rebuilds kernel.
+
+BRIDGE (platform/bridge.lua)
+  engine hooks -> bus events "gm.<Hook>"; kinds: notifications (base first, then emit), questions (Query; first non-nil
+  wins, else base), replacements (emit, base skipped). Camera = Reduce pipeline on gm.CalcView.
+  D6: engine HP unused; damage goes through damage module -> organism; EntityTakeDamage question (true blocks).
+  D17 interaction: PlayerUse / PlayerCanPickupWeapon questions (false blocks); WeaponEquip, OnNPCKilled notifications;
+  PlayerSay question (answer replaces text, "" drops); PlayerCanSeePlayersChat question; PlayerCanHearPlayersVoice
+  question true|false|"3d"; client HUDDrawTargetID question (true hides). Binds: gm.PlayerBindPress question.
+
+DATA FLOW
+  client input -> intents (client net messages, validated: ready, rate bucket, size, schema, handler xpcall)
+  server state -> components (batched replication, owner/all) + server messages (snapshots, events)
+  persistent state -> storage module (DATA/nextcity/<ns>.json)
+
+KEY DECISIONS
+  D1 rewrite from scratch (no Z-City/Homigrad code/assets)  D2 layers  D3 manifests  D4 pure-Lua core tested outside GMod
+  D5 schemas, batched replication, no net.WriteTable/SetNW*  D6 no engine HP  D7 derive from base, not sandbox
+  D8 no Z-City content compat  D9 modes = modules with typed params + rule blocks  D10 32-128 players budgets
+  D11 full-realism organism  D12 Next-City License 1.0  D13 i18n keys only, lang/<code>/  D14 fake ragdoll (server
+  prop_ragdoll, player hidden inside)  D15 content in packages  D16 ballistics manager (arrays, one loop per tick)
+  D17 interaction/chat/voice hooks as questions (see BRIDGE)
+  D18 (M6) items are data: definitions registered by packages, instances {uid,id,count,state} live in server containers;
+      clients get per-container snapshots only for containers they view; every client action is an intent.

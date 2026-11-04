@@ -1,0 +1,21 @@
+VPS
+  host      130.61.29.17 (Oracle Cloud, Oracle Linux 9, aarch64), user opc
+  ssh       ssh -i ~/.ssh/oci_a1 -o StrictHostKeyChecking=no opc@130.61.29.17   (key lives only on the agent machine)
+  rules     shared machine: never touch other projects/processes; check ports with `ss -tulpn` before binding;
+            never TERMINATE the OCI instance; keep project files inside the project folder
+
+PROJECT FOLDER  /home/opc/ai_workspace/next-city/
+  repo/          git clone of vovawees/Next-City (pull before use)
+  luajit-src/    LuaJIT sources (github.com/LuaJIT/LuaJIT, v2.1 branch)
+  tools/luajit/  installed LuaJIT 2.1 (bin/luajit -> luajit-2.1.x)
+  luajit-build.log  build log (ends with "done")
+
+TMUX SESSIONS
+  next-city_build   LuaJIT build (finished; safe to kill: tmux kill-session -t next-city_build)
+
+SERVICES / PORTS
+  none. Next-City does not run any service on the VPS (no srcds yet). If a test GMod server is added later:
+  srcds in tmux next-city_srcds, port 27015/udp after checking `ss -tulpn`, document here.
+
+USAGE
+  run tests on VPS: cd ~/ai_workspace/next-city/repo && git pull && ../tools/luajit/bin/luajit tests/run.lua
