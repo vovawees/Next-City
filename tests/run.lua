@@ -45,6 +45,7 @@ local SPECS = {
 	"tests/gmod/weapons_spec.lua",
 	"tests/gmod/explosions_spec.lua",
 	"tests/gmod/melee_spec.lua",
+	"tests/gmod/hands_spec.lua",
 	"tests/gmod/soak_spec.lua",
 }
 
