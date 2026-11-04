@@ -34,7 +34,7 @@
 
 - `M:Injure(ply, hit)` → отчёт `{ kind, wounds, bleeding, energy, structures, fractures, fatal }` или `nil` (нет живого тела). Поля попадания (все необязательны, кроме `kind`): `attacker`, `inflictor`, `type` (DMG_*), `pos`, `dir`, `force`, `amount` (урон движка), `energy` (Дж), `projectile` (`mass` г, `velocity` м/с, `diameter` мм, `penetration` см, `expansion`, `fragment`, `fragmentFactor`), `depth` (клинок, см), `speed` (падение, юнит/с), `segment`, `toxin`, `cause`.
 - Виды: `bullet`, `fragment` (луч), `stab`, `slash` (клинок), `blunt`, `crush`, `vehicle`, `fall`, `blast`, `burn`, `shock`, `stun`, `poison`, `generic`, `lethal`. `M:RegisterInjury(вид, fn(self, st, hit, report))` добавляет или заменяет вид.
-- `M:ApplyTreatment(ply, вид, opts)` → `true` или `false` и причина (`dead`, `unknown`, `target`, `nothing`, `already`, `pulse`, `not_shockable`). Предметы (M5) решают, кто, когда и как долго лечит; здесь лечение действует сразу. `M:RegisterTreatment(вид, fn(self, st, opts, now))`.
+- `M:ApplyTreatment(ply, вид, opts)` → `true` или `false` и причина (`dead`, `unknown`, `target`, `nothing`, `already`, `pulse`, `not_shockable`). Предметы (M6) решают, кто, когда и как долго лечит; здесь лечение действует сразу. `M:RegisterTreatment(вид, fn(self, st, opts, now))`.
 - `M:Succumb(ply)` — сдаться (как по клавише); `false`, если ещё нельзя.
 - `M:IsSimulated(ply)`, `M:IsDead(ply)`, `M:IsUnconscious(ply)`, `M:Capabilities(ply)`, `M:Vitals(ply)`, `M:Wounds(ply)`, `M:Describe(ply)` (строки для консоли), `M:State(ply)` (внутреннее состояние — только для отладки и тестов).
 - `M:Locate(ply, ox, oy, oz, dx, dy, dz)`, `M:Cast(...)`, `M:NearestSegment(ply, x, y, z)` — геометрия попаданий (для брони и урона).
