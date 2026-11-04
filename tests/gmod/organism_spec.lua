@@ -282,6 +282,25 @@ describe("organism", function()
 		expect(server:Errors()):toEqual({})
 	end)
 
+	it("sends the fragments of a blast through the shield, or none when they fly on their own", function()
+		local server, organism, players = boot()
+		organism.Random = function() return 0.5 end
+		local near, far = deploy(server, players, "Near"), deploy(server, players, "Far", Vector(0, 300, 0))
+		local met = 0
+		local function shield()
+			met = met + 1
+		end
+		local pos = near:GetPos() + Vector(150, 0, 30)
+		organism:Injure(near, { kind = "blast", amount = 150, pos = pos, dir = Vector(-1, 0, 0), shield = shield })
+		expect(met):toBe(8)
+		met = 0
+		organism:Injure(far, { kind = "blast", amount = 150, pos = far:GetPos() + Vector(150, 0, 30),
+			dir = Vector(-1, 0, 0), shield = shield, fragments = 0 })
+		expect(met):toBe(0)
+		expect(organism:State(far).concussion > 0):toBe(true)
+		expect(server:Errors()):toEqual({})
+	end)
+
 	it("lets an unconscious player give up after the delay unless the mode forbids it", function()
 		local server, organism, players, recorder = boot()
 		local client, gordon = Env.Join(server, { name = "Gordon" })

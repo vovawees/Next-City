@@ -261,6 +261,36 @@ describe("damage", function()
 		expect(server:Errors()):toEqual({})
 	end)
 
+	it("inflicts hits of weapons the way engine damage goes: rules, god mode and dead bodies say no", function()
+		local server, damage, organism, players, recorder = boot()
+		local victim, shooter = duel(server, players)
+		local chest = victim:GetBonePosition(victim:LookupBone("ValveBiped.Bip01_Spine2"))
+		local function stab()
+			return damage:Inflict(victim, { kind = "stab", attacker = shooter, inflictor = shooter, amount = 20,
+				pos = chest + Vector(8, 0, 0), dir = Vector(-1, 0, 0), depth = 6 })
+		end
+		local report = stab()
+		expect(report ~= nil and report.wounds >= 1):toBe(true)
+		local hits = recorder:Take()
+		expect(#hits):toBe(1)
+		expect(hits[1].region):toBe("chest")
+		recorder.protect = true
+		expect(stab()):toBeNil()
+		recorder.protect = false
+		victim:GodEnable()
+		expect(stab()):toBeNil()
+		victim:GodDisable()
+		-- Without an attacker the world asks; a failing stage is logged.
+		expect(damage:Inflict(victim, { kind = "blunt", amount = 5 }) ~= nil):toBe(true)
+		damage:AddStage("broken", 150, function() error("stage is broken") end)
+		expect(stab()):toBeNil()
+		expect(server:Errors()[1]):toContain("stage is broken")
+		damage:RemoveStage("broken")
+		organism:State(victim).dead = true
+		expect(stab()):toBeNil()
+		expect(#recorder:Take()):toBe(1)
+	end)
+
 	it("blocks the damage even when a stage fails", function()
 		local server, damage, _, players = boot()
 		local victim, shooter = duel(server, players)

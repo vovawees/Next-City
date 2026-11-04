@@ -25,7 +25,8 @@
 -- A hit: kind (an injury of the organism), attacker, inflictor, type (DMG_*), amount
 -- (engine damage), pos and dir (Vectors, nil when unknown), force, hitgroup; bullets:
 -- ammo (name), distance (m), projectile, energy (J), pellet and pellets (its index and
--- the count in the shell); falls: speed; poison: toxin; lethal: cause.
+-- the count in the shell); falls: speed; poison: toxin; lethal: cause; blasts: fragments
+-- (how many fragments of it hit, 0 when they fly as projectiles of their own).
 --
 -- Listens:  gm.ScalePlayerDamage, gm.EntityTakeDamage, gm.GetFallDamage (answers 0),
 --           gm.OnPlayerHitGround, players.left.
@@ -161,7 +162,8 @@ function M:Stages()
 end
 
 -- Runs a hit (see the top of the file) on `ply` through the stages, as if the engine
--- dealt it. Returns the report of the organism, or nil if there was no wound.
+-- dealt it, without asking anybody (Inflict asks). Returns the report of the organism, or
+-- nil if there was no wound.
 function M:Apply(ply, hit)
 	local stages = self.stages
 	for i = 1, #stages do
@@ -354,6 +356,31 @@ end
 
 local function onError(err)
 	return traceback(tostring(err), 2)
+end
+
+-- Deals `hit` (see the top of the file) to `ply` the way the damage of the engine goes:
+-- nothing for a player without a living body or in god mode, or when
+-- gm.PlayerShouldTakeDamage says no (the rules of a round, friendly fire). For modules
+-- that hit without the engine: weapons, ballistics, explosions. A failing stage is
+-- logged. Returns the report of the organism, or nil.
+function M:Inflict(ply, hit)
+	local organism = self.organism
+	if not organism:IsSimulated(ply) or organism:IsDead(ply) or ply:HasGodMode() then
+		return nil
+	end
+	local attacker = hit.attacker
+	if not IsValid(attacker) then
+		attacker = game.GetWorld()
+	end
+	if self.ctx.events:Query("gm.PlayerShouldTakeDamage", ply, attacker) == false then
+		return nil
+	end
+	local ok, report = xpcall(self.Apply, onError, self, ply, hit)
+	if not ok then
+		self.ctx.log:Error("hit on %s failed: %s", tostring(ply), tostring(report))
+		return nil
+	end
+	return report
 end
 
 -- Blocks every damage to a player but the one of players:Kill and turns it into hits;

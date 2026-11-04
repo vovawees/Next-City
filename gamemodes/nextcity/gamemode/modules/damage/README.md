@@ -37,7 +37,7 @@
 
 ## Попадание
 
-`kind` (вид травмы `organism`), `attacker`, `inflictor`, `type` (DMG_*), `amount` (урон движка), `pos` и `dir` (Vector, `nil` — неизвестно), `force`, `hitgroup`; пули: `ammo` (имя), `distance` (м), `projectile`, `energy` (Дж), `pellet` и `pellets` (номер дробины и их число); падения: `speed`; яды: `toxin`; `lethal`: `cause`. Стадии добавляют своё: `structure`, `segment`, `region`, `side`, `armor`, `absorbed`, `report`.
+`kind` (вид травмы `organism`), `attacker`, `inflictor`, `type` (DMG_*), `amount` (урон движка), `pos` и `dir` (Vector, `nil` — неизвестно), `force`, `hitgroup`; пули: `ammo` (имя), `distance` (м), `projectile`, `energy` (Дж), `pellet` и `pellets` (номер дробины и их число); падения: `speed`; яды: `toxin`; `lethal`: `cause`; взрывы: `fragments` (сколько осколков попало; `0` — осколки летят своими снарядами). Стадии добавляют своё: `structure`, `segment`, `region`, `side`, `armor`, `absorbed`, `report`.
 
 ## Боеприпасы
 
@@ -59,7 +59,8 @@
 
 ## API (сервер)
 
-- `M:Apply(ply, hit)` — провести попадание через стадии, как будто его нанёс движок (для модулей оружия и взрывов); отчёт `organism` или `nil`.
+- `M:Inflict(ply, hit)` — нанести попадание так, как идёт урон движка: ничего, если у игрока нет живого тела, включён god mode или `gm.PlayerShouldTakeDamage` против (правила раунда, огонь по своим); упавшая стадия пишется в лог. Для модулей, которые бьют без движка: оружие, баллистика, взрывы. Отчёт `organism` или `nil`.
+- `M:Apply(ply, hit)` — провести попадание через стадии без проверок (их делает `Inflict`); отчёт `organism` или `nil`.
 - `M:AddStage(id, порядок, fn)`, `M:RemoveStage(id)`, `M:Stages()` — стадии.
 - `M:RegisterAmmo(имя, def)`, `M:Ammo(имя)`, `M:Projectile(имя, дистанция, урон)` → снаряд и энергия.
 - `M:KindOf(ply, dmginfo)` — вид травмы урона; `M:History(n)` — последние попадания.

@@ -17,7 +17,8 @@
 -- breaks up, fragmentFactor), depth (of a blade, cm), speed (of a fall, units/s),
 -- segment (blunt: the body segment when the point is unknown), toxin (poison factor),
 -- cause (lethal), shield (blast: fn(ply, fragment) meets every fragment before it hits,
--- e.g. armor; it may change the fragment, and false keeps it out).
+-- e.g. armor; it may change the fragment, and false keeps it out), fragments (blast: how
+-- many fragments hit, by default by its strength; 0 when they fly as projectiles).
 -- The report: kind, wounds, bleeding (ml/min added), energy (J deposited), structures
 -- (ids along the way), fractures, fatal (the cause of an instant death or nil).
 
@@ -863,7 +864,7 @@ local function blast(self, st, hit, report)
 	local shield = hit.shield
 	local _, _, _, dx, dy, dz = ray(st, hit)
 	local soft = body.soft
-	local count = floor(intensity * 5 + R())
+	local count = hit.fragments or floor(intensity * 5 + R())
 	if count > 0 and #soft > 0 then
 		self:_Frames(body, st.ply)
 		for _ = 1, count do
