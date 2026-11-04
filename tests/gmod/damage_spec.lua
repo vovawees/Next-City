@@ -272,6 +272,68 @@ describe("damage", function()
 		expect(errors[1]):toContain("stage is broken")
 	end)
 
+	it("hurts the player whose body a ragdoll carries and lets the engine push the ragdoll", function()
+		local server, _, organism, players, recorder = boot()
+		local victim, shooter = duel(server, players)
+		local rag = server:Get("ents").Create("prop_ragdoll")
+		rag:SetModel(victim:GetModel())
+		rag:SetPos(Vector(-60, 0, 0))
+		rag:Spawn()
+		World.LayRagdoll(rag) -- on its back, the head towards -x
+		local chest = rag:GetBonePosition(rag:LookupBone("ValveBiped.Bip01_Spine2"))
+		local above = Vector(chest.x, chest.y, 80)
+		-- A ragdoll that carries nothing is the engine's.
+		Env.Shoot(shooter, rag, { from = above })
+		expect(#recorder:Take()):toBe(0)
+		expect(#rag.damage):toBe(1)
+
+		organism:SetCarrier(victim, rag)
+		Env.Shoot(shooter, rag, { from = above })
+		local hits = recorder:Take()
+		expect(#hits):toBe(1)
+		expect(hits[1].kind .. " " .. hits[1].region .. " " .. hits[1].side):toBe("bullet chest front")
+		expect(hits[1].attacker):toBe(shooter)
+		expect(hits[1].hitgroup):toBe(0)
+		expect(hits[1].pellet .. "/" .. hits[1].pellets):toBe("1/1")
+		expect(hits[1].report.wounds >= 1):toBe(true)
+		-- The engine took the damage too: it pushes the bone that was hit.
+		expect(#rag.damage):toBe(2)
+		expect(#rag:GetPhysicsObjectNum(1).forces):toBe(2)
+		expect(victim:Health()):toBe(100)
+		expect(#victim.damage):toBe(0)
+
+		-- The pellets of a shell come added up: their count from the most damage of one.
+		Env.Shoot(shooter, rag, { from = above, ammo = "Buckshot", damage = 8, type = DMG.BULLET + DMG.BUCKSHOT,
+			pellets = { { bone = "Pelvis" }, { bone = "L_UpperArm" }, { bone = "Spine4" }, { bone = "Spine2" } } })
+		hits = recorder:Take()
+		expect(#hits):toBe(4)
+		for i, hit in ipairs(hits) do
+			expect(hit.pellet .. "/" .. hit.pellets .. " " .. hit.ammo .. " " .. hit.amount):toBe(i .. "/4 Buckshot 8")
+			expect(hit.region):toBe("chest")
+		end
+
+		-- A blast finds the hidden player as well: only the body takes it, and the engine
+		-- pushes the body instead of the player.
+		local blast = { type = DMG.BLAST, damage = 40, attacker = shooter, pos = Vector(-60, 120, 0) }
+		Env.Hurt(victim, blast)
+		expect(#recorder:Take()):toBe(0)
+		Env.Hurt(rag, blast)
+		hits = recorder:Take()
+		expect(#hits):toBe(1)
+		expect(hits[1].kind):toBe("blast")
+		expect(hits[1].dir.y < -0.9):toBe(true)
+		Env.Hurt(victim, { type = DMG.CLUB, damage = 20, attacker = shooter })
+		expect(recorder:Take()[1].kind):toBe("blunt")
+		expect(#victim.pushes):toBe(0)
+
+		-- Carried no more: the ragdoll is the engine's again.
+		organism:SetCarrier(victim, nil)
+		Env.Shoot(shooter, rag, { from = above })
+		expect(#recorder:Take()):toBe(0)
+		expect(#rag.damage):toBe(5)
+		expect(server:Errors()):toEqual({})
+	end)
+
 	it("lists the latest hits with nc_damage", function()
 		local server, _, _, players = boot({ history = 3 })
 		local victim, shooter = duel(server, players)

@@ -60,6 +60,7 @@ function M:Init(ctx)
 	self.body = self:CompileBody(M.BODY)
 	self:_IndexBody()
 	self.states = {} -- ply -> state of the body
+	self.carried = {} -- carrier -> state of the body it carries
 	self.list = {}   -- states being simulated
 	self.cursor = 0
 	self.budget = 0
@@ -120,6 +121,7 @@ function M:_Track(ply)
 	local old = self.states[ply]
 	if old ~= nil then
 		self:_Unlist(old)
+		self:_Carry(old, nil)
 	end
 	local now = CurTime()
 	local st = self:_NewState(ply, now)
@@ -139,6 +141,7 @@ function M:_Forget(ply)
 		return
 	end
 	self:_Unlist(st)
+	self:_Carry(st, nil)
 	self.states[ply] = nil
 	if IsValid(ply) then
 		self.ctx.components.vitals:Remove(ply)
@@ -354,8 +357,29 @@ function M:SetCarrier(ply, ent)
 	if st == nil then
 		return false
 	end
-	st.carrier = ent
+	self:_Carry(st, ent)
 	return true
+end
+
+function M:_Carry(st, ent)
+	local carried = self.carried
+	local old = st.carrier
+	if old ~= nil and carried[old] == st then
+		carried[old] = nil
+	end
+	st.carrier = ent
+	if ent ~= nil then
+		carried[ent] = st
+	end
+end
+
+-- The player whose body `ent` carries, or nil.
+function M:PlayerOf(ent)
+	local st = self.carried[ent]
+	if st ~= nil and st.carrier == ent and self.states[st.ply] == st and IsValid(ent) then
+		return st.ply
+	end
+	return nil
 end
 
 -- The entity whose bones hold the body of `ply`: its carrier or the player.

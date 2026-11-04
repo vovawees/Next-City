@@ -6,7 +6,7 @@
 |---|---|
 | Интерфейс | `damage` |
 | Зависимости | `players`, `organism` |
-| Слушает | `gm.ScalePlayerDamage` (запись дробин), `gm.EntityTakeDamage` (блокирует весь урон игрокам, кроме `players:Kill`), `gm.OnPlayerHitGround` (падения), `players.left` |
+| Слушает | `gm.ScalePlayerDamage` (запись дробин), `gm.EntityTakeDamage` (блокирует весь урон игрокам, кроме `players:Kill`; урон носителя тела — попадания по его игроку), `gm.OnPlayerHitGround` (падения), `players.left` |
 | Отвечает | `gm.EntityTakeDamage` → `true`, `gm.GetFallDamage` → `0` |
 | Испускает | `damage.hit (ply, hit)` — после всех стадий каждого попадания |
 | Спрашивает | `gm.PlayerShouldTakeDamage (ply, attacker)` → `false` — урона нет (правила раунда, огонь по своим); `damage.kind (ply, dmginfo)` → вид травмы вместо вида по типу урона (например, `"stab"` для ножа), `false` — без травмы |
@@ -19,6 +19,7 @@
 2. `gm.EntityTakeDamage` приходит один раз на сложенный урон (мульти-урон движка). Модуль всегда отвечает `true` — движок здоровье не трогает, — а урон превращает в попадания: пуля — по одному на дробину, остальное — одно попадание. Ошибка в стадии не пропускает урон в движок: она пишется в лог.
 3. Ничего не происходит в режиме бога, без живого тела, при уроне 0, от утопления (его модель считает сама) и если `gm.PlayerShouldTakeDamage` ответил `false`.
 4. Падения: `gm.GetFallDamage` всегда 0, приземление быстрее `fallSpeed` не в воду — попадание `fall` со скоростью; переломы решает `organism`.
+5. Носитель тела. Урон сущности, которая несёт тело игрока (`organism:PlayerOf`, например регдолл упавшего), становится попаданиями по этому игроку, а сам урон идёт дальше в движок — он толкает регдолл (модуль игрока не толкает). `gm.ScalePlayerDamage` для регдолла не вызывается, поэтому дробь приходит одним уроном с точкой последней дробины: число дробин — урон, делённый на наибольший урон одной (`GetMaxDamage`), и все они проходят через эту точку. Скрытого игрока такого тела находит только радиус взрыва — этот урон игнорируется, взрыв получает само тело.
 
 Вид травмы по типу урона (первое совпадение): `DMG_DISSOLVE` → `lethal`; `DMG_DROWN` — нет; `DMG_BLAST` → `blast`; `DMG_BULLET`, `DMG_BUCKSHOT`, `DMG_AIRBOAT`, `DMG_SNIPER` → `bullet`; `DMG_BURN`, `DMG_SLOWBURN`, `DMG_PLASMA`, `DMG_ENERGYBEAM` → `burn`; `DMG_SHOCK` → `shock` (с `DMG_CLUB` — `stun`, шокер); `DMG_SLASH` → `slash`; `DMG_CLUB` → `blunt`; `DMG_VEHICLE` → `vehicle`; `DMG_CRUSH`, `DMG_PHYSGUN` → `crush`; `DMG_FALL` → `fall`; яды и радиация → `poison` (`DMG_NERVEGAS` ×1,5, `DMG_RADIATION` ×0,5); `DMG_SONIC` → `blunt`; остальное → `generic`.
 

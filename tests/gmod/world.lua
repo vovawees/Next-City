@@ -728,7 +728,7 @@ function World.NewEntity(realm, index, class, opts)
 	return setmetatable({ __entity = true, realm = realm, index = index, class = class or "prop_physics",
 		valid = true, pos = Vector(opts.pos), ang = Angle(opts.ang), map = opts.map == true, skin = 0,
 		bodygroups = {}, color = { r = 255, g = 255, b = 255, a = 255 }, material = "", collisionGroup = 0,
-		noDraw = false, callbacks = {}, boneScales = {}, spawned = false, removing = false }, EntityMeta)
+		noDraw = false, callbacks = {}, boneScales = {}, spawned = false, removing = false, damage = {} }, EntityMeta)
 end
 
 function Entity:IsValid() return self.valid end
@@ -792,6 +792,17 @@ function Entity:Remove()
 		end
 	end
 end
+-- The engine damage of an entity but a player: GM:EntityTakeDamage (true blocks), then
+-- the damage is recorded in .damage and pushes the entity (_Push).
+function Entity:TakeDamageInfo(dmginfo)
+	local realm = self.realm
+	if realm ~= nil and realm:Call("EntityTakeDamage", self, dmginfo) == true then
+		return
+	end
+	self.damage[#self.damage + 1] = dmginfo
+	self:_Push(dmginfo)
+end
+function Entity:_Push() end
 function Entity:AddCallback(name, fn)
 	local list = self.callbacks[name] or {}
 	self.callbacks[name] = list
@@ -983,6 +994,22 @@ function Ragdoll:GetBonePosition(bone)
 	local parent = PHYS_PARENT[name]
 	phys = self.physByBone[parent]
 	return phys.pos + rotate(phys.ang, World.SKELETON[name] - World.SKELETON[parent]), phys:GetAngles()
+end
+-- The force of a damage pushes the physics object nearest to its point (the engine swaps
+-- in the object of the bone a trace hit).
+function Ragdoll:_Push(dmginfo)
+	local pos = dmginfo:GetDamagePosition()
+	local nearest, best
+	for i = 0, #World.PHYS_BONES - 1 do
+		local phys = self.phys[i]
+		local d = phys and phys.pos:DistToSqr(pos)
+		if d ~= nil and (best == nil or d < best) then
+			nearest, best = phys, d
+		end
+	end
+	if nearest ~= nil then
+		nearest:ApplyForceOffset(dmginfo:GetDamageForce(), pos)
+	end
 end
 function Ragdoll:LookupAttachment(name) return name == "eyes" and 1 or 0 end
 function Ragdoll:GetAttachment(id)

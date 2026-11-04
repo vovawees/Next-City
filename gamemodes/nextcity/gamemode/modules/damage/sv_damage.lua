@@ -15,6 +15,13 @@
 -- without a living body take nothing. Landings injure through gm.OnPlayerHitGround; the
 -- fall damage of the engine is 0.
 --
+-- The damage of an entity that carries the body of a player (organism:PlayerOf, e.g. the
+-- ragdoll of a fallen player) becomes hits on that player as well, and the engine still
+-- pushes the entity. Without gm.ScalePlayerDamage for it, the pellets of a shell come
+-- added up with the point of the last one: the most damage of one pellet tells their
+-- count, and all of them pass that point. A blast also finds the hidden player of such a
+-- body; that damage is ignored, the body takes its own.
+--
 -- A hit: kind (an injury of the organism), attacker, inflictor, type (DMG_*), amount
 -- (engine damage), pos and dir (Vectors, nil when unknown), force, hitgroup; bullets:
 -- ammo (name), distance (m), projectile, energy (J), pellet and pellets (its index and
@@ -33,6 +40,8 @@ local M = NC.Module("damage")
 local band = bit.band
 local bor = bit.bor
 local min = math.min
+local max = math.max
+local floor = math.floor
 local random = math.random
 local format = string.format
 local sort = table.sort
@@ -41,12 +50,14 @@ local CurTime = CurTime
 local IsValid = IsValid
 local Vector = Vector
 local Angle = Angle
+local HITGROUP_GENERIC = HITGROUP_GENERIC
 
 local UNIT_M = 0.0254   -- metres per unit
 local BACK = 6          -- rays start this far before the point of a hit, units (as in the organism)
 local NEAR = 96         -- a point farther than this from the middle of the body is not on it, units
 local CENTER = 36       -- height of the middle of the body above its origin, units
 local MAX_PELLETS = 64  -- pellets recorded per player and tick
+local BLASTS = bor(DMG_BLAST, DMG_BLAST_SURFACE)
 
 -- Kinds of injury by damage type: the first match wins; false: no injury.
 local KINDS = {
@@ -197,7 +208,8 @@ function M:_Impulse(ply, hit)
 	end
 	local push = PUSH[kind]
 	local dir = hit.dir
-	if push ~= nil and dir ~= nil then
+	-- The engine pushes a body that another entity carries.
+	if push ~= nil and dir ~= nil and self.organism:Carrier(ply) == nil then
 		local speed = min(PUSH_MAX, (hit.amount or 0) * push) * config.push
 		if speed >= 10 then
 			local x, y, z = dir:Unpack()
@@ -270,18 +282,34 @@ local function unit(v)
 	return v:GetNormalized()
 end
 
-local function center(ply)
+-- The middle of the body of `ply`: above its origin, or the root of its carrier (the
+-- pelvis of a ragdoll).
+local function center(organism, ply)
+	local carrier = organism:Carrier(ply)
+	if carrier ~= nil then
+		return carrier:GetPos()
+	end
 	local pos = ply:GetPos()
 	pos.z = pos.z + CENTER
 	return pos
 end
 
 -- `pos` if it is a point on the body of `ply`, otherwise nil.
-local function onBody(ply, pos)
-	if pos == nil or pos:IsZero() or pos:DistToSqr(center(ply)) > NEAR * NEAR then
+local function onBody(organism, ply, pos)
+	if pos == nil or pos:IsZero() or pos:DistToSqr(center(organism, ply)) > NEAR * NEAR then
 		return nil
 	end
 	return pos
+end
+
+-- How many pellets the engine added up into the damage of an entity but a player: the
+-- damage over the most of one pellet (0 for a damage of Lua).
+local function pelletsOf(dmginfo)
+	local each = dmginfo:GetMaxDamage()
+	if each <= 0 then
+		return 1
+	end
+	return max(1, min(MAX_PELLETS, floor(dmginfo:GetDamage() / each + 0.5)))
 end
 
 local function source(attacker)
@@ -328,20 +356,35 @@ local function onError(err)
 	return traceback(tostring(err), 2)
 end
 
--- Blocks every damage to a player but the one of players:Kill and turns it into hits.
+-- Blocks every damage to a player but the one of players:Kill and turns it into hits;
+-- the damage of a carrier of a body becomes hits on its player and goes on to the engine.
 function M:OnTakeDamage(ent, dmginfo)
-	if not ent:IsPlayer() or self.players:IsKilling(ent) then
+	if not ent:IsPlayer() then
+		local ply = self.organism:PlayerOf(ent)
+		if ply ~= nil then
+			self:_Guarded(ply, dmginfo, ent)
+		end
 		return nil
 	end
-	local ok, err = xpcall(self._TakeDamage, onError, self, ent, dmginfo)
-	if not ok then
-		self.ctx.log:Error("damage to %s failed: %s", tostring(ent), tostring(err))
+	if self.players:IsKilling(ent) then
+		return nil
+	end
+	if band(dmginfo:GetDamageType(), BLASTS) == 0 or self.organism:Carrier(ent) == nil then
+		self:_Guarded(ent, dmginfo)
 	end
 	return true
 end
 
-function M:_TakeDamage(ply, dmginfo)
-	local list = self.pellets[ply]
+function M:_Guarded(ply, dmginfo, carrier)
+	local ok, err = xpcall(self._TakeDamage, onError, self, ply, dmginfo, carrier)
+	if not ok then
+		self.ctx.log:Error("damage to %s failed: %s", tostring(carrier or ply), tostring(err))
+	end
+end
+
+-- The damage `dmginfo` of `ply`, or of `carrier`, the entity that carries its body.
+function M:_TakeDamage(ply, dmginfo, carrier)
+	local list = carrier == nil and self.pellets[ply] or nil
 	local count = 0
 	if list ~= nil then
 		if list.time == CurTime() then
@@ -362,29 +405,34 @@ function M:_TakeDamage(ply, dmginfo)
 	end
 	if kind == "bullet" then
 		if count == 0 then
-			self:Apply(ply, self:_BulletHit(ply, dmginfo, nil, 1, 1))
+			local n = carrier ~= nil and pelletsOf(dmginfo) or 1
+			for i = 1, n do
+				self:Apply(ply, self:_BulletHit(ply, dmginfo, nil, i, n, carrier))
+			end
 		end
 		for i = 1, count do
 			self:Apply(ply, self:_BulletHit(ply, dmginfo, list[i], i, count))
 		end
 		return
 	end
-	self:Apply(ply, self:_Hit(ply, dmginfo, kind, count > 0 and list[count] or nil))
+	self:Apply(ply, self:_Hit(ply, dmginfo, kind, count > 0 and list[count] or nil, carrier))
 end
 
--- A bullet hit from a recorded pellet, or from the damage info without one.
-function M:_BulletHit(ply, dmginfo, pellet, index, count)
+-- A bullet hit from a recorded pellet, or from the damage info without one (one of
+-- `count` pellets added up in it).
+function M:_BulletHit(ply, dmginfo, pellet, index, count, carrier)
 	local pos, force, src, hitgroup, ammo, amount, attacker, inflictor
 	if pellet ~= nil then
 		pos, force, src, hitgroup = pellet.pos, pellet.force, pellet.src, pellet.hitgroup
 		ammo, amount, attacker, inflictor = pellet.ammo, pellet.damage, pellet.attacker, pellet.inflictor
 	else
-		pos, force, src, hitgroup = dmginfo:GetDamagePosition(), dmginfo:GetDamageForce(),
-			dmginfo:GetReportedPosition(), ply:LastHitGroup()
-		ammo, amount, attacker, inflictor = dmginfo:GetAmmoType(), dmginfo:GetDamage(), dmginfo:GetAttacker(),
-			dmginfo:GetInflictor()
+		pos, force, src = dmginfo:GetDamagePosition(), dmginfo:GetDamageForce(), dmginfo:GetReportedPosition()
+		hitgroup = carrier == nil and ply:LastHitGroup() or HITGROUP_GENERIC
+		ammo, amount, attacker, inflictor = dmginfo:GetAmmoType(), dmginfo:GetDamage() / count,
+			dmginfo:GetAttacker(), dmginfo:GetInflictor()
 	end
-	pos = onBody(ply, pos)
+	local organism = self.organism
+	pos = onBody(organism, ply, pos)
 	if src == nil or src:IsZero() then
 		src = source(attacker)
 	end
@@ -401,26 +449,28 @@ function M:_BulletHit(ply, dmginfo, pellet, index, count)
 end
 
 -- Any other hit; `pellet` is the trace of a melee hit when there was one.
-function M:_Hit(ply, dmginfo, kind, pellet)
+function M:_Hit(ply, dmginfo, kind, pellet, carrier)
 	local dtype = dmginfo:GetDamageType()
 	local amount = dmginfo:GetDamage()
 	local attacker = dmginfo:GetAttacker()
 	local force = dmginfo:GetDamageForce()
+	local hitgroup = pellet and pellet.hitgroup or (carrier == nil and ply:LastHitGroup() or HITGROUP_GENERIC)
 	local hit = { kind = kind, attacker = attacker, inflictor = dmginfo:GetInflictor(), type = dtype,
-		amount = amount, force = force, hitgroup = pellet and pellet.hitgroup or ply:LastHitGroup() }
+		amount = amount, force = force, hitgroup = hitgroup }
 	local point = pellet and pellet.pos or dmginfo:GetDamagePosition()
 	local dir = unit(force)
+	local organism = self.organism
 	if kind == "blast" then
 		-- The point is the centre of the explosion: only the direction from it matters.
 		if dir == nil and not point:IsZero() then
-			dir = unit(center(ply) - point)
+			dir = unit(center(organism, ply) - point)
 		end
 	else
-		hit.pos = onBody(ply, point)
+		hit.pos = onBody(organism, ply, point)
 		if dir == nil and attacker ~= ply then
 			local from = source(attacker)
 			if from ~= nil then
-				dir = unit((hit.pos or center(ply)) - from)
+				dir = unit((hit.pos or center(organism, ply)) - from)
 			end
 		end
 	end

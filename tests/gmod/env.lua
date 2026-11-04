@@ -949,7 +949,9 @@ end
 -- (default "Pistol"), type (default DMG_BULLET), force (default 1000 along the shot),
 -- pellets (a list of { bone, offset, depth, hitgroup }: a shell of shot; like the
 -- engine's multi-damage, every pellet gets its GM:ScalePlayerDamage and the pellets that
--- were not blocked then hurt once with their damage added up).
+-- were not blocked then hurt once with their damage added up, the point of the last one
+-- and the most damage of one as the max damage). A victim but a player (a ragdoll) gets
+-- no GM:ScalePlayerDamage.
 -- Returns the damage info of the damage.
 local function pelletInfo(shooter, victim, opts, pellet)
 	local bone = pellet.bone or opts.bone or "Spine2"
@@ -980,11 +982,14 @@ end
 function Env.Shoot(shooter, victim, opts)
 	opts = opts or {}
 	local server = victim.server
+	local isPlayer = victim:IsPlayer()
 	local total
 	for _, pellet in ipairs(opts.pellets or { {} }) do
 		local dmginfo, hitgroup = pelletInfo(shooter, victim, opts, pellet)
-		victim.lastHitGroup = hitgroup
-		if server == nil or server:Call("ScalePlayerDamage", victim, hitgroup, dmginfo) ~= true then
+		if isPlayer then
+			victim.lastHitGroup = hitgroup
+		end
+		if not isPlayer or server == nil or server:Call("ScalePlayerDamage", victim, hitgroup, dmginfo) ~= true then
 			if total == nil then
 				total = dmginfo
 			else
@@ -992,6 +997,7 @@ function Env.Shoot(shooter, victim, opts)
 				total:SetDamagePosition(dmginfo:GetDamagePosition())
 				total:SetDamageForce(total:GetDamageForce() + dmginfo:GetDamageForce())
 			end
+			total:SetMaxDamage(math.max(total:GetMaxDamage(), dmginfo:GetDamage()))
 		end
 	end
 	if total ~= nil then
