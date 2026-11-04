@@ -230,4 +230,89 @@ describe("world", function()
 		expect(geometry.traces > 10):toBe(true)
 		expect(server:Errors()):toEqual({})
 	end)
+
+	it("runs scripted weapons on every realm, each with its own state, like the engine", function()
+		local server = Env.Kernel():Boot()
+		local client, ply = Env.Join(server, { name = "Gordon" })
+		local log = {}
+		local IN = World.IN
+		-- The class of each realm: its code sees the realm it runs in.
+		local function class(realm)
+			local SWEP = { Base = "weapon_base", Primary = { ClipSize = 6, DefaultClip = 10, Automatic = false,
+				Ammo = "Pistol" } }
+			function SWEP:SetupDataTables()
+				self:NetworkVar("Int", 0, "Shots")
+				self:NetworkVar("Bool", "Ready")
+			end
+			function SWEP:Initialize() self:SetHoldType("revolver") end
+			function SWEP:Deploy() log[#log + 1] = realm.realm .. " deploy" return true end
+			function SWEP:Holster() log[#log + 1] = realm.realm .. " holster" return not self.keep end
+			function SWEP:PrimaryAttack()
+				self:SetShots(self:GetShots() + 1)
+				self:SetClip1(self:Clip1() - 1)
+				self:SetNextPrimaryFire(realm.time + 0.5)
+				self:ShootEffects()
+				log[#log + 1] = realm.realm .. " fire " .. tostring(realm.G.GetPredictionPlayer() == ply)
+			end
+			function SWEP:Reload() log[#log + 1] = realm.realm .. " reload" end
+			function SWEP:Think() self:SetReady(self:GetOwner():KeyPressed(World.IN.ATTACK2)) end
+			function SWEP:OnRemove() log[#log + 1] = realm.realm .. " remove" end
+			realm.G.weapons.Register(SWEP, "test_revolver")
+		end
+		class(server)
+		class(client)
+		local stored = server.G.weapons.Get("test_revolver")
+		expect(stored.Base .. " " .. tostring(stored.Secondary.ClipSize)):toBe("weapon_base -1")
+		expect(server.G.weapons.IsBasedOn("test_revolver", "weapon_base")):toBe(true)
+
+		local weapon = ply:Give("test_revolver")
+		expect(weapon:Clip1() .. " " .. ply:GetAmmoCount("Pistol")):toBe("6 4")
+		expect(weapon:GetHoldType()):toBe("revolver")
+		expect(table.concat(log, ", ")):toBe("server deploy, client deploy")
+		local mirror = client.entities[weapon:EntIndex()]
+		expect(mirror ~= weapon and mirror:GetClass() == "test_revolver"):toBe(true)
+		expect(ply:GetActiveWeapon()):toBe(weapon)
+		expect(client:As(function() return ply:GetActiveWeapon() end)):toBe(mirror)
+
+		-- One command on both realms: a press fires once; holding does not fire again.
+		log = {}
+		Env.Use(server, ply, IN.ATTACK)
+		Env.Use(client, ply, IN.ATTACK)
+		expect(weapon:GetShots() .. " " .. mirror:GetShots() .. " " .. mirror:Clip1()):toBe("1 1 5")
+		server:Advance(1)
+		client:Advance(1)
+		Env.Use(server, ply, IN.ATTACK + IN.RELOAD + IN.ATTACK2)
+		expect(weapon:GetShots()):toBe(1)
+		expect(weapon:GetReady()):toBe(true)
+		Env.Use(server, ply, IN.ATTACK2)
+		expect(weapon:GetReady()):toBe(false)
+		expect(table.concat(log, ", ")):toBe("server fire true, client fire true, server reload")
+		expect(weapon.anims[1]):toBe(World.Sweps.ACT.VM_PRIMARYATTACK)
+		expect(ply.animations[1] .. " " .. ply.muzzleFlashes):toBe(World.Sweps.PLAYER.ATTACK1 .. " 2")
+		-- What the server alone changed reaches the client with a snapshot.
+		weapon:SetShots(7)
+		weapon:SetClip1(2)
+		expect(mirror:GetShots()):toBe(1)
+		Env.Sync(server)
+		expect(mirror:GetShots() .. " " .. mirror:Clip1()):toBe("7 2")
+
+		-- Switching: a Holster that answers false keeps the weapon.
+		local other = ply:Give("weapon_pistol")
+		expect(ply:GetActiveWeapon()):toBe(weapon)
+		weapon.keep = true
+		log = {}
+		ply:SelectWeapon("weapon_pistol")
+		expect(table.concat(log, ", ")):toBe("server holster")
+		weapon.keep = false
+		ply:SelectWeapon("weapon_pistol")
+		expect(ply:GetActiveWeapon()):toBe(other)
+		ply:SelectWeapon("test_revolver")
+		log = {}
+		ply:StripWeapons()
+		expect(table.concat(log, ", ")):toBe("server holster, client holster, server remove, client remove")
+		expect(weapon:IsValid() or mirror:IsValid()):toBe(false)
+		expect(client.entities[weapon:EntIndex()]):toBeNil()
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
+	end)
 end)

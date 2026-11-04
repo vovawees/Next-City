@@ -121,6 +121,7 @@ end
 -- gamemode of engine.ActiveGamemode, default ours; clients take the server's).
 function Env.New(realm, opts)
 	opts = opts or {}
+	World.realm = nil
 	local instance = setmetatable({
 		realm = realm,
 		time = 1,
@@ -1036,6 +1037,34 @@ function Env.Geometry(realm)
 	return World.Geometry.New(realm):Install()
 end
 
+-- One user command of `ply` with `buttons` (IN_* sum) on `realm` with his active
+-- scripted weapon (tests/gmod/sweps.lua). opts: forward, side, firstTime (false: a
+-- repeated prediction). Returns the command as modules left it.
+function Env.Use(realm, ply, buttons, opts)
+	opts = opts or {}
+	local previousPlayer, previousFirst = realm.predictionPlayer, realm.firstTimePredicted
+	realm.predictionPlayer, realm.firstTimePredicted = ply, opts.firstTime ~= false
+	local previous = World.realm
+	World.realm = realm
+	local cmd = World.UserCmd(buttons, opts.forward, opts.side)
+	realm:Call("StartCommand", ply, cmd)
+	buttons = cmd:GetButtons()
+	local pressed = World.Sweps.SetKeys(ply, buttons, realm.lastButtons[ply] or 0)
+	realm.lastButtons[ply] = buttons
+	local weapon = ply:GetActiveWeapon()
+	if World.Sweps.IsScripted(weapon) and weapon:IsValid() then
+		World.Sweps.PostFrame(weapon, buttons, pressed)
+	end
+	World.realm = previous
+	realm.predictionPlayer, realm.firstTimePredicted = previousPlayer, previousFirst
+	return cmd
+end
+
+-- The networked state of the scripted weapons of `server` reaches the clients.
+function Env.Sync(server)
+	World.Sweps.Sync(server)
+end
+
 -- A user command of `ply` with buttons (IN_* sum) and movement runs GM:StartCommand on
 -- `realm` (the server or the player's client), with `ply` as the prediction player.
 -- Returns the command as modules left it.
@@ -1194,11 +1223,25 @@ function Env:Boot()
 	return self
 end
 
--- Calls a GM function like the engine does.
+local function leave(previous, ...)
+	World.realm = previous
+	return ...
+end
+
+-- Calls a GM function like the engine does (World.realm is this realm meanwhile).
 function Env:Call(name, ...)
 	local fn = self.G.GM[name]
 	assert(fn, "GM:" .. name .. " is not defined")
-	return fn(self.G.GM, ...)
+	local previous = World.realm
+	World.realm = self
+	return leave(previous, fn(self.G.GM, ...))
+end
+
+-- Runs fn(...) as code of this realm (World.realm), e.g. a client's module methods.
+function Env:As(fn, ...)
+	local previous = World.realm
+	World.realm = self
+	return leave(previous, fn(...))
 end
 
 -- Advances game time and runs GM:Tick; on the server first the entities removed since

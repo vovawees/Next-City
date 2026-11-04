@@ -26,6 +26,7 @@
 
 local World = {}
 World.Geometry = dofile(T.root .. "tests/gmod/geometry.lua")
+World.Sweps = dofile(T.root .. "tests/gmod/sweps.lua")
 
 World.TEAM_CONNECTING = 0
 World.TEAM_UNASSIGNED = 1001
@@ -311,6 +312,20 @@ function Player:GodDisable() self.god = false end
 function Player:LastHitGroup() return self.lastHitGroup end
 function Player:WaterLevel() return self.waterLevel end
 function Player:KeyDown(key) return self.keys[key] == true end
+-- Pressed or released in the current command (Env.Use).
+function Player:KeyPressed(key) return self.pressedKeys ~= nil and self.pressedKeys[key] == true end
+function Player:KeyReleased(key) return self.releasedKeys ~= nil and self.releasedKeys[key] == true end
+function Player:KeyDownLast(key) return bit.band(self.lastButtons or 0, key) ~= 0 end
+-- Recorded: .animations (SetAnimation), .muzzleFlashes, .sounds (EmitSound).
+function Player:SetAnimation(anim)
+	self.animations = self.animations or {}
+	self.animations[#self.animations + 1] = anim
+end
+function Player:MuzzleFlash() self.muzzleFlashes = (self.muzzleFlashes or 0) + 1 end
+function Player:EmitSound(name)
+	self.sounds = self.sounds or {}
+	self.sounds[#self.sounds + 1] = name
+end
 function Player:GetVelocity() return Vector(self.velocity) end
 function Player:Crouching() return self.crouching end
 function Player:IsOnGround() return self.onGround end
@@ -444,11 +459,15 @@ function Player:GetBonePosition(id)
 	return Vector(self.pos.x + x * c - y * s, self.pos.y + x * s + y * c, self.pos.z + z), Angle(0, self.angles.y, 0)
 end
 
+-- Scripted weapons (World.Sweps): the instance of the realm whose code runs.
 function Player:GetActiveWeapon()
 	for _, weapon in ipairs(self.weapons) do
 		if weapon.class == self.selected then
-			return weapon
+			return World.Sweps.Local(weapon)
 		end
+	end
+	if World.Sweps.IsScripted(self.weapons[#self.weapons]) then
+		return World.NULL
 	end
 	return self.weapons[#self.weapons] or World.NULL
 end
@@ -468,14 +487,35 @@ end
 function Player:GetObserverMode() return self.observerMode end
 function Player:GetObserverTarget() return self.observerTarget or World.NULL end
 
-function Player:StripWeapons() self.weapons = {} end
+function Player:StripWeapons()
+	for i = #self.weapons, 1, -1 do
+		World.Sweps.Strip(self, self.weapons[i])
+	end
+	self.weapons = {}
+end
+function Player:StripWeapon(class)
+	for _, weapon in ipairs(self.weapons) do
+		if weapon.class == class then
+			World.Sweps.Strip(self, weapon)
+			return
+		end
+	end
+end
 function Player:RemoveAllAmmo() self.ammo = {} end
-function Player:Give(class)
+-- A class the server registered with weapons.Register is a scripted weapon (World.Sweps).
+function Player:Give(class, noAmmo)
+	local scripted = self.server ~= nil and World.Sweps.Give(self.server, self, class, noAmmo)
+	if scripted then
+		return scripted
+	end
 	local weapon = setmetatable({ __entity = true, class = class, owner = self, valid = true }, WeaponMeta)
 	self.weapons[#self.weapons + 1] = weapon
 	return weapon
 end
-function Player:SelectWeapon(class) self.selected = class end
+function Player:SelectWeapon(class)
+	World.Sweps.Select(self, class)
+	self.selected = class
+end
 -- Ammo is kept by name; ids of custom types are the ones of the server (game.AddAmmoType).
 local function ammoName(ply, ammoType)
 	if type(ammoType) ~= "number" then
@@ -518,7 +558,7 @@ end
 function Player:GetWeapons()
 	local list = {}
 	for i, weapon in ipairs(self.weapons) do
-		list[i] = weapon
+		list[i] = World.Sweps.Local(weapon)
 	end
 	return list
 end
@@ -602,7 +642,7 @@ function World.Die(victim, attacker, inflictor, dmginfo)
 		return
 	end
 	victim.alive = false
-	victim.weapons = {}
+	victim:StripWeapons()
 	attacker = attacker or victim
 	inflictor = inflictor or attacker
 	local server = victim.server
@@ -688,7 +728,7 @@ function Player:KillSilent()
 		return
 	end
 	self.alive = false
-	self.weapons = {}
+	self:StripWeapons()
 	if self.server ~= nil then
 		self.server:Call("PlayerSilentDeath", self)
 	end
@@ -784,6 +824,11 @@ function Entity:IsNextBot() return self.nextbot == true end
 function Entity:IsRagdoll() return false end
 function Entity:IsWeapon() return false end
 function Entity:IsMarkedForDeletion() return self.removing end
+-- Recorded in .sounds.
+function Entity:EmitSound(name)
+	self.sounds = self.sounds or {}
+	self.sounds[#self.sounds + 1] = name
+end
 function Entity:EntIndex() return self.index end
 function Entity:GetClass() return self.class end
 function Entity:GetPos() return Vector(self.pos) end
@@ -1259,6 +1304,7 @@ function World.Install(env, G)
 		G["MOVETYPE_" .. name] = value
 	end
 	G.DamageInfo = World.DamageInfo
+	World.Sweps.Install(env, G)
 	G.LocalToWorld = World.LocalToWorld
 	G.WorldToLocal = World.WorldToLocal
 	for name, value in pairs(World.Geometry.MASK) do
@@ -1514,5 +1560,6 @@ function World.InstallDrawing(env, G)
 end
 
 World.Geometry.Bind(World)
+World.Sweps.Bind(World)
 
 return World
