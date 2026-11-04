@@ -782,10 +782,17 @@ function World.Install(env, G)
 	end
 end
 
--- Records drawn texts in env.drawn; text sizes are 8 px per byte by 16 px.
+-- Records drawn texts in env.drawn, rectangles in env.rects ({ x, y, w, h, r, g, b, a },
+-- textured ones with the material name first) and screen effects in env.effects; text
+-- sizes are 8 px per byte by 16 px. env.bindings: keys of binds for input.LookupBinding.
 function World.InstallDrawing(env, G)
 	env.drawn = {}
 	env.fonts = {}
+	env.rects = {}
+	env.effects = {}
+	env.bindings = { ["+reload"] = "r" }
+	local color = { 255, 255, 255, 255 }
+	local material = nil
 	G.TEXT_ALIGN_LEFT = 0
 	G.TEXT_ALIGN_CENTER = 1
 	G.TEXT_ALIGN_RIGHT = 2
@@ -798,8 +805,20 @@ function World.InstallDrawing(env, G)
 		CreateFont = function(name, data) env.fonts[name] = data end,
 		SetFont = function(name) env.font = name end,
 		GetTextSize = function(text) return #tostring(text) * 8, 16 end,
-		SetDrawColor = noop,
-		DrawRect = noop,
+		SetDrawColor = function(r, g, b, a)
+			if type(r) == "table" then
+				r, g, b, a = r.r, r.g, r.b, r.a
+			end
+			color = { r, g, b, a or 255 }
+		end,
+		DrawRect = function(x, y, w, h)
+			env.rects[#env.rects + 1] = { x, y, w, h, color[1], color[2], color[3], color[4] }
+		end,
+		SetMaterial = function(mat) material = mat end,
+		DrawTexturedRect = function(x, y, w, h)
+			env.rects[#env.rects + 1] = { material and material.name or "?", x, y, w, h, color[1], color[2], color[3],
+				color[4] }
+		end,
 		DrawOutlinedRect = noop,
 		SetTextColor = noop,
 		SetTextPos = noop,
@@ -814,6 +833,22 @@ function World.InstallDrawing(env, G)
 		SimpleTextOutlined = drawText,
 		DrawText = drawText,
 		RoundedBox = noop,
+	}
+	function G.Material(name)
+		return { name = name, IsError = function() return false end }
+	end
+	function G.DrawColorModify(params)
+		local copy = {}
+		for key, value in pairs(params) do
+			copy[key] = value
+		end
+		env.effects[#env.effects + 1] = { "color", copy }
+	end
+	function G.DrawMotionBlur(add, alpha, delay)
+		env.effects[#env.effects + 1] = { "blur", add, alpha, delay }
+	end
+	G.input = {
+		LookupBinding = function(bind) return env.bindings[bind] end,
 	}
 end
 
