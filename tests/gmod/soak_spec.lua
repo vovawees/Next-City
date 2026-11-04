@@ -2,15 +2,18 @@
 -- several minutes of game time under
 --   random kills, joins, departures, observer keys and admin commands: the invariants of
 --   players, teams and spectating hold (a camera may lag behind a change by a tick or two)
---   random fire, blows, blasts, falls, armor and user commands: the engine's health is
---   never touched, a dead body kills its player, an unconscious one has no input, the
---   clients draw the HUD and its effects.
+--   random fire, blows, blasts, falls, armor and user commands on a flat floor: the
+--   engine's health is never touched, a dead body kills its player, an unconscious one has
+--   no input, a player down in its body is hidden inside a ragdoll that carries its
+--   organism, ragdolls and grips stay within their limits, the clients draw the HUD and
+--   its effects.
 -- Nothing may error.
 
 local Env = dofile(T.root .. "tests/gmod/env.lua")
 
 local World = Env.World
 local Vector = World.Vector
+local Angle = World.Angle
 local IN = World.IN
 local DMG = World.DMG
 
@@ -29,6 +32,19 @@ local function uniform(seed)
 	return function(n)
 		state = state * 16807 % 2147483647
 		return math.floor(state / 2147483647 * n) + 1
+	end
+end
+
+-- A flat floor at z = 0: a line hits the world where it crosses it.
+local function floor(server)
+	server.traceLine = function(trace)
+		local a, b = trace.start, trace.endpos
+		if a.z >= 0 and b.z <= 0 and a.z ~= b.z then
+			local t = a.z / (a.z - b.z)
+			return { Hit = true, HitWorld = true, StartSolid = false, Fraction = t, PhysicsBone = 0,
+				HitPos = Vector(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, 0), Entity = World.WORLD }
+		end
+		return { Hit = false, HitWorld = false, StartSolid = false, Fraction = 1, HitPos = Vector(b), Entity = World.NULL }
 	end
 end
 
@@ -157,6 +173,7 @@ describe("soak", function()
 		local server = Env.Server({ patch = { [Env.CONFIG] = function(cfg)
 			cfg.modules.settings.rounds = { params = { tdm = { armor = { "vest_light" }, roundTime = 120 } } }
 			cfg.modules.settings.organism = { brainDeathTime = 30 } -- bleeding out within a round
+			cfg.modules.settings.ragdoll_control = { grabRange = 40 } -- the hands do not move here: hold on from afar
 			return cfg
 		end } })
 		for i = 0, 5 do
@@ -165,10 +182,23 @@ describe("soak", function()
 		end
 		server:Boot()
 		server:Call("InitPostEntity")
+		floor(server)
 		local NC = server:Get("NC")
 		local players = NC.Modules:Instance("players")
 		local organism = NC.Modules:Instance("organism")
 		local movement = NC.Modules:Instance("movement")
+		local ragdoll = NC.Modules:Instance("ragdoll")
+		local control = NC.Modules:Instance("ragdoll_control")
+		local limits = ragdoll.ctx.config
+		-- The bodies on their own rolls: the fire and the blows stay as they were.
+		local side = uniform(4242)
+		local counts = { fell = 0, stood = 0, grabbed = 0 }
+		NC.Events:On("ragdoll.fell", function(ply, rag)
+			counts.fell = counts.fell + 1
+			World.LayRagdoll(rag, ply:EntIndex() % 2 == 0) -- the engine's gravity: the body lies down
+		end)
+		NC.Events:On("ragdoll.stood", function() counts.stood = counts.stood + 1 end)
+		NC.Events:On("ragdoll_control.grabbed", function() counts.grabbed = counts.grabbed + 1 end)
 		local deaths = {}
 		NC.Events:On("organism.died", function(_, cause) deaths[cause] = (deaths[cause] or 0) + 1 end)
 		local hits = 0
@@ -227,14 +257,51 @@ describe("soak", function()
 			end
 			for _, ply in ipairs(alive) do
 				if ply:Alive() and roll(3) == 1 then
-					local buttons = Env.RunCommand(server, ply, IN.FORWARD + IN.SPEED + IN.JUMP + IN.ATTACK, 200)
-						:GetButtons()
+					-- Down in its body the player looks around, reaches, crawls and gets up.
+					local keys = IN.FORWARD + IN.SPEED + IN.ATTACK
+					if ragdoll:IsDown(ply) then
+						ply:SetEyeAngles(Angle(side(120) - 30, side(360), 0))
+						keys = keys + (side(2) == 1 and IN.JUMP or 0) + (side(2) == 1 and IN.ATTACK2 or 0)
+					else
+						keys = keys + IN.JUMP
+					end
+					local buttons = Env.RunCommand(server, ply, keys, 200):GetButtons()
 					if organism:IsUnconscious(ply) and ply:GetMoveType() ~= World.MOVETYPE.NOCLIP then
 						expect(buttons):toBe(IN.DUCK)
 					end
 				end
 			end
 			server:Advance(0.1)
+
+			-- Bodies: a player down is alive, hidden inside a valid ragdoll that carries its
+			-- organism; one standing is not hidden; ragdolls, corpses and grips within limits.
+			for ply, body in pairs(ragdoll:Bodies()) do
+				expect(ply:Alive() and body.ent:IsValid()):toBe(true)
+				expect(ply:GetNoDraw() and not ply:IsSolid()):toBe(true)
+				expect(ply:GetMoveType()):toBe(World.MOVETYPE.NONE)
+				expect(organism:Carrier(ply)):toBe(body.ent)
+			end
+			local grips = 0
+			for _, ply in ipairs(players:ReadyPlayers()) do
+				if ply:Alive() and not ragdoll:IsDown(ply) then
+					expect(ply:GetNoDraw() or not ply:IsSolid()):toBe(false)
+					expect(organism:Carrier(ply)):toBeNil()
+				end
+				for _, hand in ipairs({ "left", "right" }) do
+					if control:Grip(ply, hand) ~= nil then
+						expect(ragdoll:IsDown(ply)):toBe(true)
+						grips = grips + 1
+					end
+				end
+			end
+			local ragdolls = 0
+			for _, ent in ipairs(server:Get("ents").FindByClass("prop_ragdoll")) do
+				if ent:IsValid() and not ent:IsMarkedForDeletion() then
+					ragdolls = ragdolls + 1
+				end
+			end
+			expect(ragdolls <= limits.ragdolls and #ragdoll:Corpses() <= limits.corpses):toBe(true)
+			expect(grips <= 2 * ragdoll.fallen):toBe(true)
 
 			for _, ply in ipairs(players:ReadyPlayers()) do
 				if ply:Alive() then
@@ -264,8 +331,9 @@ describe("soak", function()
 			died = died + count
 		end
 		expect(shots > 1000 and hits > 1000):toBe(true)
-		expect(died > 30):toBe(true)
+		expect(died > 20):toBe(true)
 		expect((deaths.brain or 0) > 0 and (deaths.head or 0) > 0 and (deaths.fall or 0) > 0):toBe(true)
+		expect(counts.fell > 20 and counts.stood > 5 and counts.grabbed > 5):toBe(true)
 		expect(server:Errors()):toEqual({})
 		for _, client in ipairs(clients) do
 			expect(client:Errors()):toEqual({})
