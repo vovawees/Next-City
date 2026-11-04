@@ -535,9 +535,10 @@ function Env:_CreateGlobals()
 		local ext = path:match("%.(%w+)$")
 		return ext ~= nil and WRITABLE[ext:lower()] == true
 	end
+	-- A folder exists when it was created or has files (data given to Env.New).
 	local function parentExists(path)
 		local dir = path:match("^(.*)/[^/]+$")
-		return dir == nil or env.data[dir] == true
+		return dir == nil or G.file.IsDir(dir, "DATA")
 	end
 
 	function G.file.Read(path, pathId)
