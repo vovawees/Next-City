@@ -966,9 +966,13 @@ function Entity:GetPhysicsObjectNum() return World.NULL_PHYS end
 function Entity:ManipulateBoneScale(bone, scale) self.boneScales[bone] = Vector(scale) end
 function Entity:GetManipulateBoneScale(bone) return Vector(self.boneScales[bone] or Vector(1, 1, 1)) end
 function Entity:Activate() self.activated = true end
--- Networked from now on: the linked clients know the entity.
+-- Networked from now on: the linked clients know the entity. A prop_physics gets its
+-- physics object (World.AddPhysics, 10 kg) as from its model.
 function Entity:Spawn()
 	self.spawned = true
+	if self.class == "prop_physics" and rawget(self, "GetPhysicsObject") == nil then
+		World.AddPhysics(self, 10)
+	end
 	if self.realm ~= nil then
 		self.realm:_Network(self)
 	end
