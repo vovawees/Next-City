@@ -16,8 +16,14 @@
 -- wire.lua), so a writer and a reader that disagree fail loudly. Env.Connect links a
 -- client realm to a server realm as a player; sent messages wait in the inbox of the
 -- receiving realm until Pump (or Env.Flush) delivers them, like the next network frame.
+--
+-- Game world (tests/gmod/world.lua): players with engine methods whose actions run the
+-- gamemode hooks, the base gamemode behaviour of player hooks, the player, team, ents
+-- and game libraries, traces and the drawing API of clients. Env.Join spawns the player
+-- like the engine, Env.Advance runs GM:PlayerDeathThink for dead players every tick.
 
 local Wire = dofile(T.root .. "tests/support/wire.lua")
+local World = dofile(T.root .. "tests/gmod/world.lua")
 
 local Env = {}
 Env.__index = Env
@@ -26,10 +32,17 @@ Env.GAMEMODE = "nextcity"
 Env.ENTRY = { server = "nextcity/gamemode/init.lua", client = "nextcity/gamemode/cl_init.lua" }
 
 local REPO_PREFIX = "gamemodes/"
+-- Hooks of the base gamemode: every call is recorded in env.baseCalls; World.BASE holds
+-- what the base gamemode does in some of them.
 local HOOK_NAMES = {
 	"Initialize", "Tick", "InitPostEntity", "OnReloaded", "ShutDown", "PlayerInitialSpawn", "PlayerDisconnected",
-	"EntityRemoved",
+	"EntityRemoved", "KeyPress", "PlayerSpawn", "PlayerSelectSpawn", "PlayerLoadout", "PlayerSetModel",
+	"DoPlayerDeath", "PlayerDeath", "PlayerSilentDeath", "PlayerDeathThink", "PlayerShouldTakeDamage",
+	"CanPlayerSuicide", "PlayerRequestTeam", "PostCleanupMap", "HUDPaint",
 }
+
+Env.World = World
+Env.FakePlayer = World.FakePlayer
 
 local function pack(...)
 	return { n = select("#", ...), ... }
@@ -273,8 +286,12 @@ function Env:_CreateGlobals()
 
 	local baseClass = {}
 	for _, name in ipairs(HOOK_NAMES) do
-		baseClass[name] = function()
+		local behaviour = World.BASE[name]
+		baseClass[name] = function(gm, ...)
 			env.baseCalls[#env.baseCalls + 1] = name
+			if behaviour then
+				return behaviour(env, gm, ...)
+			end
 		end
 	end
 	self.baseClass = baseClass
@@ -455,6 +472,8 @@ function Env:_CreateGlobals()
 
 	self:_CreateEngineTypes(G)
 	self:_CreateNet(G)
+	World.Install(self, G)
+	self:_CreateGame(G)
 
 	return setmetatable(G, {
 		__index = function(_, key)
@@ -470,17 +489,12 @@ end
 
 -- Engine types -----------------------------------------------------------------------
 
-local VectorMeta = { __tostring = function(v) return string.format("Vector(%g, %g, %g)", v.x, v.y, v.z) end }
-local AngleMeta = { __tostring = function(a) return string.format("Angle(%g, %g, %g)", a.x, a.y, a.z) end }
+local VectorMeta = World.VectorMeta
+local AngleMeta = World.AngleMeta
 
 function Env:_CreateEngineTypes(G)
 	local env = self
-	G.NULL = setmetatable({
-		__entity = true,
-		IsValid = function() return false end,
-		IsPlayer = function() return false end,
-		EntIndex = function() return 0 end,
-	}, { __tostring = function() return "[NULL Entity]" end })
+	G.NULL = World.NULL
 
 	function G.Entity(index)
 		return env.entities[index] or G.NULL
@@ -495,19 +509,8 @@ function Env:_CreateEngineTypes(G)
 	end
 
 	-- Vector(v) and Angle(a) copy, like in GMod.
-	function G.Vector(x, y, z)
-		if getmetatable(x) == VectorMeta then
-			x, y, z = x.x, x.y, x.z
-		end
-		return setmetatable({ x = x or 0, y = y or 0, z = z or 0 }, VectorMeta)
-	end
-
-	function G.Angle(p, y, r)
-		if getmetatable(p) == AngleMeta then
-			p, y, r = p.x, p.y, p.z
-		end
-		return setmetatable({ x = p or 0, y = y or 0, z = r or 0 }, AngleMeta)
-	end
+	G.Vector = World.Vector
+	G.Angle = World.Angle
 
 	function G.isvector(value)
 		return getmetatable(value) == VectorMeta
@@ -763,14 +766,19 @@ function Env.Connect(server, client, ply)
 	end
 end
 
--- A player joins: PlayerInitialSpawn on the server, a client booted from the sent files
--- and linked to it, InitPostEntity on the client, then the messages are flushed.
--- opts: name, superadmin, language, convars, patch. Returns the client realm and player.
+-- A player joins: PlayerInitialSpawn and the first spawn on the server, a client booted
+-- from the sent files and linked to it, InitPostEntity on the client, then the messages
+-- are flushed. opts: name, superadmin, index, language, convars, patch.
+-- Returns the client realm and the player.
 function Env.Join(server, opts)
 	opts = opts or {}
-	local ply = Env.FakePlayer(opts)
+	local ply = Env.FakePlayer({ name = opts.name, superadmin = opts.superadmin, index = opts.index, server = server })
 	server.entities[ply:EntIndex()] = ply
+	for _, other in pairs(server.links) do
+		other.entities[ply:EntIndex()] = ply
+	end
 	server:Call("PlayerInitialSpawn", ply, false)
+	ply:Spawn()
 	local client = Env.Client(server, { language = opts.language, convars = opts.convars, patch = opts.patch })
 	client:Boot()
 	Env.Connect(server, client, ply)
@@ -791,31 +799,64 @@ function Env.Leave(server, ply)
 	Env.Remove(server, ply)
 end
 
+-- A bot joins: PlayerInitialSpawn and the first spawn, no client. opts: name, index.
+function Env.Bot(server, opts)
+	opts = opts or {}
+	local ply = Env.FakePlayer({ name = opts.name or "Bot", index = opts.index, bot = true, server = server })
+	server.entities[ply:EntIndex()] = ply
+	for _, client in pairs(server.links) do
+		client.entities[ply:EntIndex()] = ply
+	end
+	server:Call("PlayerInitialSpawn", ply, false)
+	ply:Spawn()
+	return ply
+end
+
+-- `victim` is killed by `attacker` (default: itself) with `inflictor` (default: attacker).
+function Env.Kill(victim, attacker, inflictor)
+	World.Die(victim, attacker, inflictor)
+end
+
+-- `ply` presses `key` (IN_* value): GM:KeyPress on the server.
+function Env.Press(server, ply, key)
+	server:Call("KeyPress", ply, key)
+end
+
 local entityIndex = 199
+local EntityMethods = {}
 local EntityMeta = {
+	__index = EntityMethods,
 	__tostring = function(ent)
 		return string.format("Entity [%d][%s]", ent.index, ent.class)
 	end,
 }
 
+function EntityMethods:IsValid() return self.valid end
+function EntityMethods:IsPlayer() return false end
+function EntityMethods:EntIndex() return self.index end
+function EntityMethods:GetClass() return self.class end
+function EntityMethods:GetPos() return World.Vector(self.pos) end
+function EntityMethods:SetPos(pos) self.pos = World.Vector(pos) end
+function EntityMethods:GetAngles() return World.Angle(self.ang) end
+
 -- A networked entity (index from 200 up, or opts.index) known to the server and every
--- linked client: IsValid, IsPlayer, EntIndex, GetClass. opts: index, class.
+-- linked client: IsValid, IsPlayer, EntIndex, GetClass, GetPos, GetAngles.
+-- opts: index, class, pos, ang, map (created by the map: game.CleanUpMap recreates it
+-- as a new entity instead of removing it).
 function Env.Spawn(server, opts)
 	opts = opts or {}
 	local index = opts.index
 	if index == nil then
-		entityIndex = entityIndex % 8000 + 1
-		if entityIndex < 200 then
-			entityIndex = 200
-		end
+		repeat
+			entityIndex = entityIndex % 8000 + 1
+			if entityIndex < 200 then
+				entityIndex = 200
+			end
+		until server.entities[entityIndex] == nil
 		index = entityIndex
 	end
-	local ent = setmetatable({ __entity = true, index = index, class = opts.class or "prop_physics", valid = true },
-		EntityMeta)
-	function ent:IsValid() return self.valid end
-	function ent:IsPlayer() return false end
-	function ent:EntIndex() return self.index end
-	function ent:GetClass() return self.class end
+	local ent = setmetatable({ __entity = true, index = index, class = opts.class or "prop_physics", valid = true,
+		pos = World.Vector(opts.pos), ang = World.Angle(opts.ang), map = opts.map == true }, EntityMeta)
 	server.entities[index] = ent
 	for _, client in pairs(server.links) do
 		client.entities[index] = ent
@@ -843,10 +884,51 @@ function Env.Remove(server, ent)
 	ent.valid = false
 end
 
--- Runs the realm's entry file and GM:Initialize, like the engine at startup.
+-- Map cleanup (game.CleanUpMap): entities that are neither players nor map entities are
+-- removed, map entities are recreated as new entities, then GM:PostCleanupMap runs on
+-- the server and, unless dontSendToClients, on every linked client.
+function Env:_CleanUpMap(dontSendToClients)
+	local list = {}
+	for _, ent in pairs(self.entities) do
+		if not ent:IsPlayer() then
+			list[#list + 1] = ent
+		end
+	end
+	table.sort(list, function(a, b) return a:EntIndex() < b:EntIndex() end)
+	for _, ent in ipairs(list) do
+		Env.Remove(self, ent)
+		if ent.map then
+			Env.Spawn(self, { class = ent.class, pos = ent.pos, ang = ent.ang, map = true })
+		end
+	end
+	self.cleanups = (self.cleanups or 0) + 1
+	self:Call("PostCleanupMap")
+	if not dontSendToClients then
+		for _, client in pairs(self.links) do
+			client:Call("PostCleanupMap")
+		end
+	end
+end
+
+function Env:_CreateGame(G)
+	local env = self
+	G.game = {}
+	function G.game.GetMap() return env.map or "gm_test" end
+	function G.game.SinglePlayer() return false end
+	function G.game.MaxPlayers() return 128 end
+	if self.realm == "server" then
+		function G.game.CleanUpMap(dontSendToClients)
+			env:_CleanUpMap(dontSendToClients)
+		end
+	end
+end
+
+-- Runs the realm's entry file and GM:Initialize, like the engine at startup. The GM
+-- table inherits the base gamemode, so hooks the gamemode does not define reach it.
 function Env:Boot()
 	self:Run(Env.ENTRY[self.realm])
 	self.G.GM.BaseClass = self.baseClass
+	setmetatable(self.G.GM, { __index = self.baseClass })
 	self:Call("Initialize")
 	return self
 end
@@ -858,10 +940,18 @@ function Env:Call(name, ...)
 	return fn(self.G.GM, ...)
 end
 
--- Advances game time and runs GM:Tick.
+-- Advances game time and runs GM:Tick; on the server GM:PlayerDeathThink runs for every
+-- dead player, like the engine does every tick.
 function Env:Advance(seconds)
 	self.time = self.time + seconds
 	self:Call("Tick")
+	if self.realm == "server" then
+		for _, ply in ipairs(self.G.player.GetAll()) do
+			if not ply:Alive() then
+				self:Call("PlayerDeathThink", ply)
+			end
+		end
+	end
 end
 
 -- Runs a console command as `ply` (nil for the server console).
@@ -897,30 +987,6 @@ function Env:Lines(fragment)
 		end
 	end
 	return out
-end
-
-local playerIndex = 0
-local PlayerMeta = {
-	__tostring = function(ply)
-		return string.format("Player [%d][%s]", ply.index, ply.name)
-	end,
-}
-
--- A minimal player: IsValid, IsPlayer, EntIndex (1..128), IsSuperAdmin, Nick, PrintMessage
--- (recorded in .printed) and ChatPrint (recorded in .chat). opts: name, superadmin, index.
-function Env.FakePlayer(opts)
-	opts = opts or {}
-	playerIndex = playerIndex % 128 + 1
-	local ply = setmetatable({ __entity = true, index = opts.index or playerIndex, name = opts.name or "Player",
-		admin = opts.superadmin == true, valid = true, printed = {}, chat = {} }, PlayerMeta)
-	function ply:IsValid() return self.valid end
-	function ply:IsPlayer() return true end
-	function ply:EntIndex() return self.index end
-	function ply:IsSuperAdmin() return self.admin end
-	function ply:Nick() return self.name end
-	function ply:PrintMessage(_, text) self.printed[#self.printed + 1] = text end
-	function ply:ChatPrint(text) self.chat[#self.chat + 1] = text end
-	return ply
 end
 
 return Env

@@ -26,6 +26,7 @@ local SPECS = {
 	"tests/gmod/net_spec.lua",
 	"tests/gmod/components_spec.lua",
 	"tests/gmod/commands_spec.lua",
+	"tests/gmod/bridge_spec.lua",
 }
 
 local source = debug.getinfo(1, "S").source
