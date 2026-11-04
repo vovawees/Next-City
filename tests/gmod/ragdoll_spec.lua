@@ -499,6 +499,12 @@ describe("ragdoll", function()
 		players:Deploy(bob)
 		expect(component(ragdoll, bob)):toBe("standing 0 none")
 		expect(organism:Carrier(bob)):toBeNil()
+		-- Spawned again the player has its hull and movement back.
+		expect(bob:IsSolid()):toBe(true)
+		expect(bob:GetMoveType()):toBe(MOVETYPE.WALK)
+		players:Deploy(cy)
+		expect(cy:IsSolid()):toBe(true)
+		expect(cy:GetMoveType()):toBe(MOVETYPE.WALK)
 		expect(#ragdoll:Corpses()):toBe(2) -- the corpse stays
 		expect(server:Errors()):toEqual({})
 	end)
@@ -587,6 +593,13 @@ describe("ragdoll", function()
 		expect(gone(body.ent)):toBe(true)
 		expect(#ragdoll:Corpses()):toBe(0)
 		expect(component(ragdoll, list[2])):toBe("dead 0 none")
+		-- Back in the game, with the hull and the movement.
+		for i = 1, 2 do
+			players:Deploy(list[i])
+			expect(list[i]:IsSolid()):toBe(true)
+			expect(list[i]:GetMoveType()):toBe(MOVETYPE.WALK)
+			expect(list[i]:GetNoDraw()):toBe(false)
+		end
 		-- Leaving.
 		body = ragdoll:Fall(list[3])
 		Env.Leave(server, list[3])

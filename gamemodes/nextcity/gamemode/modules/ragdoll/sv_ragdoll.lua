@@ -23,7 +23,8 @@
 -- ragdoll (DMG_REMOVENORAGDOLL) leaves no corpse either.
 -- A body removed by something else (a cleanup of the map) stands its player up where it
 -- lay; out of the game (spectator, a silent death), off the server or a new spawn: the
--- body goes.
+-- body goes. A player that left its body dead or out of the game gets its hull and
+-- movement back when it spawns.
 --
 -- Listens:  organism.unconscious, organism.capabilities, damage.hit, gm.OnPlayerHitGround,
 --           gm.StartCommand (sh_ragdoll.lua), gm.DoPlayerDeath, gm.EntityRemoved,
@@ -64,6 +65,7 @@ function M:Init(ctx)
 	self.pending = {}       -- ply -> cause of a fall at the next think
 	self.lastFall = {}      -- ply -> game time of the last fall at will
 	self.done = {}          -- bodies done getting up, within a think
+	self.hidden = {}        -- ply -> true: hidden (sv_bodies.lua) and without its hull yet
 	ctx.net:Receive("fall", "OnFallRequest")
 	ctx.commands:Add("nc_ragdoll", { help = "fallen bodies and corpses: [player] [fall | up]", admin = true },
 		"RagdollCommand")
@@ -93,6 +95,11 @@ function M:Stop()
 	end
 	for i = #self.corpses, 1, -1 do
 		self:_RemoveCorpse(i)
+	end
+	for ply in pairs(self.hidden) do
+		if IsValid(ply) then
+			self:_Restore(ply)
+		end
 	end
 end
 
@@ -465,6 +472,8 @@ function M:OnSpawned(ply)
 			body.ent:Remove()
 		end
 		self:_Show(ply, body, true)
+	elseif self.hidden[ply] then
+		self:_Restore(ply)
 	end
 	if self.ctx.components.body:Has(ply) then
 		self:_Publish(ply, "standing", nil, CurTime())
@@ -489,6 +498,7 @@ end
 function M:OnLeft(ply)
 	self.pending[ply] = nil
 	self.lastFall[ply] = nil
+	self.hidden[ply] = nil
 	local body = self.bodies[ply]
 	if body ~= nil then
 		self:_Forget(body)

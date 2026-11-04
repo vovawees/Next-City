@@ -127,6 +127,7 @@ end
 
 -- Hides `ply` inside its body; what changes is kept in body.saved.
 function M:_Hide(ply, body)
+	self.hidden[ply] = true
 	body.saved = { view = ply:GetViewOffset(), ducked = ply:GetViewOffsetDucked() }
 	ply:SetNoDraw(true)
 	ply:SetNotSolid(true)
@@ -160,9 +161,20 @@ function M:_Show(ply, body, alive)
 	ply:DrawWorldModel(true)
 	ply:SetNoDraw(false)
 	if alive then
+		self.hidden[ply] = nil
 		ply:SetNotSolid(false)
 		ply:SetMoveType(MOVETYPE_WALK)
 		ply:SetLocalVelocity(ZERO)
+	end
+end
+
+-- A player that left its body dead or out of the game gets its hull and movement back
+-- when it spawns: the engine does not give back the hull.
+function M:_Restore(ply)
+	self.hidden[ply] = nil
+	ply:SetNotSolid(false)
+	if ply:GetMoveType() == MOVETYPE_NONE then
+		ply:SetMoveType(MOVETYPE_WALK)
 	end
 end
 
