@@ -31,6 +31,7 @@ local SPECS = {
 	"tests/gmod/rounds_spec.lua",
 	"tests/gmod/teams_spec.lua",
 	"tests/gmod/spectator_spec.lua",
+	"tests/gmod/soak_spec.lua",
 }
 
 local source = debug.getinfo(1, "S").source
