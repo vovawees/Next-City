@@ -46,7 +46,7 @@
 | `anims` | `{ swing, hit }` — `ACT_VM_*` замаха и попадания | `ACT_VM_MISSCENTER`, — |
 | `sounds` | `{ swing, hit, world }` — замах, попадание по телу, по остальному | — |
 
-- `M:Get(class)`, `M:All()`, `M:IsMelee(weapon)`, `M:Name(class)`; `M:Trace(owner, attack)` и `M:Strike(owner, weapon, attack, index, scale)` — для баз поверх `nc_melee` (руки).
+- `M:Get(class)`, `M:All()`, `M:IsMelee(weapon)`, `M:Name(class)`; для баз поверх `nc_melee` (руки): `M:Attack(поля, имя)` → удар с умолчаниями или `nil` и ошибка, `M:Trace(owner, attack)`, `M:Strike(owner, weapon, attack, index, scale)`.
 - База `nc_melee`: `Def()`, `AttackOf(index)`, `CanSwing(owner)`, `Swing(index)`, `_SwingAnim(attack, index)` — их можно переопределить в своей базе.
 
 ```lua

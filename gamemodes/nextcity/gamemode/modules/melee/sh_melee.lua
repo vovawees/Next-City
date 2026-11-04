@@ -64,8 +64,9 @@ local function fail(class, message)
 	error(format("melee: Register('%s'): %s", tostring(class), message), 3)
 end
 
--- The attack `given` with its defaults (a new table), or nil and a problem.
-function M:_Attack(given, name)
+-- The attack `given` (a table as the fields of an attack, see the top of the file) with
+-- its defaults: a new table, or nil and the problem. Bases on nc_melee make theirs with it.
+function M:Attack(given, name)
 	if type(given) ~= "table" then
 		return nil, name .. " must be a table"
 	end
@@ -116,12 +117,12 @@ function M:Register(class, def)
 		entry[key] = value
 	end
 	local problem
-	entry.primary, problem = self:_Attack(def.primary, "primary")
+	entry.primary, problem = self:Attack(def.primary, "primary")
 	if entry.primary == nil then
 		fail(class, problem)
 	end
 	if def.secondary ~= nil then
-		entry.secondary, problem = self:_Attack(def.secondary, "secondary")
+		entry.secondary, problem = self:Attack(def.secondary, "secondary")
 		if entry.secondary == nil then
 			fail(class, problem)
 		end
