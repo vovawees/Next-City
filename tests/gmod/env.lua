@@ -902,7 +902,7 @@ function Env.Hurt(victim, opts)
 		dmginfo:SetDamageForce(opts.force)
 	end
 	if opts.ammo ~= nil then
-		dmginfo:SetAmmoType(Env.AmmoID(opts.ammo))
+		dmginfo:SetAmmoType(Env.AmmoID(opts.ammo, victim.server or victim.realm))
 	end
 	if opts.hitgroup ~= nil then
 		victim.lastHitGroup = opts.hitgroup
@@ -911,11 +911,17 @@ function Env.Hurt(victim, opts)
 	return dmginfo
 end
 
--- Id of an ammo type of Half-Life 2 (-1 if unknown), like game.GetAmmoID.
-function Env.AmmoID(name)
+-- Id of an ammo type of Half-Life 2, or of game.AddAmmoType of `realm` when given (-1 if
+-- unknown), like game.GetAmmoID.
+function Env.AmmoID(name, realm)
 	for id, ammo in ipairs(World.AMMO) do
 		if ammo == name then
 			return id
+		end
+	end
+	for i, entry in ipairs(realm and realm.ammoTypes or {}) do
+		if entry.name == name then
+			return #World.AMMO + i
 		end
 	end
 	return -1
@@ -978,7 +984,7 @@ local function pelletInfo(shooter, victim, opts, pellet)
 	dmginfo:SetDamagePosition(pos)
 	dmginfo:SetReportedPosition(from)
 	dmginfo:SetDamageForce(dir * (opts.force or 1000))
-	dmginfo:SetAmmoType(Env.AmmoID(opts.ammo or "Pistol"))
+	dmginfo:SetAmmoType(Env.AmmoID(opts.ammo or "Pistol", victim.server or victim.realm))
 	return dmginfo, hitgroup
 end
 
@@ -1022,6 +1028,12 @@ function Env.Fall(ply, speed, inWater)
 			Env.Hurt(ply, { damage = amount, type = World.DMG.FALL })
 		end
 	end
+end
+
+-- Makes traces and point contents of `realm` see a geometry (tests/gmod/geometry.lua):
+-- boxes of the map, props with ent.box, hitboxes of players and ragdolls. Returns it.
+function Env.Geometry(realm)
+	return World.Geometry.New(realm):Install()
 end
 
 -- A user command of `ply` with buttons (IN_* sum) and movement runs GM:StartCommand on
@@ -1123,10 +1135,30 @@ function Env:_CreateGame(G)
 	function G.game.SinglePlayer() return false end
 	function G.game.MaxPlayers() return 128 end
 	function G.game.GetWorld() return World.WORLD end
-	function G.game.GetAmmoName(id) return World.AMMO[id] end
-	function G.game.GetAmmoID(name) return Env.AmmoID(name) end
+	-- Ammo types of Half-Life 2 first, then the ones of game.AddAmmoType (env.ammoTypes).
+	env.ammoTypes = {}
+	function G.game.AddAmmoType(data)
+		env.ammoTypes[#env.ammoTypes + 1] = data
+	end
+	function G.game.GetAmmoName(id)
+		if World.AMMO[id] ~= nil then
+			return World.AMMO[id]
+		end
+		local entry = env.ammoTypes[(id or 0) - #World.AMMO]
+		return entry and entry.name or nil
+	end
+	function G.game.GetAmmoID(name)
+		return Env.AmmoID(name, env)
+	end
+	function G.game.GetAmmoData(id)
+		return env.ammoTypes[(id or 0) - #World.AMMO]
+	end
+	function G.game.GetAmmoMax(id)
+		local entry = env.ammoTypes[(id or 0) - #World.AMMO]
+		return entry and entry.maxcarry or 9999
+	end
 	-- The active gamemode: opts.gamemode of the realm (a gamemode that derives from ours).
-	G.engine = {}
+	G.engine = G.engine or {}
 	function G.engine.ActiveGamemode() return env.gamemode or Env.GAMEMODE end
 	if self.realm == "server" then
 		function G.game.CleanUpMap(dontSendToClients)

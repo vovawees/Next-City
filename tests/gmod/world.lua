@@ -25,6 +25,7 @@
 -- no collisions. World.TurnRagdoll and World.LayRagdoll pose bodies for tests.
 
 local World = {}
+World.Geometry = dofile(T.root .. "tests/gmod/geometry.lua")
 
 World.TEAM_CONNECTING = 0
 World.TEAM_UNASSIGNED = 1001
@@ -473,11 +474,37 @@ function Player:Give(class)
 	return weapon
 end
 function Player:SelectWeapon(class) self.selected = class end
+-- Ammo is kept by name; ids of custom types are the ones of the server (game.AddAmmoType).
+local function ammoName(ply, ammoType)
+	if type(ammoType) ~= "number" then
+		return ammoType
+	end
+	if World.AMMO[ammoType] ~= nil then
+		return World.AMMO[ammoType]
+	end
+	local custom = ply.server and ply.server.ammoTypes
+	local entry = custom and custom[ammoType - #World.AMMO]
+	return entry and entry.name or ammoType
+end
 function Player:GiveAmmo(amount, ammoType)
-	self.ammo[ammoType] = (self.ammo[ammoType] or 0) + amount
+	local name = ammoName(self, ammoType)
+	self.ammo[name] = (self.ammo[name] or 0) + amount
 	return amount
 end
-function Player:GetAmmoCount(ammoType) return self.ammo[ammoType] or 0 end
+function Player:GetAmmoCount(ammoType) return self.ammo[ammoName(self, ammoType)] or 0 end
+function Player:SetAmmo(amount, ammoType) self.ammo[ammoName(self, ammoType)] = amount end
+function Player:RemoveAmmo(amount, ammoType)
+	local name = ammoName(self, ammoType)
+	self.ammo[name] = math.max(0, (self.ammo[name] or 0) - amount)
+end
+-- Lag compensation: .lagCompensation is on or off, .lagCompensations counts the calls.
+function Player:LagCompensation(on)
+	self.lagCompensation = on == true
+	if on then
+		self.lagCompensations = (self.lagCompensations or 0) + 1
+	end
+end
+function Player:Ping() return self.ping or 0 end
 function Player:HasWeapon(class)
 	for _, weapon in ipairs(self.weapons) do
 		if weapon.class == class then
@@ -1229,14 +1256,15 @@ function World.Install(env, G)
 	G.DamageInfo = World.DamageInfo
 	G.LocalToWorld = World.LocalToWorld
 	G.WorldToLocal = World.WorldToLocal
-	G.MASK_PLAYERSOLID = 33636363
-	G.MASK_SOLID = 33570827
-	G.MASK_SHOT = 1174421507
-	G.MASK_WATER = 16432
-	G.CONTENTS_EMPTY = 0
-	G.CONTENTS_SOLID = 1
-	G.CONTENTS_SLIME = 16
-	G.CONTENTS_WATER = 32
+	for name, value in pairs(World.Geometry.MASK) do
+		G["MASK_" .. name] = value
+	end
+	for name, value in pairs(World.Geometry.CONTENTS) do
+		G["CONTENTS_" .. name] = value
+	end
+	for name, value in pairs(World.Geometry.MAT) do
+		G["MAT_" .. name] = value
+	end
 	for name, value in pairs(World.COLLISION_GROUP) do
 		G["COLLISION_GROUP_" .. name] = value
 	end
@@ -1314,10 +1342,13 @@ function World.Install(env, G)
 		end)
 	end
 
-	-- Traces hit nothing unless a test sets env.traceHull / env.traceLine.
+	-- Traces hit nothing unless a test sets env.traceHull / env.traceLine (Env.Geometry).
 	local function emptyTrace(trace)
-		return { Hit = false, StartSolid = false, HitWorld = false, Fraction = 1, HitPos = Vector(trace.endpos),
-			Entity = World.NULL }
+		local out = trace.output or {}
+		out.Hit, out.StartSolid, out.AllSolid, out.HitWorld, out.HitSky = false, false, false, false, false
+		out.Fraction, out.HitPos, out.Entity = 1, Vector(trace.endpos), World.NULL
+		out.HitNormal, out.MatType, out.HitGroup, out.FractionLeftSolid = Vector(0, 0, 0), 0, 0, 0
+		return out
 	end
 	function G.util.TraceHull(trace)
 		return (env.traceHull or emptyTrace)(trace)
@@ -1329,6 +1360,8 @@ function World.Install(env, G)
 	function G.util.PointContents(pos)
 		return env.pointContents and env.pointContents(pos) or 0
 	end
+
+	World.InstallEffects(env, G)
 
 	-- Welds are entities (phys_constraint) recorded in env.welds: { ent1, ent2, bone1, bone2, constraint }.
 	env.welds = {}
@@ -1345,6 +1378,59 @@ function World.Install(env, G)
 
 	if env.realm == "client" then
 		World.InstallDrawing(env, G)
+	end
+end
+
+-- Effect data of util.Effect: every Set* has its Get*.
+local EffectData = {}
+EffectData.__index = EffectData
+local EFFECT_FIELDS = { "Origin", "Start", "Normal", "Angles", "Magnitude", "Scale", "Radius", "Entity",
+	"EntIndex", "SurfaceProp", "DamageType", "HitBox", "Flags", "Attachment", "Color", "MaterialIndex" }
+for _, field in ipairs(EFFECT_FIELDS) do
+	EffectData["Set" .. field] = function(self, value) self[field] = value end
+	EffectData["Get" .. field] = function(self) return self[field] end
+end
+
+function World.EffectData()
+	return setmetatable({}, EffectData)
+end
+
+-- Effects, decals, shakes, prediction and lag compensation of a realm. Recorded:
+-- env.fx ({ name, data, filter }), env.decals ({ name, start, endpos }), env.shakes
+-- ({ pos, amplitude, frequency, duration, radius }). IsFirstTimePredicted answers
+-- env.firstTimePredicted (default true); util.SharedRandom is a hash of its arguments
+-- and env.commandNumber, the same on every realm.
+function World.InstallEffects(env, G)
+	env.fx, env.decals, env.shakes = {}, {}, {}
+	G.EffectData = World.EffectData
+	function G.util.Effect(name, data, _, filter)
+		env.fx[#env.fx + 1] = { name = name, data = data, filter = filter }
+	end
+	function G.util.Decal(name, start, endpos)
+		env.decals[#env.decals + 1] = { name = name, start = Vector(start), endpos = Vector(endpos) }
+	end
+	function G.util.ScreenShake(pos, amplitude, frequency, duration, radius)
+		env.shakes[#env.shakes + 1] = { pos = Vector(pos), amplitude = amplitude, frequency = frequency,
+			duration = duration, radius = radius }
+	end
+	function G.IsFirstTimePredicted()
+		return env.firstTimePredicted ~= false
+	end
+	function G.util.SharedRandom(name, low, high, seed)
+		local key = tostring(name) .. ":" .. tostring(seed or 0) .. ":" .. tostring(env.commandNumber or 0)
+		local h = 5381
+		for i = 1, #key do
+			h = (h * 33 + key:byte(i)) % 2147483647
+		end
+		h = h * 16807 % 2147483647
+		return low + (high - low) * (h / 2147483647)
+	end
+	function G.FrameTime()
+		return env.frameTime or 0.015
+	end
+	G.engine = G.engine or {}
+	function G.engine.TickInterval()
+		return env.tickInterval or 0.015
 	end
 end
 
@@ -1417,5 +1503,7 @@ function World.InstallDrawing(env, G)
 		LookupBinding = function(bind) return env.bindings[bind] end,
 	}
 end
+
+World.Geometry.Bind(World)
 
 return World
