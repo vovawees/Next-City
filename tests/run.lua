@@ -119,7 +119,7 @@ Expect.__index = Expect
 
 local function check(ok, message)
 	if not ok then
-		error(message, 3)
+		error(message, 4) -- check <- matcher <- colon guard <- test
 	end
 end
 
@@ -181,6 +181,19 @@ function Expect:toFail(fragment)
 	if fragment ~= nil then
 		check(tostring(err):find(fragment, 1, true) ~= nil,
 			"expected error containing " .. inspect(fragment) .. ", got " .. inspect(tostring(err)))
+	end
+end
+
+-- Matchers must be called with a colon: expect(x):toBe(y). A dot call would compare the
+-- wrong values without failing, so it is an error.
+for name, matcher in pairs(Expect) do
+	if type(matcher) == "function" then
+		Expect[name] = function(self, ...)
+			if getmetatable(self) ~= Expect then
+				error("call matchers with a colon: expect(value):" .. name .. "(...)", 2)
+			end
+			matcher(self, ...) -- not a tail call: check() counts this frame
+		end
 	end
 end
 
