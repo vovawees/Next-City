@@ -14,6 +14,15 @@
 -- Bones: every player has the ValveBiped skeleton of a standing man (World.SKELETON,
 -- units, x forward, y left, z up from the feet), turned by the yaw of the player and
 -- lowered while crouching; tests may move single bones (ply.bones[name] = Vector).
+--
+-- Entities: map and test entities (Env.Spawn) and the ones of the gamemode (ents.Create)
+-- share World.EntityMethods; Remove() takes an entity away at the next tick, like the
+-- engine. A prop_ragdoll has the 15 physics objects of a ValveBiped player model (in the
+-- order of its .phy), the other bones move with the physics bone they hang on, and the
+-- "eyes" attachment sits in front of the head. Physics is simple: on every tick of the
+-- server each ragdoll moves with the mass-weighted mean velocity of its awake objects,
+-- which halves every 0.2 s (joints that hold the body together, friction); no gravity and
+-- no collisions. World.TurnRagdoll and World.LayRagdoll pose bodies for tests.
 
 local World = {}
 
@@ -34,7 +43,9 @@ World.DMG = {
 	PLASMA = 16777216, AIRBOAT = 33554432, DISSOLVE = 67108864, BLAST_SURFACE = 134217728, DIRECT = 268435456,
 	BUCKSHOT = 536870912, SNIPER = 1073741824,
 }
-World.MOVETYPE = { NONE = 0, WALK = 2, NOCLIP = 8, LADDER = 9, OBSERVER = 10 }
+World.MOVETYPE = { NONE = 0, WALK = 2, FLYGRAVITY = 5, VPHYSICS = 6, NOCLIP = 8, LADDER = 9, OBSERVER = 10 }
+World.COLLISION_GROUP = { NONE = 0, DEBRIS = 1, DEBRIS_TRIGGER = 2, INTERACTIVE_DEBRIS = 3, INTERACTIVE = 4,
+	PLAYER = 5, VEHICLE = 7, PLAYER_MOVEMENT = 8, NPC = 9, WEAPON = 11, PASSABLE_DOOR = 15, WORLD = 20 }
 World.HITGROUP = { GENERIC = 0, HEAD = 1, CHEST = 2, STOMACH = 3, LEFTARM = 4, RIGHTARM = 5, LEFTLEG = 6,
 	RIGHTLEG = 7, GEAR = 10 }
 -- Ammo types of Half-Life 2 by id, like game.GetAmmoName.
@@ -320,6 +331,49 @@ function Player:GetCrouchedWalkSpeed() return self.crouchedWalkSpeed end
 function Player:SetCrouchedWalkSpeed(value) self.crouchedWalkSpeed = value end
 function Player:GetJumpPower() return self.jumpPower end
 function Player:SetJumpPower(value) self.jumpPower = value end
+function Player:SetLocalVelocity(v) self.velocity = Vector(v) end
+function Player:GetNoDraw() return self.noDraw == true end
+function Player:SetNoDraw(value) self.noDraw = value == true end
+function Player:IsSolid() return not self.notSolid end
+function Player:SetNotSolid(value) self.notSolid = value == true end
+function Player:GetViewOffset() return Vector(self.viewOffset or Vector(0, 0, 64)) end
+function Player:SetViewOffset(v) self.viewOffset = Vector(v) end
+function Player:GetViewOffsetDucked() return Vector(self.viewOffsetDucked or Vector(0, 0, 28)) end
+function Player:SetViewOffsetDucked(v) self.viewOffsetDucked = Vector(v) end
+function Player:GetCurrentViewOffset() return self:GetViewOffset() end
+function Player:SetCurrentViewOffset() end
+-- Whether the view model and the world model of the weapon are drawn (both default true).
+function Player:DrawViewModel(value) self.viewModelHidden = not value end
+function Player:DrawWorldModel(value) self.worldModelHidden = not value end
+function Player:GetHull() return Vector(-16, -16, 0), Vector(16, 16, 72) end
+function Player:GetHullDuck() return Vector(-16, -16, 0), Vector(16, 16, 36) end
+function Player:InVehicle() return self.vehicle ~= nil end
+function Player:GetVehicle() return self.vehicle or World.NULL end
+function Player:GetSkin() return self.skin or 0 end
+function Player:SetSkin(value) self.skin = value end
+function Player:GetNumBodyGroups() return 2 end
+function Player:GetBodygroup(id) return (self.bodygroups or {})[id] or 0 end
+function Player:SetBodygroup(id, value)
+	self.bodygroups = self.bodygroups or {}
+	self.bodygroups[id] = value
+end
+function Player:GetColor() return self.color or { r = 255, g = 255, b = 255, a = 255 } end
+function Player:SetColor(color) self.color = color end
+function Player:GetMaterial() return self.material or "" end
+function Player:SetMaterial(value) self.material = value end
+function Player:GetPlayerColor() return Vector(self.playerColor or Vector(0.24, 0.34, 0.41)) end
+function Player:SetPlayerColor(v) self.playerColor = Vector(v) end
+function Player:IsRagdoll() return false end
+function Player:IsMarkedForDeletion() return false end
+function Player:GetCollisionGroup() return self.collisionGroup or 5 end
+function Player:SetCollisionGroup(value) self.collisionGroup = value end
+function Player:LookupAttachment(name) return name == "eyes" and 1 or 0 end
+function Player:GetAttachment(id)
+	if id ~= 1 then
+		return nil
+	end
+	return { Pos = self:EyePos(), Ang = self:EyeAngles(), Bone = World.BONE_IDS and World.BONE_IDS["ValveBiped.Bip01_Head1"] }
+end
 
 -- Standing ValveBiped skeleton, facing +x; positions relative to the feet.
 World.SKELETON = {
@@ -606,6 +660,407 @@ function Player:KillSilent()
 	end
 end
 
+-- The engine's ragdoll of a dead player (an hl2mp_ragdoll at the player; a new one
+-- replaces the previous one).
+function Player:CreateRagdoll()
+	local server = self.server
+	if server == nil then
+		return
+	end
+	local old = self.engineRagdoll
+	if old ~= nil and old.valid then
+		old:Remove()
+	end
+	local rag = server.G.ents.Create("hl2mp_ragdoll")
+	rag:SetPos(self.pos)
+	rag:SetAngles(Angle(0, self.angles.y, 0))
+	rag:SetModel(self.model)
+	rag:SetOwner(self)
+	rag:Spawn()
+	self.engineRagdoll = rag
+end
+function Player:GetRagdollEntity()
+	local rag = self.engineRagdoll
+	if rag ~= nil and rag.valid then
+		return rag
+	end
+	return World.NULL
+end
+
+-- Entities -------------------------------------------------------------------------------
+
+-- Rotations: the axes of angles (forward, left, up), local (x forward, y left, z up) to
+-- world and back, and the angles of axes (Source's MatrixAngles).
+local function axes(ang)
+	return ang:Forward(), -ang:Right(), ang:Up()
+end
+
+local function rotate(ang, v)
+	local f, l, u = axes(ang)
+	return f * v.x + l * v.y + u * v.z
+end
+
+local function unrotate(ang, v)
+	local f, l, u = axes(ang)
+	return Vector(v:Dot(f), v:Dot(l), v:Dot(u))
+end
+
+local function anglesOf(f, l, u)
+	local xy = math.sqrt(f.x * f.x + f.y * f.y)
+	if xy > 0.001 then
+		return Angle(math.deg(math.atan2(-f.z, xy)), math.deg(math.atan2(f.y, f.x)), math.deg(math.atan2(l.z, u.z)))
+	end
+	return Angle(math.deg(math.atan2(-f.z, xy)), math.deg(math.atan2(-l.x, l.y)), 0)
+end
+World.Rotate, World.Unrotate, World.AnglesOf = rotate, unrotate, anglesOf
+
+local Entity = {}
+local EntityMeta = {
+	__index = Entity,
+	__tostring = function(ent) return string.format("Entity [%d][%s]", ent.index, ent.class) end,
+}
+World.EntityMethods = Entity
+World.EntityMeta = EntityMeta
+
+-- An entity of the server realm `realm` at `index`. opts: pos, ang, map.
+function World.NewEntity(realm, index, class, opts)
+	opts = opts or {}
+	return setmetatable({ __entity = true, realm = realm, index = index, class = class or "prop_physics",
+		valid = true, pos = Vector(opts.pos), ang = Angle(opts.ang), map = opts.map == true, skin = 0,
+		bodygroups = {}, color = { r = 255, g = 255, b = 255, a = 255 }, material = "", collisionGroup = 0,
+		noDraw = false, callbacks = {}, boneScales = {}, spawned = false, removing = false }, EntityMeta)
+end
+
+function Entity:IsValid() return self.valid end
+function Entity:IsWorld() return false end
+function Entity:IsPlayer() return false end
+function Entity:IsRagdoll() return false end
+function Entity:IsWeapon() return false end
+function Entity:IsMarkedForDeletion() return self.removing end
+function Entity:EntIndex() return self.index end
+function Entity:GetClass() return self.class end
+function Entity:GetPos() return Vector(self.pos) end
+function Entity:SetPos(pos) self.pos = Vector(pos) end
+function Entity:GetAngles() return Angle(self.ang) end
+function Entity:SetAngles(ang) self.ang = Angle(ang) end
+function Entity:GetModel() return self.model end
+function Entity:SetModel(model) self.model = model end
+function Entity:GetSkin() return self.skin end
+function Entity:SetSkin(value) self.skin = value end
+function Entity:GetNumBodyGroups() return 2 end
+function Entity:GetBodygroup(id) return self.bodygroups[id] or 0 end
+function Entity:SetBodygroup(id, value) self.bodygroups[id] = value end
+function Entity:GetColor() return self.color end
+function Entity:SetColor(color) self.color = color end
+function Entity:GetMaterial() return self.material end
+function Entity:SetMaterial(value) self.material = value end
+function Entity:GetCollisionGroup() return self.collisionGroup end
+function Entity:SetCollisionGroup(value) self.collisionGroup = value end
+function Entity:GetNoDraw() return self.noDraw end
+function Entity:SetNoDraw(value) self.noDraw = value == true end
+function Entity:GetOwner() return self.owner or World.NULL end
+function Entity:SetOwner(ent) self.owner = ent end
+function Entity:WaterLevel() return 0 end
+function Entity:GetVelocity() return Vector(0, 0, 0) end
+function Entity:EyePos() return self:GetPos() end
+function Entity:EyeAngles() return self:GetAngles() end
+function Entity:LookupBone() return nil end
+function Entity:GetBonePosition() return nil end
+function Entity:LookupAttachment() return 0 end
+function Entity:GetAttachment() return nil end
+function Entity:GetPhysicsObject() return World.NULL_PHYS end
+function Entity:GetPhysicsObjectCount() return 0 end
+function Entity:GetPhysicsObjectNum() return World.NULL_PHYS end
+function Entity:ManipulateBoneScale(bone, scale) self.boneScales[bone] = Vector(scale) end
+function Entity:GetManipulateBoneScale(bone) return Vector(self.boneScales[bone] or Vector(1, 1, 1)) end
+function Entity:Activate() self.activated = true end
+-- Networked from now on: the linked clients know the entity.
+function Entity:Spawn()
+	self.spawned = true
+	if self.realm ~= nil then
+		self.realm:_Network(self)
+	end
+end
+-- Removed at the next tick of the server (EntityRemoved, then invalid), like the engine.
+function Entity:Remove()
+	if self.valid and not self.removing then
+		self.removing = true
+		if self.realm ~= nil then
+			self.realm:_QueueRemove(self)
+		else
+			self.valid = false
+		end
+	end
+end
+function Entity:AddCallback(name, fn)
+	local list = self.callbacks[name] or {}
+	self.callbacks[name] = list
+	list[#list + 1] = fn
+	return #list
+end
+function Entity:RemoveCallback(name, id)
+	local list = self.callbacks[name]
+	if list ~= nil then
+		list[id] = false
+	end
+end
+function Entity:GetCallbacks(name)
+	local out = {}
+	for _, fn in ipairs(self.callbacks[name] or {}) do
+		if fn then
+			out[#out + 1] = fn
+		end
+	end
+	return out
+end
+
+-- Physics objects ----------------------------------------------------------------------------
+
+local Phys = {}
+local PhysMeta = {
+	__index = Phys,
+	__tostring = function(phys) return string.format("PhysObject [%s][%d]", tostring(phys.ent), phys.num) end,
+}
+World.PhysMethods = Phys
+
+World.NULL_PHYS = setmetatable({ IsValid = function() return false end }, {
+	__tostring = function() return "[NULL PhysObject]" end })
+
+local function newPhys(ent, num, bone, mass)
+	return setmetatable({ ent = ent, num = num, bone = bone, mass = mass, pos = Vector(0, 0, 0),
+		ang = Angle(0, 0, 0), vel = Vector(0, 0, 0), angvel = Vector(0, 0, 0), asleep = false, motion = true,
+		gravity = true, forces = {} }, PhysMeta)
+end
+
+function Phys:IsValid() return self.ent.valid end
+function Phys:GetEntity() return self.ent end
+function Phys:GetPos() return Vector(self.pos) end
+function Phys:SetPos(pos) self.pos = Vector(pos) end
+function Phys:GetAngles() return Angle(self.ang) end
+function Phys:SetAngles(ang) self.ang = Angle(ang) end
+function Phys:GetVelocity() return Vector(self.vel) end
+function Phys:SetVelocity(v)
+	self.vel = Vector(v)
+	self.asleep = false
+end
+Phys.SetVelocityInstantaneous = Phys.SetVelocity
+function Phys:AddVelocity(v)
+	self.vel = self.vel + v
+	self.asleep = false
+end
+function Phys:GetAngleVelocity() return Vector(self.angvel) end
+function Phys:AddAngleVelocity(v)
+	self.angvel = self.angvel + v
+	self.asleep = false
+end
+-- A force (mass x units/s) pushes the object; every force is recorded in .forces.
+function Phys:ApplyForceCenter(force)
+	self.forces[#self.forces + 1] = Vector(force)
+	self.vel = self.vel + force / self.mass
+	self.asleep = false
+end
+function Phys:ApplyForceOffset(force)
+	self:ApplyForceCenter(force)
+end
+function Phys:Wake() self.asleep = false end
+function Phys:Sleep() self.asleep = true end
+function Phys:IsAsleep() return self.asleep end
+function Phys:GetMass() return self.mass end
+function Phys:SetMass(mass) self.mass = mass end
+function Phys:EnableMotion(value) self.motion = value == true end
+function Phys:IsMotionEnabled() return self.motion end
+function Phys:EnableGravity(value) self.gravity = value == true end
+function Phys:IsGravityEnabled() return self.gravity end
+function Phys:SetDamping(linear, angular) self.damping = { linear, angular } end
+
+-- Ragdolls -------------------------------------------------------------------------------------
+
+local B = "ValveBiped.Bip01_"
+-- Physics bones of a ValveBiped player model in the order of its .phy, with masses (kg).
+World.PHYS_BONES = {
+	{ B .. "Pelvis", 12.5 }, { B .. "Spine2", 24 }, { B .. "R_UpperArm", 3.5 }, { B .. "L_UpperArm", 3.5 },
+	{ B .. "L_Forearm", 2 }, { B .. "L_Hand", 0.6 }, { B .. "R_Forearm", 2 }, { B .. "R_Hand", 0.6 },
+	{ B .. "R_Thigh", 10 }, { B .. "R_Calf", 4.5 }, { B .. "Head1", 5.5 }, { B .. "L_Thigh", 10 },
+	{ B .. "L_Calf", 4.5 }, { B .. "L_Foot", 1.2 }, { B .. "R_Foot", 1.2 },
+}
+-- The physics bone every other bone moves with.
+local PHYS_PARENT = {
+	[B .. "Spine"] = B .. "Pelvis", [B .. "Spine1"] = B .. "Pelvis", [B .. "Spine4"] = B .. "Spine2",
+	[B .. "Neck1"] = B .. "Spine2", [B .. "L_Clavicle"] = B .. "Spine2", [B .. "R_Clavicle"] = B .. "Spine2",
+	[B .. "L_Toe0"] = B .. "L_Foot", [B .. "R_Toe0"] = B .. "R_Foot",
+}
+local EYES = Vector(3.5, 0, 0) -- the eyes attachment in the frame of the head
+local HALF_LIFE = 0.2           -- s: the speed of a ragdoll halves this fast
+local REST = 1                  -- units/s: slower is at rest
+
+local Ragdoll = setmetatable({}, { __index = Entity })
+local RagdollMeta = {
+	__index = Ragdoll,
+	__tostring = function(ent) return string.format("Entity [%d][%s]", ent.index, ent.class) end,
+}
+World.RagdollMethods = Ragdoll
+
+-- A prop_ragdoll of the server realm `realm`; its physics objects appear on Spawn.
+function World.NewRagdoll(realm, index, class)
+	local ent = World.NewEntity(realm, index, class or "prop_ragdoll")
+	ent.phys = {}
+	ent.physByBone = {}
+	return setmetatable(ent, RagdollMeta)
+end
+
+function Ragdoll:IsRagdoll() return true end
+
+-- The physics objects stand in the reference pose at the position (the feet) and angles.
+function Ragdoll:Spawn()
+	for i, entry in ipairs(World.PHYS_BONES) do
+		local name, mass = entry[1], entry[2]
+		local phys = newPhys(self, i - 1, name, mass)
+		phys.pos = self.pos + rotate(self.ang, World.SKELETON[name])
+		phys.ang = Angle(self.ang)
+		self.phys[i - 1] = phys
+		self.physByBone[name] = phys
+	end
+	Entity.Spawn(self)
+end
+
+local function root(self)
+	return self.phys[0]
+end
+
+function Ragdoll:GetPos()
+	local phys = root(self)
+	return phys and phys:GetPos() or Vector(self.pos)
+end
+-- Before Spawn: where the ragdoll appears; afterwards the whole body moves (teleport).
+function Ragdoll:SetPos(pos)
+	local phys = root(self)
+	if phys == nil then
+		self.pos = Vector(pos)
+		return
+	end
+	local delta = pos - phys.pos
+	for i = 0, #World.PHYS_BONES - 1 do
+		self.phys[i].pos = self.phys[i].pos + delta
+	end
+end
+function Ragdoll:GetAngles()
+	local phys = root(self)
+	return phys and phys:GetAngles() or Angle(self.ang)
+end
+function Ragdoll:SetAngles(ang)
+	if root(self) == nil then
+		self.ang = Angle(ang)
+	end
+end
+function Ragdoll:GetVelocity()
+	local phys = root(self)
+	return phys and phys:GetVelocity() or Vector(0, 0, 0)
+end
+function Ragdoll:GetPhysicsObject() return root(self) or World.NULL_PHYS end
+function Ragdoll:GetPhysicsObjectCount() return root(self) and #World.PHYS_BONES or 0 end
+function Ragdoll:GetPhysicsObjectNum(num) return self.phys[num] or World.NULL_PHYS end
+function Ragdoll:TranslatePhysBoneToBone(num)
+	local entry = World.PHYS_BONES[num + 1]
+	return entry and World.BONE_IDS[entry[1]] or -1
+end
+function Ragdoll:TranslateBoneToPhysBone(bone)
+	local name = World.BONE_NAMES[bone + 1]
+	name = PHYS_PARENT[name] or name
+	local phys = self.physByBone[name]
+	return phys and phys.num or -1
+end
+function Ragdoll:LookupBone(name) return World.BONE_IDS[name] end
+-- Physics bones where their objects are; the others hang on theirs as in the skeleton.
+function Ragdoll:GetBonePosition(bone)
+	local name = World.BONE_NAMES[(bone or -1) + 1]
+	if name == nil or root(self) == nil then
+		return nil
+	end
+	local phys = self.physByBone[name]
+	if phys ~= nil then
+		return phys:GetPos(), phys:GetAngles()
+	end
+	local parent = PHYS_PARENT[name]
+	phys = self.physByBone[parent]
+	return phys.pos + rotate(phys.ang, World.SKELETON[name] - World.SKELETON[parent]), phys:GetAngles()
+end
+function Ragdoll:LookupAttachment(name) return name == "eyes" and 1 or 0 end
+function Ragdoll:GetAttachment(id)
+	local head = self.physByBone[B .. "Head1"]
+	if id ~= 1 or head == nil then
+		return nil
+	end
+	return { Pos = head.pos + rotate(head.ang, EYES), Ang = Angle(head.ang), Bone = World.BONE_IDS[B .. "Head1"] }
+end
+function Ragdoll:EyePos()
+	local eyes = self:GetAttachment(1)
+	return eyes and eyes.Pos or self:GetPos()
+end
+function Ragdoll:EyeAngles()
+	local eyes = self:GetAttachment(1)
+	return eyes and eyes.Ang or self:GetAngles()
+end
+
+-- One tick of physics (see the top of the file).
+function Ragdoll:_Simulate(dt)
+	local momentum, mass = Vector(0, 0, 0), 0
+	local list = {}
+	for i = 0, #World.PHYS_BONES - 1 do
+		local phys = self.phys[i]
+		if phys ~= nil and not phys.asleep and phys.motion then
+			list[#list + 1] = phys
+			momentum = momentum + phys.vel * phys.mass
+			mass = mass + phys.mass
+		end
+	end
+	if mass == 0 then
+		return
+	end
+	local vel = momentum / mass
+	for _, phys in ipairs(list) do
+		phys.pos = phys.pos + vel * dt
+	end
+	vel = vel * 0.5 ^ (dt / HALF_LIFE)
+	if vel:Length() < REST then
+		vel = Vector(0, 0, 0)
+	end
+	for _, phys in ipairs(list) do
+		phys.vel = Vector(vel)
+		phys.angvel = phys.angvel * 0.5 ^ (dt / HALF_LIFE)
+	end
+end
+
+-- Turns the pose of `rag` about its pelvis so that what faced the angles `from` faces
+-- `to`, then moves it by `offset` (a Vector or nil).
+function World.TurnRagdoll(rag, from, to, offset)
+	local pivot = rag.phys[0].pos
+	offset = offset or Vector(0, 0, 0)
+	for i = 0, #World.PHYS_BONES - 1 do
+		local phys = rag.phys[i]
+		phys.pos = pivot + rotate(to, unrotate(from, phys.pos - pivot)) + offset
+		local f, l, u = axes(phys.ang)
+		phys.ang = anglesOf(rotate(to, unrotate(from, f)), rotate(to, unrotate(from, l)),
+			rotate(to, unrotate(from, u)))
+	end
+end
+
+-- Lays a standing `rag` down where it stands: on its back (prone: on its face), the
+-- pelvis 6 units above the feet's floor, head away from where it faced (prone: towards).
+function World.LayRagdoll(rag, prone)
+	local pelvis = rag.phys[0]
+	local yaw = pelvis.ang.y
+	local floor = pelvis.pos.z - World.SKELETON[B .. "Pelvis"].z
+	World.TurnRagdoll(rag, Angle(0, yaw, 0), Angle(prone and 90 or -90, yaw, 0))
+	World.MoveRagdoll(rag, Vector(0, 0, floor + 6 - pelvis.pos.z))
+end
+
+-- Moves every physics object of `rag` by `offset`.
+function World.MoveRagdoll(rag, offset)
+	for i = 0, #World.PHYS_BONES - 1 do
+		rag.phys[i].pos = rag.phys[i].pos + offset
+	end
+end
+
 -- Base gamemode -------------------------------------------------------------------------
 
 -- What the base gamemode does in the hooks the bridge forwards to it (simplified).
@@ -630,7 +1085,11 @@ World.BASE = {
 	PlayerSelectSpawn = function(env)
 		return env.G.ents.FindByClass("info_player_start")[1]
 	end,
-	DoPlayerDeath = function(_, _, ply, attacker)
+	-- The engine's ragdoll of the player (hl2mp_ragdoll) unless the damage removes it.
+	DoPlayerDeath = function(_, _, ply, attacker, dmginfo)
+		if dmginfo == nil or bit.band(dmginfo:GetDamageType(), World.DMG.REMOVENORAGDOLL) == 0 then
+			ply:CreateRagdoll()
+		end
 		ply:AddDeaths(1)
 		if isPlayer(attacker) then
 			attacker:AddFrags(attacker == ply and -1 or 1)
@@ -705,6 +1164,15 @@ function World.Install(env, G)
 	G.DamageInfo = World.DamageInfo
 	G.MASK_PLAYERSOLID = 33636363
 	G.MASK_SOLID = 33570827
+	G.MASK_SHOT = 1174421507
+	G.MASK_WATER = 16432
+	G.CONTENTS_EMPTY = 0
+	G.CONTENTS_SOLID = 1
+	G.CONTENTS_SLIME = 16
+	G.CONTENTS_WATER = 32
+	for name, value in pairs(World.COLLISION_GROUP) do
+		G["COLLISION_GROUP_" .. name] = value
+	end
 	G.HUD_PRINTNOTIFY = 1
 	G.HUD_PRINTTALK = 3
 	G.HUD_PRINTCENTER = 4
@@ -789,6 +1257,23 @@ function World.Install(env, G)
 	end
 	function G.util.TraceLine(trace)
 		return (env.traceLine or emptyTrace)(trace)
+	end
+	-- CONTENTS_* at a point: empty unless a test sets env.pointContents(pos).
+	function G.util.PointContents(pos)
+		return env.pointContents and env.pointContents(pos) or 0
+	end
+
+	-- Welds are entities (phys_constraint) recorded in env.welds: { ent1, ent2, bone1, bone2, constraint }.
+	env.welds = {}
+	G.constraint = {}
+	function G.constraint.Weld(ent1, ent2, bone1, bone2, forceLimit)
+		if env.realm ~= "server" then
+			return nil
+		end
+		local weld = G.ents.Create("phys_constraint")
+		weld:Spawn()
+		env.welds[#env.welds + 1] = { ent1, ent2, bone1, bone2, weld, forceLimit = forceLimit }
+		return weld
 	end
 
 	if env.realm == "client" then

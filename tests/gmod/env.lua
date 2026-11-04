@@ -138,6 +138,8 @@ function Env.New(realm, opts)
 		netLog = {},
 		unhandled = {},
 		entities = {},
+		created = {},
+		removals = {},
 		links = {},
 		baseCalls = {},
 		undefinedReads = {},
@@ -813,7 +815,9 @@ function Env.Connect(server, client, ply)
 	client.peer = server
 	client.localPlayer = ply
 	for index, ent in pairs(server.entities) do
-		client.entities[index] = ent
+		if ent.spawned ~= false then
+			client.entities[index] = ent
+		end
 	end
 end
 
@@ -1020,44 +1024,40 @@ function Env.RunCommand(realm, ply, buttons, forward, side)
 end
 
 local entityIndex = 199
-local EntityMethods = {}
-local EntityMeta = {
-	__index = EntityMethods,
-	__tostring = function(ent)
-		return string.format("Entity [%d][%s]", ent.index, ent.class)
-	end,
-}
 
-function EntityMethods:IsValid() return self.valid end
-function EntityMethods:IsPlayer() return false end
-function EntityMethods:EntIndex() return self.index end
-function EntityMethods:GetClass() return self.class end
-function EntityMethods:GetPos() return World.Vector(self.pos) end
-function EntityMethods:SetPos(pos) self.pos = World.Vector(pos) end
-function EntityMethods:GetAngles() return World.Angle(self.ang) end
+-- A free entity index of the server from 200 up.
+function Env:_NextIndex()
+	repeat
+		entityIndex = entityIndex % 8000 + 1
+		if entityIndex < 200 then
+			entityIndex = 200
+		end
+	until self.entities[entityIndex] == nil
+	return entityIndex
+end
+
+-- The linked clients learn of a spawned entity of the server.
+function Env:_Network(ent)
+	for _, client in pairs(self.links) do
+		client.entities[ent:EntIndex()] = ent
+	end
+end
+
+-- ent:Remove(): the entity goes away at the start of the next tick (Advance).
+function Env:_QueueRemove(ent)
+	self.removals[#self.removals + 1] = ent
+end
 
 -- A networked entity (index from 200 up, or opts.index) known to the server and every
--- linked client: IsValid, IsPlayer, EntIndex, GetClass, GetPos, GetAngles.
--- opts: index, class, pos, ang, map (created by the map: game.CleanUpMap recreates it
--- as a new entity instead of removing it).
+-- linked client, with World.EntityMethods. opts: index, class, pos, ang, map (created by
+-- the map: game.CleanUpMap recreates it as a new entity instead of removing it).
 function Env.Spawn(server, opts)
 	opts = opts or {}
-	local index = opts.index
-	if index == nil then
-		repeat
-			entityIndex = entityIndex % 8000 + 1
-			if entityIndex < 200 then
-				entityIndex = 200
-			end
-		until server.entities[entityIndex] == nil
-		index = entityIndex
-	end
-	local ent = setmetatable({ __entity = true, index = index, class = opts.class or "prop_physics", valid = true,
-		pos = World.Vector(opts.pos), ang = World.Angle(opts.ang), map = opts.map == true }, EntityMeta)
+	local index = opts.index or server:_NextIndex()
+	local ent = World.NewEntity(server, index, opts.class, opts)
+	ent.spawned = true
 	server.entities[index] = ent
-	for _, client in pairs(server.links) do
-		client.entities[index] = ent
-	end
+	server:_Network(ent)
 	return ent
 end
 
@@ -1120,6 +1120,19 @@ function Env:_CreateGame(G)
 		function G.game.CleanUpMap(dontSendToClients)
 			env:_CleanUpMap(dontSendToClients)
 		end
+		-- A new entity of the server (prop_ragdoll: World.NewRagdoll); clients learn of it on Spawn.
+		function G.ents.Create(class)
+			local index = env:_NextIndex()
+			local ent
+			if class == "prop_ragdoll" then
+				ent = World.NewRagdoll(env, index, class)
+			else
+				ent = World.NewEntity(env, index, class)
+			end
+			env.entities[index] = ent
+			env.created[#env.created + 1] = ent
+			return ent
+		end
 	end
 end
 
@@ -1140,10 +1153,30 @@ function Env:Call(name, ...)
 	return fn(self.G.GM, ...)
 end
 
--- Advances game time and runs GM:Tick; on the server GM:PlayerDeathThink runs for every
--- dead player, like the engine does every tick.
+-- Advances game time and runs GM:Tick; on the server first the entities removed since
+-- the previous tick go away and the ragdolls move (World), and after the tick
+-- GM:PlayerDeathThink runs for every dead player, like the engine does every tick.
 function Env:Advance(seconds)
 	self.time = self.time + seconds
+	if self.realm == "server" then
+		local removals = self.removals
+		self.removals = {}
+		for _, ent in ipairs(removals) do
+			if ent:IsValid() then
+				Env.Remove(self, ent)
+			end
+		end
+		local list = {}
+		for _, ent in pairs(self.entities) do
+			if ent._Simulate ~= nil and ent:IsValid() then
+				list[#list + 1] = ent
+			end
+		end
+		table.sort(list, function(a, b) return a:EntIndex() < b:EntIndex() end)
+		for _, ent in ipairs(list) do
+			ent:_Simulate(seconds)
+		end
+	end
 	self:Call("Tick")
 	if self.realm == "server" then
 		for _, ply in ipairs(self.G.player.GetAll()) do
