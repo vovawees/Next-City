@@ -36,7 +36,7 @@ end
 
 describe("command service", function()
 	it("runs module commands for the console and superadmins only", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		expect(server:Errors()):toEqual({})
 		local probe = server:Get("NC").Modules:Instance("probe")
 
@@ -60,7 +60,7 @@ describe("command service", function()
 	end)
 
 	it("catches handler errors and tells the caller", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local admin = Env.FakePlayer({ superadmin = true })
 		server:Command("nc_boom", admin)
 		expect(admin.printed):toEqual({ "nc_boom: failed, see the server log" })
@@ -70,7 +70,7 @@ describe("command service", function()
 	end)
 
 	it("registers client commands on the client without checks", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local client = Env.Client(server):Boot()
 		expect(client.commands.nc_probe):toBeNil()
 		client:Command("nc_probe_view")
@@ -78,7 +78,7 @@ describe("command service", function()
 	end)
 
 	it("lists commands and removes them when the module stops", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local NC = server:Get("NC")
 		local list = NC.Commands:List()
 		expect(#list):toBe(3)
@@ -93,7 +93,7 @@ describe("command service", function()
 	end)
 
 	it("keeps commands working across autorefresh", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		server:Run(Env.ENTRY.server)
 		server:Call("OnReloaded")
 		expect(server:Errors()):toEqual({})
@@ -120,7 +120,7 @@ describe("command service", function()
 				end
 			]],
 		}
-		local server = Env.Server({ files = probeFiles(extra) }):Boot()
+		local server = Env.Kernel({ files = probeFiles(extra) }):Boot()
 		local errors = server:Get("NC").Modules:Instance("thief").errors
 		expect(errors[1]):toContain("command name must match")
 		expect(errors[2]):toContain("unknown spec key 'helpp'")

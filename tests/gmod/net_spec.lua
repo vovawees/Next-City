@@ -78,7 +78,7 @@ end
 
 describe("net service", function()
 	it("pools a string per message and receives only on the receiving realm", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local client = Env.Client(server):Boot()
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
@@ -97,7 +97,7 @@ describe("net service", function()
 	end)
 
 	it("delivers to ready players only and announces readiness", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local service = server:Get("NC").Net
 		local net = probe(server).ctx.net
 		expect(net:Broadcast("ping")):toBe(0)
@@ -143,7 +143,7 @@ describe("net service", function()
 	end)
 
 	it("encodes every field with the schema and coerces bad values", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local client, ply = Env.Join(server)
 		local G = server.G
 		local net = probe(server).ctx.net
@@ -177,7 +177,7 @@ describe("net service", function()
 	end)
 
 	it("checks client data from cheap to expensive before the handler", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local NC = server:Get("NC")
 		local violations = {}
 		NC.Events:On("net.violation", function(ply, name, reason)
@@ -248,7 +248,7 @@ describe("net service", function()
 	end)
 
 	it("reports client info with the hello and on changes", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local NC = server:Get("NC")
 		local languageAtReady = {}
 		NC.Events:On("net.ready", function(ply)
@@ -280,7 +280,7 @@ describe("net service", function()
 	end)
 
 	it("rejects misuse of ctx.net with clear errors", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local client = Env.Client(server):Boot()
 		local net = probe(server).ctx.net
 		expect(function() net:Send("missing", nil, {}) end):toFail("module 'probe' has no net message 'missing'")
@@ -311,7 +311,7 @@ describe("net service", function()
 			{ "42", "net must be a table of messages" },
 		}
 		for _, case in ipairs(cases) do
-			local server = Env.Server({ files = probeFiles(case[1]) }):Boot()
+			local server = Env.Kernel({ files = probeFiles(case[1]) }):Boot()
 			local errors = table.concat(server:Errors(), "\n")
 			expect(errors):toContain(case[2])
 			expect(server:Get("NC").Modules:State("probe")):toBeNil()
@@ -320,7 +320,7 @@ describe("net service", function()
 	end)
 
 	it("keeps ready players across autorefresh on both realms", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local client, ply = Env.Join(server, { language = "ru" })
 		local oldProbe = probe(server)
 
@@ -354,7 +354,7 @@ describe("net service", function()
 	end)
 
 	it("reports what cannot be delivered or decoded on the client", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local client = Env.Join(server)
 		-- The server does not know the message (its module failed there).
 		server.pool.ids["nc.probe.vote"] = nil
@@ -376,7 +376,7 @@ describe("net service", function()
 				return cfg
 			end,
 		}
-		local server = Env.Server({ files = probeFiles(), patch = patch }):Boot()
+		local server = Env.Kernel({ files = probeFiles(), patch = patch }):Boot()
 		local client, ply = Env.Join(server)
 		probe(server).ctx.net:Send("state", ply, { phase = "nope" })
 		Env.Flush(server, client)
@@ -385,7 +385,7 @@ describe("net service", function()
 	end)
 
 	it("shows message statistics with nc_net", function()
-		local server = Env.Server({ files = probeFiles() }):Boot()
+		local server = Env.Kernel({ files = probeFiles() }):Boot()
 		local client, ply = Env.Join(server)
 		probe(server).ctx.net:Send("ping", ply)
 		probe(client).ctx.net:SendToServer("vote", { mode = "riot" })

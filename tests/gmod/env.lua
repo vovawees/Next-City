@@ -90,7 +90,29 @@ local function globMatcher(mask)
 	return "^" .. pattern .. "$"
 end
 
+Env.CONFIG = Env.GAMEMODE .. "/gamemode/config.lua"
+
+-- Wraps a config patch so that every repository module except `ids` is turned off
+-- (virtual modules of a test stay on, modules in `ids` are turned on).
+local function onlyModules(patch, ids)
+	local keep = {}
+	for _, id in ipairs(ids) do
+		keep[id] = true
+	end
+	return function(...)
+		local cfg = ...
+		if patch ~= nil then
+			cfg = patch(...)
+		end
+		for _, id in ipairs(Env.RepoModules()) do
+			cfg.modules.disabled[id] = not keep[id] or nil
+		end
+		return cfg
+	end
+end
+
 -- Creates a realm. opts: files ({ [luaPath] = source }), patch ({ [luaPath] = fn(...) }),
+-- modules (ids of the only repository modules to keep on; nil keeps the config as it is),
 -- visible (set of LUA paths; client realms see only these), language (gmod_language of
 -- a client, "en"), convars ({ [name] = value }: saved values of archived convars),
 -- pool (network strings, shared by a server and its clients).
@@ -123,6 +145,11 @@ function Env.New(realm, opts)
 		partial = "",
 	}, Env)
 
+	if opts.modules ~= nil then
+		instance.patch = copyTable(instance.patch)
+		instance.patch[Env.CONFIG] = onlyModules(instance.patch[Env.CONFIG], opts.modules)
+	end
+
 	if realm == "server" then
 		instance.files = copyTable(Env.RepoFiles())
 		for path, source in pairs(opts.files or {}) do
@@ -143,6 +170,28 @@ end
 -- Creates a server realm (does not run anything yet).
 function Env.Server(opts)
 	return Env.New("server", opts)
+end
+
+-- Ids of the modules in the repository (folders with a module.lua), sorted.
+function Env.RepoModules()
+	local ids = {}
+	local pattern = "^" .. Env.GAMEMODE .. "/gamemode/modules/([^/]+)/module%.lua$"
+	for path in pairs(Env.RepoFiles()) do
+		local id = path:match(pattern)
+		if id then
+			ids[#ids + 1] = id
+		end
+	end
+	table.sort(ids)
+	return ids
+end
+
+-- A server realm with only the kernel and the repository modules in opts.modules
+-- (default none), for specs about the platform; other options as in Env.New.
+function Env.Kernel(opts)
+	opts = opts or {}
+	opts.modules = opts.modules or {}
+	return Env.Server(opts)
 end
 
 -- Creates a client realm that sees only what `server` has sent so far.

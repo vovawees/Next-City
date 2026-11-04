@@ -68,7 +68,7 @@ local function tick(server, ...)
 end
 
 local function boot(section)
-	local server = Env.Server({ files = probeFiles(section) }):Boot()
+	local server = Env.Kernel({ files = probeFiles(section) }):Boot()
 	expect(server:Errors()):toEqual({})
 	return server
 end
@@ -319,7 +319,7 @@ describe("component service", function()
 			{ "42", "components must be a table of components" },
 		}
 		for _, case in ipairs(cases) do
-			local server = Env.Server({ files = probeFiles(case[1]) }):Boot()
+			local server = Env.Kernel({ files = probeFiles(case[1]) }):Boot()
 			local errors = table.concat(server:Errors(), "\n")
 			expect(errors):toContain(case[2])
 			expect(server:Get("NC").Modules:State("probe")):toBeNil()

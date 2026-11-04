@@ -41,7 +41,7 @@ end
 
 describe("i18n service", function()
 	it("loads every language on the server and sends all translation files", function()
-		local server = Env.Server({ files = germanFiles() }):Boot()
+		local server = Env.Kernel({ files = germanFiles() }):Boot()
 		expect(server:Errors()):toEqual({})
 		local i18n = server:Get("NC").I18n
 		local codes = {}
@@ -60,7 +60,7 @@ describe("i18n service", function()
 	end)
 
 	it("builds texts in the language each player reported", function()
-		local server = Env.Server():Boot()
+		local server = Env.Kernel():Boot()
 		local NC = server:Get("NC")
 		local i18n = NC.I18n
 		local reports = {}
@@ -91,7 +91,7 @@ describe("i18n service", function()
 	end)
 
 	it("picks the game language on the client and loads only the languages it needs", function()
-		local server = Env.Server({ files = germanFiles() }):Boot()
+		local server = Env.Kernel({ files = germanFiles() }):Boot()
 		local client = Env.Client(server, { language = "ru" }):Boot()
 		expect(client:Errors()):toEqual({})
 		local i18n = client:Get("NC").I18n
@@ -117,14 +117,14 @@ describe("i18n service", function()
 	end)
 
 	it("uses the saved nc_language choice over the game language", function()
-		local server = Env.Server():Boot()
+		local server = Env.Kernel():Boot()
 		local client = Env.Client(server, { language = "en", convars = { nc_language = "ru" } }):Boot()
 		expect(client:Get("NC").I18n:Language()):toBe("ru")
 		expect(client:Get("NC").I18n:Requested()):toBe("ru")
 	end)
 
 	it("switches the language at runtime and tells modules about it", function()
-		local server = Env.Server():Boot()
+		local server = Env.Kernel():Boot()
 		local client = Env.Client(server):Boot()
 		local i18n = client:Get("NC").I18n
 		local changes = recordChanges(client)
@@ -160,7 +160,7 @@ describe("i18n service", function()
 	end)
 
 	it("logs a missing key once and shows the key itself", function()
-		local server = Env.Server():Boot()
+		local server = Env.Kernel():Boot()
 		local client = Env.Client(server, { language = "ru" }):Boot()
 		local i18n = client:Get("NC").I18n
 		expect(i18n:T("hud.nothing")):toBe("hud.nothing")
@@ -174,7 +174,7 @@ describe("i18n service", function()
 		local patch = configPatch(function(cfg)
 			cfg.i18n.force = "ru"
 		end)
-		local server = Env.Server({ patch = patch }):Boot()
+		local server = Env.Kernel({ patch = patch }):Boot()
 		local client = Env.Client(server, { language = "en", convars = { nc_language = "en" } }):Boot()
 		local changes = recordChanges(client)
 		expect(client:Get("NC").I18n:Language()):toBe("ru")
@@ -197,12 +197,12 @@ describe("i18n service", function()
 			cfg.i18n.default = "??"
 			cfg.i18n.force = 42
 		end)
-		local server = Env.Server({ patch = patch }):Boot()
+		local server = Env.Kernel({ patch = patch }):Boot()
 		expect(#server:Lines("config i18n.default ?? is not a language code, using en")):toBe(1)
 		expect(#server:Lines("config i18n.force 42 is not a language code, ignored")):toBe(1)
 		expect(server:Get("NC").I18n:T("common.yes")):toBe("Yes")
 
-		local missing = Env.Server({ patch = configPatch(function(cfg)
+		local missing = Env.Kernel({ patch = configPatch(function(cfg)
 			cfg.i18n.default = "fr"
 			cfg.i18n.force = "de"
 		end) }):Boot()
@@ -223,7 +223,7 @@ describe("i18n service", function()
 			[LANG .. "fr/common.lua"] = [[return { yes = "Oui" }]],
 			[LANG .. "Es/common.lua"] = [[return { yes = "Sí" }]],
 		}
-		local server = Env.Server({ files = files }):Boot()
+		local server = Env.Kernel({ files = files }):Boot()
 		local NC = server:Get("NC")
 		expect(NC.started):toBe(true)
 		local errors = table.concat(server:Errors(), "\n")
@@ -245,7 +245,7 @@ describe("i18n service", function()
 	end)
 
 	it("keeps player languages and convar callbacks across autorefresh", function()
-		local server = Env.Server():Boot()
+		local server = Env.Kernel():Boot()
 		local stay, gone = Env.FakePlayer({ name = "Stay" }), Env.FakePlayer({ name = "Gone" })
 		server:Get("NC").I18n:SetPlayerLanguage(stay, "ru")
 		server:Get("NC").I18n:SetPlayerLanguage(gone, "ru")
@@ -278,7 +278,7 @@ describe("i18n service", function()
 	end)
 
 	it("lists languages and translation problems with nc_lang", function()
-		local server = Env.Server({ files = germanFiles() }):Boot()
+		local server = Env.Kernel({ files = germanFiles() }):Boot()
 		server:Command("nc_lang")
 		expect(#server:Lines("Languages (server): default en, in use en,")):toBe(1)
 		expect(server:Lines("  ru ")[1]):toContain("100%")
@@ -306,7 +306,7 @@ describe("i18n service", function()
 	end)
 
 	it("ships translations without problems", function()
-		local server = Env.Server():Boot()
+		local server = Env.Kernel():Boot()
 		local i18n = server:Get("NC").I18n
 		local problems = {}
 		for _, problem in ipairs(i18n:Check()) do

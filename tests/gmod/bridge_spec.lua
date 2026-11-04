@@ -50,7 +50,7 @@ local PROBE = {
 }
 
 local function boot()
-	local server = Env.Server({ files = PROBE }):Boot()
+	local server = Env.Kernel({ files = PROBE }):Boot()
 	return server, server:Get("NC").Modules:Instance("probe")
 end
 
