@@ -17,12 +17,14 @@ local PROBE = {
 		local NOTIFY = {
 			"gm.PlayerSpawned", "gm.PlayerLoadout", "gm.DoPlayerDeath", "gm.PlayerDeath", "gm.PlayerSilentDeath",
 			"gm.KeyPress", "gm.PlayerRequestTeam", "gm.PostCleanupMap", "gm.HUDPaint", "gm.StartCommand",
-			"gm.RenderScreenspaceEffects",
+			"gm.RenderScreenspaceEffects", "gm.WeaponEquip", "gm.OnNPCKilled",
 		}
 		local ASK = {
 			"gm.PlayerSpawn", "gm.PlayerSelectSpawn", "gm.PlayerDeathThink", "gm.PlayerShouldTakeDamage",
 			"gm.CanPlayerSuicide", "gm.EntityTakeDamage", "gm.ScalePlayerDamage", "gm.GetFallDamage",
-			"gm.OnPlayerHitGround", "gm.HUDShouldDraw", "gm.PlayerBindPress",
+			"gm.OnPlayerHitGround", "gm.HUDShouldDraw", "gm.PlayerBindPress", "gm.PlayerUse",
+			"gm.PlayerCanPickupWeapon", "gm.PlayerSay", "gm.PlayerCanSeePlayersChat", "gm.PlayerCanHearPlayersVoice",
+			"gm.HUDDrawTargetID",
 		}
 		function M:Start(ctx)
 			for _, name in ipairs(NOTIFY) do
@@ -205,6 +207,66 @@ describe("bridge", function()
 		expect(server:Errors()):toEqual({})
 	end)
 
+	it("asks about using, pickups, chat and voice and forwards weapons and creatures killed", function()
+		local server, probe = boot()
+		local GM = server:Get("GM")
+		local ply, other = Env.Bot(server, { name = "Alyx" }), Env.Bot(server, { name = "Barney" })
+		local crate = Env.Spawn(server, { class = "prop_physics" })
+		probe:Names()
+		expect(Env.UseEntity(server, ply, crate)):toBe(true)
+		probe.answers["gm.PlayerUse"] = function(_, ent)
+			if ent == crate then
+				return false
+			end
+		end
+		expect(Env.UseEntity(server, ply, crate)):toBe(false)
+		expect(probe:Names()):toEqual({ "gm.PlayerUse", "gm.PlayerUse" })
+
+		expect(GM:PlayerCanPickupWeapon(ply, crate)):toBe(true)
+		probe.answers["gm.PlayerCanPickupWeapon"] = false
+		expect(GM:PlayerCanPickupWeapon(ply, crate)):toBe(false)
+		GM:WeaponEquip(crate, ply)
+		expect(probe.seen[#probe.seen]):toEqual({ "gm.WeaponEquip", crate, ply })
+		probe:Names()
+
+		local said, seen = Env.Say(server, ply, "hello")
+		expect(said):toBe("hello")
+		expect(#seen):toBe(2)
+		probe.answers["gm.PlayerSay"] = function(_, text)
+			if text:sub(1, 1) == "/" then
+				return ""
+			end
+			return text:upper()
+		end
+		probe.answers["gm.PlayerCanSeePlayersChat"] = function(_, _, listener)
+			if listener == other then
+				return false
+			end
+		end
+		said, seen = Env.Say(server, ply, "quiet")
+		expect(said):toBe("QUIET")
+		expect(seen):toEqual({ ply })
+		expect(other.heard[#other.heard].text):toBe("hello")
+		said = Env.Say(server, ply, "/job cook")
+		expect(said):toBeNil()
+
+		expect({ GM:PlayerCanHearPlayersVoice(ply, other) }):toEqual({ true, false })
+		probe.answers["gm.PlayerCanHearPlayersVoice"] = "3d"
+		expect({ GM:PlayerCanHearPlayersVoice(ply, other) }):toEqual({ true, true })
+		probe.answers["gm.PlayerCanHearPlayersVoice"] = false
+		expect({ GM:PlayerCanHearPlayersVoice(ply, other) }):toEqual({ false, false })
+		probe:Names()
+
+		local npc = server:Get("ents").Create("npc_combine_s")
+		npc:Spawn()
+		expect(npc:IsNPC()):toBe(true)
+		Env.KillNPC(npc, ply)
+		expect(probe.seen[1]):toEqual({ "gm.OnNPCKilled", npc, ply, ply })
+		server:Advance(0.1)
+		expect(npc:IsValid()):toBe(false)
+		expect(server:Errors()):toEqual({})
+	end)
+
 	it("asks the client about HUD elements and binds and forwards screen effects", function()
 		local server = boot()
 		local client = Env.Client(server):Boot()
@@ -225,6 +287,13 @@ describe("bridge", function()
 		expect(GM:PlayerBindPress(nil, "+reload", true, 0)):toBe(true)
 		client:Call("RenderScreenspaceEffects")
 		expect(probe:Names()):toEqual({ "gm.PlayerBindPress", "gm.PlayerBindPress", "gm.RenderScreenspaceEffects" })
+
+		local calls = #client.baseCalls
+		GM:HUDDrawTargetID()
+		expect(client.baseCalls[#client.baseCalls]):toBe("HUDDrawTargetID")
+		probe.answers["gm.HUDDrawTargetID"] = true
+		GM:HUDDrawTargetID()
+		expect(#client.baseCalls):toBe(calls + 1)
 		expect(client:Errors()):toEqual({})
 	end)
 

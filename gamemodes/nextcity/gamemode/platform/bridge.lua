@@ -19,6 +19,13 @@
 -- question (true blocks the damage), ScalePlayerDamage is a replacement without the
 -- base scaling (head x2, limbs x0.25), falls arrive as OnPlayerHitGround and
 -- GetFallDamage. StartCommand runs for every user command (shared and predicted).
+--
+-- Interaction (D17): PlayerUse and PlayerCanPickupWeapon are questions (false blocks),
+-- WeaponEquip and OnNPCKilled notifications. Chat and voice: PlayerSay is a question
+-- whose answer replaces the text ("" drops the message), PlayerCanSeePlayersChat a
+-- question, PlayerCanHearPlayersVoice a question answered with true, false or "3d"
+-- (heard, positional). On the client HUDDrawTargetID is a question: true hides the
+-- name of the player under the crosshair.
 
 local CurTime = CurTime
 
@@ -189,6 +196,51 @@ if SERVER then
 		NC.Events:Emit("gm.PlayerRequestTeam", ply, teamIndex)
 	end
 
+	-- Question, every tick while the use key is held on `ent`: false blocks the use (and
+	-- the engine's pickup of props).
+	function GM:PlayerUse(ply, ent)
+		return ask(self, "PlayerUse", ply, ent)
+	end
+
+	-- Question: false keeps the engine from giving `weapon` (on the ground) to `ply`.
+	function GM:PlayerCanPickupWeapon(ply, weapon)
+		return ask(self, "PlayerCanPickupWeapon", ply, weapon)
+	end
+
+	-- A player got a weapon (ply:Give or a pickup). The engine has not finished setting
+	-- it up yet: change clips a tick later.
+	function GM:WeaponEquip(weapon, owner)
+		base(self, "WeaponEquip", weapon, owner)
+		NC.Events:Emit("gm.WeaponEquip", weapon, owner)
+	end
+
+	function GM:OnNPCKilled(npc, attacker, inflictor)
+		base(self, "OnNPCKilled", npc, attacker, inflictor)
+		NC.Events:Emit("gm.OnNPCKilled", npc, attacker, inflictor)
+	end
+
+	-- Question: the text the chat shows instead of `text`; "" drops the message.
+	function GM:PlayerSay(ply, text, teamChat)
+		return ask(self, "PlayerSay", ply, text, teamChat)
+	end
+
+	-- Question: whether `listener` sees the chat message of `speaker`.
+	function GM:PlayerCanSeePlayersChat(text, teamOnly, listener, speaker)
+		return ask(self, "PlayerCanSeePlayersChat", text, teamOnly, listener, speaker)
+	end
+
+	-- Question: true or false, or "3d": heard from where the talker is.
+	function GM:PlayerCanHearPlayersVoice(listener, talker)
+		local answer = NC.Events:Query("gm.PlayerCanHearPlayersVoice", listener, talker)
+		if answer == "3d" then
+			return true, true
+		end
+		if answer ~= nil then
+			return answer == true, false
+		end
+		return base(self, "PlayerCanHearPlayersVoice", listener, talker)
+	end
+
 else
 	function GM:HUDPaint()
 		base(self, "HUDPaint")
@@ -208,6 +260,13 @@ else
 	-- Question: true blocks the bind (bind is the command, e.g. "+reload").
 	function GM:PlayerBindPress(ply, bind, pressed, code)
 		return ask(self, "PlayerBindPress", ply, bind, pressed, code)
+	end
+
+	-- Question, every frame: true hides the name of the player under the crosshair.
+	function GM:HUDDrawTargetID()
+		if NC.Events:Query("gm.HUDDrawTargetID") ~= true then
+			return base(self, "HUDDrawTargetID")
+		end
 	end
 
 	-- Pipeline, every frame: the view of the base gamemode (vehicles, drive, the weapon),

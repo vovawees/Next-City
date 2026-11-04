@@ -292,6 +292,7 @@ function Player:IsBot() return self.bot end
 function Player:EntIndex() return self.index end
 function Player:UserID() return self.index end
 function Player:SteamID64() return string.format("765611980%08d", self.index) end
+function Player:SteamID() return string.format("STEAM_0:%d:%d", self.index % 2, self.index) end
 function Player:GetClass() return "player" end
 function Player:IsSuperAdmin() return self.admin end
 function Player:IsAdmin() return self.admin end
@@ -966,6 +967,57 @@ function Entity:GetPhysicsObjectNum() return World.NULL_PHYS end
 function Entity:ManipulateBoneScale(bone, scale) self.boneScales[bone] = Vector(scale) end
 function Entity:GetManipulateBoneScale(bone) return Vector(self.boneScales[bone] or Vector(1, 1, 1)) end
 function Entity:Activate() self.activated = true end
+function Entity:Health() return self.health or 0 end
+function Entity:SetHealth(value) self.health = value end
+function Entity:GetMaxHealth() return self.maxHealth or 0 end
+function Entity:SetMaxHealth(value) self.maxHealth = value end
+function Entity:OBBMins() return Vector(-8, -8, -8) end
+function Entity:OBBMaxs() return Vector(8, 8, 8) end
+function Entity:OBBCenter() return Vector(0, 0, 0) end
+function Entity:GetName() return self.name or "" end
+function Entity:SetName(name) self.name = name end
+function Entity:MapCreationID() return self.map and self.index or -1 end
+-- Key values (SetKeyValue) are kept in .keyValues.
+function Entity:SetKeyValue(key, value)
+	self.keyValues = self.keyValues or {}
+	self.keyValues[key] = tostring(value)
+end
+function Entity:GetKeyValues()
+	local out = {}
+	for key, value in pairs(self.keyValues or {}) do
+		out[key] = value
+	end
+	return out
+end
+-- Inputs (Fire) are recorded in .inputs ({ input, param, delay }); doors (prop_door_rotating,
+-- func_door*) lock, unlock, open and close: .locked, .open.
+local DOOR_INPUTS = {
+	lock = function(ent) ent.locked = true end,
+	unlock = function(ent) ent.locked = false end,
+	open = function(ent) if not ent.locked then ent.open = true end end,
+	close = function(ent) ent.open = false end,
+	toggle = function(ent) if not ent.locked then ent.open = not ent.open end end,
+}
+function World.IsDoorClass(class)
+	return class == "prop_door_rotating" or class == "func_door" or class == "func_door_rotating"
+end
+function Entity:Fire(input, param, delay)
+	self.inputs = self.inputs or {}
+	self.inputs[#self.inputs + 1] = { input, param, delay }
+	local fn = DOOR_INPUTS[tostring(input):lower()]
+	if fn ~= nil and World.IsDoorClass(self.class) then
+		fn(self)
+	end
+end
+function Entity:GetInternalVariable(name)
+	if name == "m_bLocked" then
+		return self.locked == true
+	end
+	if name == "m_eDoorState" then
+		return self.open and 2 or 0
+	end
+	return nil
+end
 -- Networked from now on: the linked clients know the entity. A prop_physics gets its
 -- physics object (World.AddPhysics, 10 kg) as from its model.
 function Entity:Spawn()
@@ -1301,6 +1353,61 @@ function World.MoveRagdoll(rag, offset)
 	end
 end
 
+-- NPCs ----------------------------------------------------------------------------------
+
+-- Engine creatures (ents.Create("npc_*")): health 100 by default, weapons of Give,
+-- relationships (.relationships[ent] = { disposition, priority }), the enemy, the last
+-- position and the schedule they were given. Env.KillNPC kills one like the engine.
+local Npc = setmetatable({}, { __index = Entity })
+local NpcMeta = {
+	__index = Npc,
+	__tostring = function(ent) return string.format("NPC [%d][%s]", ent.index, ent.class) end,
+}
+World.NpcMethods = Npc
+
+function World.NewNPC(realm, index, class)
+	local ent = World.NewEntity(realm, index, class)
+	ent.npc, ent.health, ent.maxHealth = true, 100, 100
+	ent.relationships, ent.npcWeapons = {}, {}
+	return setmetatable(ent, NpcMeta)
+end
+
+function Npc:IsNPC() return true end
+function Npc:Give(class)
+	self.npcWeapons[#self.npcWeapons + 1] = class
+	return { class = class }
+end
+function Npc:AddEntityRelationship(target, disposition, priority)
+	self.relationships[target] = { disposition, priority }
+end
+function Npc:AddRelationship(text) self.relationText = text end
+function Npc:Disposition(target)
+	local entry = self.relationships[target]
+	return entry and entry[1] or 0
+end
+function Npc:SetEnemy(ent) self.enemy = ent end
+function Npc:GetEnemy() return self.enemy or World.NULL end
+function Npc:SetLastPosition(pos) self.lastPosition = Vector(pos) end
+function Npc:SetSchedule(schedule) self.schedule = schedule end
+function Npc:SetCurrentWeaponProficiency(value) self.proficiency = value end
+function Npc:GetActiveWeapon() return World.NULL end
+function Npc:TakeDamageInfo(dmginfo)
+	local realm = self.realm
+	if realm ~= nil and realm:Call("EntityTakeDamage", self, dmginfo) == true then
+		return
+	end
+	self.damage[#self.damage + 1] = dmginfo
+	if self.dead then
+		return
+	end
+	self.health = self.health - dmginfo:GetDamage()
+	if self.health <= 0 and realm ~= nil then
+		self.dead = true
+		realm:Call("OnNPCKilled", self, dmginfo:GetAttacker(), dmginfo:GetInflictor())
+		self:Remove()
+	end
+end
+
 -- Base gamemode -------------------------------------------------------------------------
 
 -- What the base gamemode does in the hooks the bridge forwards to it (simplified).
@@ -1354,6 +1461,13 @@ World.BASE = {
 		end
 	end,
 	PlayerShouldTakeDamage = function() return true end,
+	PlayerUse = function() return true end,
+	PlayerCanPickupWeapon = function() return true end,
+	PlayerSay = function(_, _, _, text) return text end,
+	PlayerCanSeePlayersChat = function(_, _, _, teamOnly, listener, speaker)
+		return not teamOnly or listener:Team() == speaker:Team()
+	end,
+	PlayerCanHearPlayersVoice = function() return true, false end,
 	CanPlayerSuicide = function() return true end,
 	GetFallDamage = function() return 10 end,
 	HUDShouldDraw = function() return true end,
@@ -1420,6 +1534,11 @@ function World.Install(env, G)
 	G.HUD_PRINTNOTIFY = 1
 	G.HUD_PRINTTALK = 3
 	G.HUD_PRINTCENTER = 4
+	G.D_ER, G.D_HT, G.D_FR, G.D_LI, G.D_NU = 0, 1, 2, 3, 4
+	G.SCHED_IDLE_WANDER, G.SCHED_FORCED_GO, G.SCHED_FORCED_GO_RUN = 7, 71, 72
+	G.WEAPON_PROFICIENCY_POOR, G.WEAPON_PROFICIENCY_AVERAGE, G.WEAPON_PROFICIENCY_GOOD = 0, 1, 2
+	G.WEAPON_PROFICIENCY_VERY_GOOD, G.WEAPON_PROFICIENCY_PERFECT = 3, 4
+	G.SOLID_VPHYSICS, G.SIMPLE_USE, G.CONTINUOUS_USE = 6, 3, 0
 
 	G.player = {}
 	function G.player.GetAll()
@@ -1682,7 +1801,148 @@ function World.InstallDrawing(env, G)
 	end
 	G.input = {
 		LookupBinding = function(bind) return env.bindings[bind] end,
+		LookupKeyBinding = function(code) return env.keyBinds and env.keyBinds[code] or nil end,
+		IsKeyDown = function(code) return env.keysDown ~= nil and env.keysDown[code] == true end,
 	}
+	World.InstallInterface(env, G)
+end
+
+-- Panels of vgui.Create: every method the code calls exists (unknown ones, any key that
+-- starts with a capital letter, do nothing and return nil); kept are the class, parent
+-- and children, text, value, size, position, visibility and removal. Every panel is in
+-- env.panels in the order of creation; menus (DMenu) keep their options as children
+-- with the text and the function (option.func).
+local Panel = {}
+local function noop() end
+local PanelMeta = {
+	__index = function(_, key)
+		local method = Panel[key]
+		if method ~= nil then
+			return method
+		end
+		if type(key) == "string" and key:find("^%u") then
+			return noop
+		end
+		return nil
+	end,
+	__tostring = function(panel) return string.format("Panel [%s]", panel.class) end,
+}
+World.PanelMethods = Panel
+
+function Panel:IsValid() return not self.removed end
+function Panel:Remove()
+	if self.removed then
+		return
+	end
+	self.removed = true
+	for _, child in ipairs(self.children) do
+		child:Remove()
+	end
+	local fn = rawget(self, "OnRemove")
+	if fn ~= nil then
+		fn(self)
+	end
+end
+function Panel:SetVisible(value) self.visible = value == true end
+function Panel:IsVisible() return self.visible ~= false and not self.removed end
+function Panel:SetText(text) self.text = tostring(text) end
+function Panel:GetText() return self.text or "" end
+function Panel:SetTitle(text) self.title = tostring(text) end
+function Panel:SetValue(value) self.value = value end
+function Panel:GetValue() return self.value end
+function Panel:SetSize(w, h) self.w, self.h = w, h end
+function Panel:GetSize() return self.w or 0, self.h or 0 end
+function Panel:SetWide(w) self.w = w end
+function Panel:SetTall(h) self.h = h end
+function Panel:GetWide() return self.w or 0 end
+function Panel:GetTall() return self.h or 0 end
+function Panel:SetPos(x, y) self.x, self.y = x, y end
+function Panel:GetPos() return self.x or 0, self.y or 0 end
+function Panel:GetParent() return self.parent end
+function Panel:GetChildren()
+	local out = {}
+	for i, child in ipairs(self.children) do
+		out[i] = child
+	end
+	return out
+end
+function Panel:Clear()
+	for _, child in ipairs(self:GetChildren()) do
+		child:Remove()
+	end
+	self.children = {}
+end
+function Panel:Add(class) return self.env.G.vgui.Create(class, self) end
+function Panel:AddOption(text, fn)
+	local option = self:Add("DMenuOption")
+	option.text, option.func = tostring(text), fn
+	return option
+end
+function Panel:AddSubMenu(text)
+	local menu = self:Add("DMenu")
+	menu.text = tostring(text)
+	return menu, menu
+end
+function Panel:AddSpacer() end
+function Panel:MakePopup() self.popup = true end
+function Panel:SetModel(model) self.model = model end
+function Panel:GetModel() return self.model end
+function Panel:SetTooltip(text) self.tooltip = text end
+
+-- The panels of env (a client) that match fn(panel), in the order of creation; removed
+-- ones only with all = true.
+function World.FindPanels(env, fn, all)
+	local out = {}
+	for _, panel in ipairs(env.panels or {}) do
+		if (all or not panel.removed) and (fn == nil or fn(panel)) then
+			out[#out + 1] = panel
+		end
+	end
+	return out
+end
+
+-- vgui, chat, notification, gui and sounds of a client realm. Recorded: env.panels,
+-- env.chatLines (the strings of every chat.AddText joined), env.notifications ({ text,
+-- type, length }), env.uiSounds, env.screenClicker.
+function World.InstallInterface(env, G)
+	env.panels, env.chatLines, env.notifications, env.uiSounds = {}, {}, {}, {}
+	G.vgui = {
+		Create = function(class, parent)
+			local panel = setmetatable({ env = env, class = class, parent = parent, children = {} }, PanelMeta)
+			if parent ~= nil then
+				parent.children[#parent.children + 1] = panel
+			end
+			env.panels[#env.panels + 1] = panel
+			return panel
+		end,
+	}
+	G.chat = {
+		AddText = function(...)
+			local parts = {}
+			for i = 1, select("#", ...) do
+				local value = select(i, ...)
+				if type(value) == "string" then
+					parts[#parts + 1] = value
+				elseif type(value) ~= "table" then
+					parts[#parts + 1] = tostring(value)
+				end
+			end
+			env.chatLines[#env.chatLines + 1] = table.concat(parts)
+		end,
+	}
+	G.NOTIFY_GENERIC, G.NOTIFY_ERROR, G.NOTIFY_UNDO, G.NOTIFY_HINT, G.NOTIFY_CLEANUP = 0, 1, 2, 3, 4
+	G.notification = {
+		AddLegacy = function(text, kind, length)
+			env.notifications[#env.notifications + 1] = { text = tostring(text), type = kind, length = length }
+		end,
+	}
+	G.gui = {
+		EnableScreenClicker = function(value) env.screenClicker = value == true end,
+	}
+	G.surface.PlaySound = function(name)
+		env.uiSounds[#env.uiSounds + 1] = name
+	end
+	G.ScreenScale = function(size) return size * G.ScrW() / 640 end
 end
 
 World.Geometry.Bind(World)

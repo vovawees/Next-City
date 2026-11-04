@@ -2,7 +2,8 @@
 --
 -- Every realm gets its own global table with the parts of the engine API the gamemode
 -- uses, and gamemode files run inside it (setfenv), like separate Lua states. LUA paths
--- ("nextcity/gamemode/init.lua") map to repository files under gamemodes/; tests can add
+-- map to repository files like the mounted addon: "nextcity/gamemode/init.lua" to
+-- gamemodes/, "nextcity/modules/..." (the content package) to lua/; tests can add
 -- virtual files and patch the results of files (e.g. config.lua).
 --
 -- The client only sees files the server sent with AddCSLuaFile, like a real client.
@@ -23,6 +24,7 @@
 -- like the engine, Env.Advance runs GM:PlayerDeathThink for dead players every tick.
 
 local Wire = dofile(T.root .. "tests/support/wire.lua")
+local Json = dofile(T.root .. "tests/support/json.lua")
 local World = dofile(T.root .. "tests/gmod/world.lua")
 
 local Env = {}
@@ -31,7 +33,8 @@ Env.__index = Env
 Env.GAMEMODE = "nextcity"
 Env.ENTRY = { server = "nextcity/gamemode/init.lua", client = "nextcity/gamemode/cl_init.lua" }
 
-local REPO_PREFIX = "gamemodes/"
+-- Folders of the repository the engine mounts: { folder, prefix of the LUA paths }.
+local REPO_ROOTS = { "gamemodes/", "lua/" }
 -- Hooks of the base gamemode: every call is recorded in env.baseCalls; World.BASE holds
 -- what the base gamemode does in some of them.
 local HOOK_NAMES = {
@@ -40,7 +43,8 @@ local HOOK_NAMES = {
 	"DoPlayerDeath", "PlayerDeath", "PlayerSilentDeath", "PlayerDeathThink", "PlayerShouldTakeDamage",
 	"CanPlayerSuicide", "PlayerRequestTeam", "PostCleanupMap", "HUDPaint", "StartCommand", "OnPlayerHitGround",
 	"EntityTakeDamage", "GetFallDamage", "HUDShouldDraw", "RenderScreenspaceEffects", "PlayerBindPress",
-	"CalcView",
+	"CalcView", "PlayerUse", "PlayerCanPickupWeapon", "WeaponEquip", "OnNPCKilled", "PlayerSay",
+	"PlayerCanSeePlayersChat", "PlayerCanHearPlayersVoice", "HUDDrawTargetID",
 }
 
 Env.World = World
@@ -50,30 +54,34 @@ local function pack(...)
 	return { n = select("#", ...), ... }
 end
 
--- Lists repository files under gamemodes/ as LUA paths (cached).
+-- Lists the repository files under gamemodes/ and lua/ as LUA paths (cached):
+-- { [LUA path] = path in the repository }.
 local repoFiles
 function Env.RepoFiles()
 	if repoFiles then
 		return repoFiles
 	end
-	local base = (T.root ~= "" and T.root or "./") .. REPO_PREFIX
-	local windows = package.config:sub(1, 1) == "\\"
-	local command
-	if windows then
-		command = "dir /s /b /a-d \"" .. base:gsub("/", "\\") .. "\""
-	else
-		command = "find \"" .. base .. "\" -type f"
-	end
-	local pipe = assert(io.popen(command), "cannot list repository files")
 	repoFiles = {}
-	for line in pipe:lines() do
-		line = line:gsub("\\", "/")
-		local at = line:find(REPO_PREFIX .. Env.GAMEMODE .. "/", 1, true)
-		if at then
-			repoFiles[line:sub(at + #REPO_PREFIX)] = true
+	local windows = package.config:sub(1, 1) == "\\"
+	for _, folder in ipairs(REPO_ROOTS) do
+		local base = (T.root ~= "" and T.root or "./") .. folder
+		local command
+		if windows then
+			command = "dir /s /b /a-d \"" .. base:gsub("/", "\\") .. "\" 2>nul"
+		else
+			command = "find \"" .. base .. "\" -type f 2>/dev/null"
 		end
+		local pipe = assert(io.popen(command), "cannot list repository files")
+		for line in pipe:lines() do
+			line = line:gsub("\\", "/")
+			local at = line:find(folder .. Env.GAMEMODE .. "/", 1, true)
+			if at then
+				local path = line:sub(at + #folder)
+				repoFiles[path] = folder .. path
+			end
+		end
+		pipe:close()
 	end
-	pipe:close()
 	assert(repoFiles[Env.ENTRY.server], "repository scan found no gamemode files")
 	return repoFiles
 end
@@ -118,7 +126,9 @@ end
 -- visible (set of LUA paths; client realms see only these), language (gmod_language of
 -- a client, "en"), convars ({ [name] = value }: saved values of archived convars),
 -- pool (network strings, shared by a server and its clients), gamemode (the active
--- gamemode of engine.ActiveGamemode, default ours; clients take the server's).
+-- gamemode of engine.ActiveGamemode, default ours; clients take the server's), data
+-- (files of the DATA folder: { [path] = text }; pass the data of a server to boot another
+-- one on the same disk).
 function Env.New(realm, opts)
 	opts = opts or {}
 	World.realm = nil
@@ -149,6 +159,7 @@ function Env.New(realm, opts)
 		sources = opts.sources or {},
 		patch = opts.patch or {},
 		gamemode = opts.gamemode,
+		data = opts.data or {},
 		partial = "",
 	}, Env)
 
@@ -158,7 +169,10 @@ function Env.New(realm, opts)
 	end
 
 	if realm == "server" then
-		instance.files = copyTable(Env.RepoFiles())
+		instance.files = {}
+		for path in pairs(Env.RepoFiles()) do
+			instance.files[path] = true
+		end
 		for path, source in pairs(opts.files or {}) do
 			instance.files[path] = true
 			instance.sources[path] = source
@@ -179,12 +193,28 @@ function Env.Server(opts)
 	return Env.New("server", opts)
 end
 
--- Ids of the modules in the repository (folders with a module.lua), sorted.
+-- Ids of the modules in the repository (folders with a module.lua) of the core and of
+-- the content package, sorted.
 function Env.RepoModules()
 	local ids = {}
-	local pattern = "^" .. Env.GAMEMODE .. "/gamemode/modules/([^/]+)/module%.lua$"
+	local core = "^" .. Env.GAMEMODE .. "/gamemode/modules/([^/]+)/module%.lua$"
+	local addon = "^" .. Env.GAMEMODE .. "/modules/([^/]+)/module%.lua$"
 	for path in pairs(Env.RepoFiles()) do
-		local id = path:match(pattern)
+		local id = path:match(core) or path:match(addon)
+		if id then
+			ids[#ids + 1] = id
+		end
+	end
+	table.sort(ids)
+	return ids
+end
+
+-- Ids of the modules of the content package (lua/nextcity/modules), sorted.
+function Env.PackageModules()
+	local ids = {}
+	local addon = "^" .. Env.GAMEMODE .. "/modules/([^/]+)/module%.lua$"
+	for path in pairs(Env.RepoFiles()) do
+		local id = path:match(addon)
 		if id then
 			ids[#ids + 1] = id
 		end
@@ -254,7 +284,7 @@ function Env:Run(path)
 	if self.sources[path] then
 		fn, err = loadstring(self.sources[path], "@" .. path)
 	else
-		fn, err = loadfile(T.root .. REPO_PREFIX .. path)
+		fn, err = loadfile(T.root .. Env.RepoFiles()[path])
 	end
 	if not fn then
 		self:_Error(tostring(err))
@@ -430,14 +460,23 @@ function Env:_CreateGlobals()
 
 	G.file = {}
 
+	-- The files of a path id: LUA (the files of the realm) or DATA (env.data; folders are
+	-- entries with the value true).
+	local function tree(pathId)
+		if pathId == "LUA" then
+			return env.files
+		end
+		assert(pathId == "DATA", "emulated file functions support only the LUA and DATA paths")
+		return env.data
+	end
+
 	function G.file.Find(pattern, pathId)
-		assert(pathId == "LUA", "emulated file.Find supports only the LUA path")
+		local files, folders, seen = {}, {}, {}
 		local dir, mask = pattern:match("^(.*/)([^/]*)$")
 		if dir == nil then
 			dir, mask = "", pattern
 		end
 		local matcher = globMatcher(mask)
-		local files, folders, seen = {}, {}, {}
 		local function add(name, slash)
 			if name == nil or not name:find(matcher) or seen[name] then
 				return
@@ -446,9 +485,13 @@ function Env:_CreateGlobals()
 			local list = slash == "/" and folders or files
 			list[#list + 1] = name
 		end
-		for path in pairs(env.files) do
+		for path, value in pairs(tree(pathId)) do
 			if path:sub(1, #dir) == dir then
-				add(path:sub(#dir + 1):match("^([^/]+)(/?)"))
+				local name, slash = path:sub(#dir + 1):match("^([^/]+)(/?)")
+				if pathId == "DATA" and value == true and slash == "" then
+					slash = "/"
+				end
+				add(name, slash)
 			end
 		end
 		-- Reverse order on purpose: callers must not rely on the engine's order.
@@ -458,17 +501,87 @@ function Env:_CreateGlobals()
 	end
 
 	function G.file.Exists(path, pathId)
-		assert(pathId == "LUA", "emulated file.Exists supports only the LUA path")
-		if env.files[path] then
+		local files = tree(pathId)
+		if files[path] then
 			return true
 		end
 		local prefix = path .. "/"
-		for known in pairs(env.files) do
+		for known in pairs(files) do
 			if known:sub(1, #prefix) == prefix then
 				return true
 			end
 		end
 		return false
+	end
+
+	function G.file.IsDir(path, pathId)
+		local files = tree(pathId)
+		if files[path] == true and pathId == "DATA" then
+			return true
+		end
+		local prefix = path .. "/"
+		for known in pairs(files) do
+			if known:sub(1, #prefix) == prefix then
+				return true
+			end
+		end
+		return false
+	end
+
+	-- DATA only, like the engine: Write, Append, Delete and CreateDir of env.data; Read
+	-- of either path (LUA reads the source of a file).
+	local WRITABLE = { txt = true, dat = true, json = true, csv = true }
+	local function writable(path)
+		local ext = path:match("%.(%w+)$")
+		return ext ~= nil and WRITABLE[ext:lower()] == true
+	end
+	local function parentExists(path)
+		local dir = path:match("^(.*)/[^/]+$")
+		return dir == nil or env.data[dir] == true
+	end
+
+	function G.file.Read(path, pathId)
+		pathId = pathId or "DATA"
+		if pathId == "LUA" then
+			return env.sources[path]
+		end
+		local value = tree(pathId)[path]
+		return type(value) == "string" and value or nil
+	end
+
+	function G.file.Write(path, text)
+		path = path:lower()
+		if not writable(path) or not parentExists(path) then
+			return
+		end
+		env.data[path] = tostring(text)
+		env.writes = (env.writes or 0) + 1
+	end
+
+	function G.file.Append(path, text)
+		path = path:lower()
+		if not writable(path) or not parentExists(path) then
+			return
+		end
+		env.data[path] = (type(env.data[path]) == "string" and env.data[path] or "") .. tostring(text)
+	end
+
+	function G.file.Delete(path)
+		path = path:lower()
+		if type(env.data[path]) == "string" then
+			env.data[path] = nil
+		end
+	end
+
+	function G.file.CreateDir(path)
+		path = path:lower()
+		local built = ""
+		for part in path:gmatch("[^/]+") do
+			built = built == "" and part or built .. "/" .. part
+			if env.data[built] == nil then
+				env.data[built] = true
+			end
+		end
 	end
 
 	G.concommand = {}
@@ -642,6 +755,9 @@ function Env:_CreateNet(G)
 	local env = self
 	local pool = self.pool
 	G.util = {}
+
+	G.util.TableToJSON = Json.Encode
+	G.util.JSONToTable = Json.Decode
 
 	if self.realm == "server" then
 		function G.util.AddNetworkString(name)
@@ -880,6 +996,58 @@ end
 -- `ply` presses `key` (IN_* value): GM:KeyPress on the server.
 function Env.Press(server, ply, key)
 	server:Call("KeyPress", ply, key)
+end
+
+-- `ply` presses the use key on `ent`: GM:PlayerUse, then (unless it answered false) the
+-- entity's own use (ent:Use when it has one). Returns the answer of GM:PlayerUse.
+function Env.UseEntity(server, ply, ent)
+	local allowed = server:Call("PlayerUse", ply, ent)
+	if allowed ~= false and type(ent.Use) == "function" then
+		ent:Use(ply, ply)
+	end
+	return allowed
+end
+
+-- `ply` says `text` in the chat (teamChat: the team chat): GM:PlayerSay decides the text
+-- ("" drops it), then GM:PlayerCanSeePlayersChat every player. Returns the text and the
+-- players that see it, in index order (nil and {} when dropped). Seen messages are
+-- recorded in listener.heard ({ speaker, text, team }).
+function Env.Say(server, ply, text, teamChat)
+	local said = server:Call("PlayerSay", ply, text, teamChat == true)
+	if type(said) ~= "string" or said == "" then
+		return nil, {}
+	end
+	local seen = {}
+	for _, listener in ipairs(server.G.player.GetAll()) do
+		if server:Call("PlayerCanSeePlayersChat", said, teamChat == true, listener, ply) ~= false then
+			seen[#seen + 1] = listener
+			listener.heard = listener.heard or {}
+			listener.heard[#listener.heard + 1] = { speaker = ply, text = said, team = teamChat == true }
+		end
+	end
+	return said, seen
+end
+
+-- Kills an engine creature like a deadly hit: GM:OnNPCKilled, then it goes away.
+function Env.KillNPC(npc, attacker, inflictor)
+	local server = npc.realm
+	if npc.dead or not npc:IsValid() then
+		return
+	end
+	npc.dead, npc.health = true, 0
+	server:Call("OnNPCKilled", npc, attacker or World.WORLD, inflictor or attacker or World.WORLD)
+	npc:Remove()
+end
+
+-- The client presses a key bound to `bind` (e.g. "+menu_context"): GM:PlayerBindPress;
+-- unless it answers true, the console command of the bind runs when the client has one.
+-- Returns the answer.
+function Env.BindPress(client, bind, pressed)
+	local answer = client:Call("PlayerBindPress", client.localPlayer, bind, pressed ~= false, 0)
+	if answer ~= true and client.commands[bind] then
+		client:Command(bind, client.localPlayer, {})
+	end
+	return answer
 end
 
 -- Damage --------------------------------------------------------------------------------
@@ -1214,6 +1382,8 @@ function Env:_CreateGame(G)
 			local ent
 			if class == "prop_ragdoll" then
 				ent = World.NewRagdoll(env, index, class)
+			elseif type(class) == "string" and class:find("^npc_") then
+				ent = World.NewNPC(env, index, class)
 			else
 				ent = World.NewEntity(env, index, class)
 			end

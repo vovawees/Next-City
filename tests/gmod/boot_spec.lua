@@ -271,7 +271,7 @@ describe("boot", function()
 		local count = 0
 		for path in pairs(Env.RepoFiles()) do
 			if path:find("%.lua$") then
-				local fn, err = loadfile(T.root .. "gamemodes/" .. path)
+				local fn, err = loadfile(T.root .. Env.RepoFiles()[path])
 				expect(err):toBeNil()
 				expect(type(fn)):toBe("function")
 				count = count + 1
