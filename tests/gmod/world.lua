@@ -155,6 +155,22 @@ function AngleMethods:Up()
 	return Vector(cr * sp * cy + sr * sy, cr * sp * sy - sr * cy, cr * cp)
 end
 
+-- Rotates the angle in place by `degrees` around `axis` (right-hand rule, like GMod).
+function AngleMethods:RotateAroundAxis(axis, degrees)
+	local k = axis:GetNormalized()
+	local t = math.rad(degrees)
+	local c, s = math.cos(t), math.sin(t)
+	local function rotate(v)
+		return v * c + k:Cross(v) * s + k * (k:Dot(v) * (1 - c))
+	end
+	local f, u = rotate(self:Forward()), rotate(self:Up())
+	local pitch = math.deg(math.asin(math.max(-1, math.min(1, -f.z))))
+	local yaw = math.deg(math.atan2(f.y, f.x))
+	local base = Angle(pitch, yaw, 0)
+	local roll = math.deg(math.atan2(u:Dot(base:Right()), u:Dot(base:Up())))
+	self.x, self.y, self.z = pitch, yaw, roll
+end
+
 -- Entities -------------------------------------------------------------------------------
 
 World.NULL = setmetatable({
@@ -322,6 +338,11 @@ function Player:SetAnimation(anim)
 	self.animations[#self.animations + 1] = anim
 end
 function Player:MuzzleFlash() self.muzzleFlashes = (self.muzzleFlashes or 0) + 1 end
+-- Engine bullets are recorded in .bullets: { realm = "server" | "client", bullet = the table }.
+function Player:FireBullets(bullet)
+	self.bullets = self.bullets or {}
+	self.bullets[#self.bullets + 1] = { realm = World.realm ~= nil and World.realm.realm or "server", bullet = bullet }
+end
 function Player:EmitSound(name)
 	self.sounds = self.sounds or {}
 	self.sounds[#self.sounds + 1] = name
@@ -333,6 +354,10 @@ function Player:OnGround() return self.onGround end
 function Player:GetShootPos() return self:EyePos() end
 function Player:GetAimVector() return self.angles:Forward() end
 function Player:ViewPunch(ang) self.viewPunches[#self.viewPunches + 1] = ang end
+-- The punch of the view now (.viewPunch, set by tests): the engine decays it.
+function Player:GetViewPunchAngles() return Angle(self.viewPunch or Angle(0, 0, 0)) end
+function Player:SetViewPunchAngles(ang) self.viewPunch = Angle(ang) end
+function Player:GetViewModel() return World.NULL end
 -- Like for players in GMod, this adds to the velocity; every push is recorded.
 function Player:SetVelocity(v)
 	self.pushes[#self.pushes + 1] = Vector(v)
@@ -471,6 +496,14 @@ function Player:GetActiveWeapon()
 	end
 	return self.weapons[#self.weapons] or World.NULL
 end
+function Player:GetWeapon(class)
+	for _, weapon in ipairs(self.weapons) do
+		if weapon.class == class then
+			return World.Sweps.Local(weapon)
+		end
+	end
+	return World.NULL
+end
 function Player:SetModel(model) self.model = model end
 function Player:GetModel() return self.model end
 
@@ -501,7 +534,10 @@ function Player:StripWeapon(class)
 		end
 	end
 end
-function Player:RemoveAllAmmo() self.ammo = {} end
+function Player:RemoveAllAmmo()
+	self.ammo = {}
+	self.clientAmmo = nil
+end
 -- A class the server registered with weapons.Register is a scripted weapon (World.Sweps).
 function Player:Give(class, noAmmo)
 	local scripted = self.server ~= nil and World.Sweps.Give(self.server, self, class, noAmmo)
@@ -528,16 +564,34 @@ local function ammoName(ply, ammoType)
 	local entry = custom and custom[ammoType - #World.AMMO]
 	return entry and entry.name or ammoType
 end
+-- The reserve of the server is .ammo; the code of a client (World.realm) predicts its
+-- own copy (.clientAmmo[client]), which a snapshot (Env.Sync) sets to the server's again.
+local function reserve(ply)
+	local realm = World.realm
+	if realm == nil or realm.realm ~= "client" then
+		return ply.ammo
+	end
+	ply.clientAmmo = ply.clientAmmo or {}
+	local copy = ply.clientAmmo[realm]
+	if copy == nil then
+		copy = {}
+		for name, count in pairs(ply.ammo) do
+			copy[name] = count
+		end
+		ply.clientAmmo[realm] = copy
+	end
+	return copy
+end
 function Player:GiveAmmo(amount, ammoType)
-	local name = ammoName(self, ammoType)
-	self.ammo[name] = (self.ammo[name] or 0) + amount
+	local name, ammo = ammoName(self, ammoType), reserve(self)
+	ammo[name] = (ammo[name] or 0) + amount
 	return amount
 end
-function Player:GetAmmoCount(ammoType) return self.ammo[ammoName(self, ammoType)] or 0 end
-function Player:SetAmmo(amount, ammoType) self.ammo[ammoName(self, ammoType)] = amount end
+function Player:GetAmmoCount(ammoType) return reserve(self)[ammoName(self, ammoType)] or 0 end
+function Player:SetAmmo(amount, ammoType) reserve(self)[ammoName(self, ammoType)] = amount end
 function Player:RemoveAmmo(amount, ammoType)
-	local name = ammoName(self, ammoType)
-	self.ammo[name] = math.max(0, (self.ammo[name] or 0) - amount)
+	local name, ammo = ammoName(self, ammoType), reserve(self)
+	ammo[name] = math.max(0, (ammo[name] or 0) - amount)
 end
 -- Lag compensation: .lagCompensation is on or off, .lagCompensations counts the calls.
 function Player:LagCompensation(on)

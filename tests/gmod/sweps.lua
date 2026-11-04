@@ -246,12 +246,16 @@ local WeaponMeta = {
 	__tostring = function(w) return string.format("Weapon [%d][%s]", w.index, w.class) end,
 }
 
+-- Runs a hook of `weapon` as code of its realm (World.realm).
 local function call(weapon, name, ...)
 	local fn = weapon[name]
 	if fn == nil then
 		return nil
 	end
+	local previous = World.realm
+	World.realm = weapon.realm
 	local results = { pcall(fn, weapon, ...) }
+	World.realm = previous
 	if not results[1] then
 		weapon.realm:_Error(string.format("weapon %s: %s: %s", weapon.class, name, tostring(results[2])))
 		return nil
@@ -409,6 +413,11 @@ end
 
 -- What the engine networks of the weapons of `server`, to the instances of the clients.
 function Sweps.Sync(server)
+	for _, ent in pairs(server.entities) do
+		if type(ent) == "table" and ent.IsPlayer ~= nil and ent:IsPlayer() then
+			ent.clientAmmo = nil
+		end
+	end
 	for _, weapon in pairs(server.entities) do
 		if Sweps.IsScripted(weapon) then
 			for _, mirror in pairs(weapon.mirrors) do

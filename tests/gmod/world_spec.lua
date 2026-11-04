@@ -315,4 +315,65 @@ describe("world", function()
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
 	end)
+
+	it("rotates angles, records engine bullets and predicts the reserve and the randomness of commands", function()
+		local function angle(a)
+			local p, y, r = a:Unpack()
+			local function round(v) return string.format("%g", math.floor(v * 10 + 0.5) / 10) end
+			return round(p) .. " " .. round(y) .. " " .. round(r)
+		end
+		-- The right-hand rule: about up a quarter turn looks left, about right it looks up.
+		local ang = Angle(0, 0, 0)
+		ang:RotateAroundAxis(Vector(0, 0, 1), 90)
+		expect(angle(ang)):toBe("0 90 0")
+		ang = Angle(0, 0, 0)
+		ang:RotateAroundAxis(ang:Right(), 30)
+		expect(angle(ang)):toBe("-30 0 0")
+		ang:RotateAroundAxis(ang:Forward(), 20)
+		expect(angle(ang)):toBe("-30 0 20")
+
+		local server = Env.Kernel():Boot()
+		local client, ply = Env.Join(server, { name = "Gordon" })
+		-- Bullets of the engine are recorded with the realm that fired them.
+		ply:FireBullets({ Num = 1, Damage = 10 })
+		client:As(function() ply:FireBullets({ Num = 8 }) end)
+		expect(ply.bullets[1].realm .. " " .. ply.bullets[2].realm .. " " .. ply.bullets[2].bullet.Num)
+			:toBe("server client 8")
+		-- A client predicts its own reserve; a snapshot gives it the server's again.
+		ply:GiveAmmo(10, "Pistol")
+		local before = ply:GetAmmoCount("Pistol")
+		expect(client:As(function()
+			ply:RemoveAmmo(3, "Pistol")
+			return ply:GetAmmoCount("Pistol")
+		end)):toBe(before - 3)
+		expect(ply:GetAmmoCount("Pistol")):toBe(before)
+		Env.Sync(server)
+		expect(client:As(function() return ply:GetAmmoCount("Pistol") end)):toBe(before)
+
+		-- util.SharedRandom agrees on the realms that run the same command and changes
+		-- with the next one; a repeated prediction runs the last command again.
+		local rolls = {}
+		local function class(realm)
+			local SWEP = { Base = "weapon_base" }
+			function SWEP:Think()
+				rolls[#rolls + 1] = realm.G.util.SharedRandom("spread", 0, 1)
+			end
+			realm.G.weapons.Register(SWEP, "test_dice")
+		end
+		class(server)
+		class(client)
+		local weapon = ply:Give("test_dice")
+		expect(ply:GetWeapon("test_dice")):toBe(weapon)
+		expect(client:As(function() return ply:GetWeapon("test_dice") end)):toBe(client.entities[weapon:EntIndex()])
+		Env.Use(server, ply, 0)
+		Env.Use(client, ply, 0)
+		Env.Use(client, ply, 0, { firstTime = false })
+		Env.Use(server, ply, 0)
+		expect(#rolls):toBe(4)
+		expect(rolls[1] == rolls[2] and rolls[2] == rolls[3] and rolls[4] ~= rolls[1]):toBe(true)
+		ply:SetViewPunchAngles(Angle(-2, 1, 0))
+		expect(angle(ply:GetViewPunchAngles())):toBe("-2 1 0")
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
+	end)
 end)

@@ -396,6 +396,7 @@ function Env:_CreateGlobals()
 	function G.SysTime()
 		return env.time
 	end
+	G.RealTime = G.SysTime
 
 	function G.IsValid(value)
 		if value == nil or value == false then
@@ -1039,11 +1040,20 @@ end
 
 -- One user command of `ply` with `buttons` (IN_* sum) on `realm` with his active
 -- scripted weapon (tests/gmod/sweps.lua). opts: forward, side, firstTime (false: a
--- repeated prediction). Returns the command as modules left it.
+-- repeated prediction), command (its number, the seed of util.SharedRandom; by default
+-- the next one of the player on this realm, so the server and the client that run the
+-- same commands agree; a repeated prediction runs the last one again). Returns the
+-- command as modules left it.
 function Env.Use(realm, ply, buttons, opts)
 	opts = opts or {}
 	local previousPlayer, previousFirst = realm.predictionPlayer, realm.firstTimePredicted
 	realm.predictionPlayer, realm.firstTimePredicted = ply, opts.firstTime ~= false
+	realm.commands = realm.commands or {}
+	local last = realm.commands[ply] or 0
+	local number = opts.command or (opts.firstTime == false and last or last + 1)
+	realm.commands[ply] = math.max(last, number)
+	local previousNumber = realm.commandNumber
+	realm.commandNumber = number
 	local previous = World.realm
 	World.realm = realm
 	local cmd = World.UserCmd(buttons, opts.forward, opts.side)
@@ -1057,6 +1067,7 @@ function Env.Use(realm, ply, buttons, opts)
 	end
 	World.realm = previous
 	realm.predictionPlayer, realm.firstTimePredicted = previousPlayer, previousFirst
+	realm.commandNumber = previousNumber
 	return cmd
 end
 
