@@ -22,6 +22,6 @@ STATUS (update every step)
        #14 homicide: names, target ID, chat lines, mode_homicide (package), kits   done
        #15 hideseek: hide phase (frozen, blindfold), kill/tag, late hiders, alive scores   done
        #16 riot: restraints core module + mode_riot (package): police third, tie enemies/untie allies, standing = alive & not tied, firearms param   done
-       #17 defense: npcs core module + rounds status line done; hostiles package + mode_defense in progress
+       #17 defense: npcs core module, rounds status line + result params, hostiles package, mode_defense   done
   docs overhaul        todo (#25)
-  last full run        50 specs, 489 passed, 0 failed (26 s); lint clean
+  last full run        51 specs, 493 passed, 0 failed (26 s); lint clean

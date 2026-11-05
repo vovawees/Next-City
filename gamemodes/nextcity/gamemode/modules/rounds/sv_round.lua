@@ -12,7 +12,7 @@
 --   round:SetTimeLimit(seconds), TimeLeft(), Elapsed()
 --   round:SetStatus(key, params, endsAt)         the status line under the timer (nil clears)
 --   round:CheckWin()                             asks CheckWin on the next tick
---   round:End(result)                            { reason, team, winner, key, ... }
+--   round:End(result)                            { reason, team, winner, key, params, ... }
 --
 -- Callbacks are protected: an error is logged with the name of the mode or the rule and
 -- the round goes on.

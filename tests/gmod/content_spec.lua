@@ -54,9 +54,13 @@ describe("official package", function()
 		expect(m.throwables:All()):toEqual({ "nc_frag", "nc_bottle" })
 		expect(#items(m)):toBe(43)
 		expect(m.loot:Crates()):toEqual({ "crate_medical", "crate_military", "crate_wood" })
-		expect(m.inventory:Kits()):toEqual({ "hideseek_seeker", "homicide_murderer", "homicide_murderer_wildwest",
-			"homicide_sheriff", "homicide_sheriff_gunfree", "homicide_wildwest", "riot_police", "riot_police_armed",
-			"riot_rioter", "tdm" })
+		expect(m.inventory:Kits()):toEqual({ "defense", "defense_resupply", "hideseek_seeker", "homicide_murderer",
+			"homicide_murderer_wildwest", "homicide_sheriff", "homicide_sheriff_gunfree", "homicide_wildwest",
+			"riot_police", "riot_police_armed", "riot_rioter", "tdm" })
+		expect(m.npcs:Kinds()):toEqual({ "antlion", "combine", "combine_elite", "combine_shotgun", "headcrab",
+			"headcrab_fast", "headcrab_poison", "manhack", "metrocop", "zombie", "zombie_fast", "zombie_poison" })
+		expect(m.npcs:Groups()):toEqual({ "antlions", "combine", "combine_elite", "metrocops", "zombies",
+			"zombies_fast" })
 	end)
 
 	it("refers only to registered rounds, weapons, kinds of armor, treatments, items and tables", function()
@@ -112,6 +116,13 @@ describe("official package", function()
 			for _, entry in ipairs(m.inventory:Kit(kit)) do
 				if inventory:Def(entry.item) == nil then
 					problem("kit " .. kit .. ": " .. entry.item)
+				end
+			end
+		end
+		for _, group in ipairs(m.npcs:Groups()) do
+			for _, entry in ipairs(m.npcs:Group(group).entries) do
+				if m.npcs:Kind(entry.kind) == nil then
+					problem("group " .. group .. ": " .. entry.kind)
 				end
 			end
 		end

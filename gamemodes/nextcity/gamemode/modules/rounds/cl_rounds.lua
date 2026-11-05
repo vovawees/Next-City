@@ -130,7 +130,8 @@ function M:_Headline(result)
 	local i18n = self.ctx.i18n
 	local teamName = result.team > 0 and team.GetName(result.team) or ""
 	local winner = IsValid(result.winner) and self.players:Name(result.winner) or ""
-	local params = { team = teamName, player = winner }
+	local params = self.DecodeParams(result.params or {})
+	params.team, params.player = teamName, winner
 	local key = result.key
 	if key == "" then
 		if result.team > 0 then

@@ -112,4 +112,14 @@ function M:_Kits(inventory)
 		{ "helmet" }, { "vest" }, { "stunstick" }, { "zipties", 6 }, { "usp" }, { "ammo_9x19", 30 },
 	})
 	inventory:RegisterKit("riot_rioter", { { "crowbar" }, { "bottle", 2 } })
+	-- Defense: the defenders and what the living get after each wave
+	-- (lua/nextcity/modules/mode_defense).
+	inventory:RegisterKit("defense", {
+		{ "helmet" }, { "vest" },
+		{ "ar2" }, { "ammo_556", 120 },
+		{ "usp" }, { "ammo_9x19", 30 },
+		{ "crowbar" },
+		{ "bandage", 2 }, { "tourniquet" },
+	})
+	inventory:RegisterKit("defense_resupply", { { "ammo_556", 60 }, { "ammo_9x19", 15 }, { "bandage" } })
 end

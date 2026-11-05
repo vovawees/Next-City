@@ -700,6 +700,7 @@ function M:_ResultMessage(result)
 		key = type(result.key) == "string" and result.key or "",
 		team = type(result.team) == "number" and result.team > 0 and floor(result.team) or 0,
 		winner = result.winner,
+		params = self.EncodeParams(result.params),
 	}
 end
 

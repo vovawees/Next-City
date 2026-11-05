@@ -5,40 +5,48 @@
 | Модуль | Что даёт | Зависимости |
 |---|---|---|
 | [`weaponry`](modules/weaponry/) | 6 видов патронов, 5 стволов, 3 вида холодного и 2 метательного оружия, их 16 предметов, таблицы лута оружия и патронов | `ammo`, `weapons`, `melee`, `throwables`; необязательно `inventory`, `loot`, `explosions` |
-| [`supplies`](modules/supplies/) | 27 предметов: медицина, броня, сумки, стяжки; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `homicide`, `hideseek`, `riot` | `inventory`; необязательно `loot`, `weaponry` |
+| [`supplies`](modules/supplies/) | 27 предметов: медицина, броня, сумки, стяжки; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `homicide`, `hideseek`, `riot`, `defense` | `inventory`; необязательно `loot`, `weaponry` |
+| [`hostiles`](modules/hostiles/) | 12 видов врагов Half-Life 2 (зомби, хедкрабы, муравьиные львы, Гражданская оборона, солдаты Альянса, мэнхаки) и 6 групп для волн | `npcs` |
 | [`mode_homicide`](modules/mode_homicide/README.md) | режим «Хомисайд»: скрытые роли убийцы, шерифа и мирных, псевдонимы, варианты `standard`, `gunfree`, `wildwest` | `rounds`, `roles`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 | [`mode_hideseek`](modules/mode_hideseek/README.md) | режим «Прятки»: фаза пряток с ослеплёнными ищущими, охота с убийством или осаливанием | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 | [`mode_riot`](modules/mode_riot/README.md) | режим «Бунт»: полиция связывает бунтовщиков, бунтовщики отбиваются и освобождают своих | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `restraints` |
+| [`mode_defense`](modules/mode_defense/README.md) | режим «Оборона»: волны существ с передышками, павшие возвращаются после волны | `rounds`, `players`, `npcs`; необязательно `inventory`, `loot`, `notices` |
 
 ```text
 lua/nextcity/
 ├── modules/
 │   ├── weaponry/      # module.lua, sh_weaponry.lua (данные), sv_weaponry.lua (взрывы, лут)
 │   ├── supplies/      # module.lua, sh_supplies.lua (предметы), sv_supplies.lua (лут, ящики, наборы)
+│   ├── hostiles/      # module.lua, sv_hostiles.lua (виды и группы существ)
 │   ├── mode_homicide/ # module.lua, sh_homicide.lua (роли, псевдонимы), sv_homicide.lua (режим)
 │   ├── mode_hideseek/ # module.lua, sh_hideseek.lua (команды), sv_hideseek.lua (режим), cl_hideseek.lua (повязка)
-│   └── mode_riot/     # module.lua, sh_riot.lua (команды), sv_riot.lua (режим)
-└── lang/<код>/        # ammo, weapons, melee, throwables, items, loot, mode_homicide, mode_hideseek, mode_riot
+│   ├── mode_riot/     # module.lua, sh_riot.lua (команды), sv_riot.lua (режим)
+│   └── mode_defense/  # module.lua, sv_defense.lua (режим)
+└── lang/<код>/        # ammo, weapons, melee, throwables, items, loot, mode_homicide, mode_hideseek, mode_riot,
+                       # mode_defense
 ```
 
 ```mermaid
 flowchart LR
 	subgraph core["Ядро (gamemode)"]
-		A[ammo] & W[weapons] & M[melee] & T[throwables] & I[inventory] & L[loot]
+		A[ammo] & W[weapons] & M[melee] & T[throwables] & I[inventory] & L[loot] & N[npcs]
 	end
 	subgraph pack["Пакет (lua/nextcity)"]
 		WY[weaponry] --> A & W & M & T
 		WY -.-> I & L
 		S[supplies] --> I
 		S -.-> L & WY
+		HO[hostiles] --> N
 	end
 	R["Режимы: tdm, …"] -- "kit = tdm" --> S
 	H[mode_homicide] -- "homicide_*" --> S
 	HS[mode_hideseek] -- "hideseek_*" --> S
 	RT[mode_riot] -- "riot_*" --> S
+	D[mode_defense] -- "defense*" --> S
+	D -- "группы волн" --> HO
 ```
 
-Сплошные стрелки — обязательные зависимости, пунктир — необязательные: без `loot` нет таблиц и ящиков, без `weaponry` в таблицах `supplies` нет оружия и не регистрируется набор `tdm`.
+Сплошные стрелки — обязательные зависимости, пунктир — необязательные: без `loot` нет таблиц и ящиков, без `weaponry` в таблицах `supplies` нет оружия и не регистрируются наборы режимов (режимы тогда выдают оружие движка).
 
 ## Модели
 
@@ -170,8 +178,36 @@ flowchart LR
 | `riot_police` | шлем, бронежилет, дубинка, 6 стяжек | [Бунт](modules/mode_riot/README.md#наборы): полиция |
 | `riot_police_armed` | шлем, бронежилет, дубинка, 6 стяжек, USP, 30 патронов 9×19 | Бунт при `firearms = true`: полиция |
 | `riot_rioter` | монтировка, 2 бутылки | Бунт: бунтовщики |
+| `defense` | шлем, бронежилет, AR2 и 120 патронов 5,56×45, USP и 30 патронов 9×19, монтировка, 2 бинта, жгут | [Оборона](modules/mode_defense/README.md#наборы): защитники |
+| `defense_resupply` | 60 патронов 5,56×45, 15 патронов 9×19, бинт | Оборона: живым после каждой волны |
 
 `nc_kits` — все наборы, `nc_kit <игрок> <набор>` — выдать набор (администратор).
+
+## Существа
+
+Модуль `hostiles` регистрирует в [`npcs`](../../gamemodes/nextcity/gamemode/modules/npcs/README.md) виды врагов Half-Life 2 и группы, из которых режимы собирают волны (`nc_npcs kinds` — список, `nc_npcs spawn <вид | группа> [число]` — вызвать).
+
+| Вид | Класс | Оружие, меткость |
+|---|---|---|
+| `zombie`, `zombie_fast`, `zombie_poison` | `npc_zombie`, `npc_fastzombie`, `npc_poisonzombie` | — |
+| `headcrab`, `headcrab_fast`, `headcrab_poison` | `npc_headcrab`, `npc_headcrab_fast`, `npc_headcrab_black` | — |
+| `antlion` | `npc_antlion` | — |
+| `metrocop` | `npc_metropolice` | пистолет или дубинка, средняя |
+| `combine` | `npc_combine_s` | SMG1 (2 из 3) или AR2, хорошая |
+| `combine_shotgun` | `npc_combine_s`, рыжая раскраска | дробовик, хорошая |
+| `combine_elite` | `npc_combine_s`, модель элиты | AR2, очень хорошая |
+| `manhack` | `npc_manhack` | — |
+
+| Группа | Состав (вес) |
+|---|---|
+| `zombies` | зомби 6, быстрый зомби 2, ядовитый зомби 1, хедкраб 2, быстрый хедкраб 1 |
+| `zombies_fast` | быстрый зомби 4, быстрый хедкраб 2, зомби 2 |
+| `antlions` | муравьиный лев |
+| `metrocops` | Гражданская оборона 4, мэнхак 1 |
+| `combine` | солдат 4, солдат с дробовиком 2, Гражданская оборона 1 |
+| `combine_elite` | солдат 3, солдат с дробовиком 1, элита 2 |
+
+Свои виды и группы — `npcs:RegisterKind` и `npcs:RegisterGroup` в своём пакете; группу волн режима задаёт его параметр (`groups` у обороны).
 
 ## Свой контент
 

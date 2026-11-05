@@ -308,7 +308,7 @@ describe("rounds", function()
 		local server, rounds
 		server, rounds = boot({
 			files = { ["nextcity/lang/en/test.lua"] = "return { wave = 'Wave {wave} of {who}: {time}',"
-				.. " calm = 'Calm', who = 'the dead' }" },
+				.. " calm = 'Calm', who = 'the dead', lost = 'Lost to {who}', fell = 'Fell on wave {wave}' }" },
 			modes = { { id = "test", name = "Test", minPlayers = 2,
 				Start = function(round)
 					round:SetStatus("test.wave", { wave = 2, who = { key = "test.who" } }, server.time + 20)
@@ -337,12 +337,14 @@ describe("rounds", function()
 		sync(server, client)
 		expect(hud(client)):toEqual({ "Test: round 1" })
 
-		-- The end of the round clears it.
+		-- The end of the round clears it; the texts of a result have params too.
 		rounds:Round():SetStatus("test.calm")
-		rounds:Round():End({ reason = "admin" })
+		rounds:Round():End({ reason = "test.fell", key = "test.lost", params = { wave = 3, who = { key = "test.who" } } })
 		server:Advance(0.1)
 		sync(server, client)
 		expect(hud(client)):notToContain("Calm")
+		expect(hud(client)):toContain("Lost to the dead")
+		expect(hud(client)):toContain("Fell on wave 3")
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
 	end)

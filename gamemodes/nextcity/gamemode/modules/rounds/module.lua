@@ -1,6 +1,17 @@
 -- Rounds: the round state machine, the registry of modes and rule blocks and their typed
 -- parameters (docs/ARCHITECTURE.md, section 11). A mode is a module that registers
 -- itself here; this module knows nothing about particular modes.
+
+-- The field with the params of a translated text as messages carry them (EncodeParams and
+-- DecodeParams of sh_rounds.lua).
+local function params()
+	return { "params", "array", max = 8, of = { "struct", fields = {
+		{ "name", "string", max = 24 },
+		{ "kind", "enum", values = { "text", "key", "number" } },
+		{ "value", "string", max = 128 },
+	} } }
+end
+
 return {
 	id = "rounds",
 	description = "Round state machine, registry of modes and rule blocks with typed parameters",
@@ -41,11 +52,7 @@ return {
 		status = { from = "server", fields = {
 			{ "key", "string", max = 64 },
 			{ "endsAt", "double", min = 0 },
-			{ "params", "array", max = 8, of = { "struct", fields = {
-				{ "name", "string", max = 24 },
-				{ "kind", "enum", values = { "text", "key", "number" } },
-				{ "value", "string", max = 128 },
-			} } },
+			params(),
 		} },
 		-- Server -> client: how the round ended, sent when it ends.
 		result = { from = "server", fields = {
@@ -53,6 +60,7 @@ return {
 			{ "key", "string", max = 64 },           -- translation key of the headline, "" for the default
 			{ "team", "uint", bits = 16 },           -- winning team, 0 if none
 			{ "winner", "player", optional = true }, -- winning player
+			params(),                                -- of the texts besides team and player
 		} },
 	},
 }

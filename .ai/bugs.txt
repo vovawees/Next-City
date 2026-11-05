@@ -26,3 +26,5 @@ PITFALLS
   spec WeaponClasses() keeps the give order (hands first, then the kit order).
   emulator: ply:SelectWeapon asks GM:PlayerSwitchWeapon of World.realm or ply.server (players have .server,
     not .realm); component replication needs server:Advance before Env.Flush (rate batches).
+  modes: never name a round handler M:Start/M:Stop/M:Init (module lifecycle) -> use Begin; round:Every needs an id
+         string first; mode callbacks defined in a spec cannot call CurTime (use server.time).
