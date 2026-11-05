@@ -130,4 +130,11 @@ function M:_Kits(inventory)
 		{ "crowbar" }, { "frag" },
 		{ "bandage", 3 }, { "tourniquet" },
 	})
+	-- Deathmatch (gamemodes/nextcity/gamemode/modules/mode_dm).
+	inventory:RegisterKit("dm", {
+		{ "vest_light" },
+		{ "mp7" }, { "ammo_46x30", 80 },
+		{ "usp" }, { "ammo_9x19", 30 },
+		{ "knife" }, { "bandage" },
+	})
 end

@@ -15,7 +15,7 @@ local ipairs = ipairs
 local IsValid = IsValid
 
 local LOADOUT = { "weapon_crowbar", "weapon_pistol", "weapon_smg1" }
-local HANDS = { primary = 1, secondary = 2, melee = 3 } -- what a kit puts in the hands first
+local HANDS = { "primary", "secondary", "melee" } -- what a kit puts in the hands first
 
 function M:Init(ctx)
 	self.armor = ctx:Require("armor")
@@ -90,25 +90,13 @@ function M:GiveKit(ply, id)
 	if inventory == nil or id == "" then
 		return false
 	end
-	local kit = inventory:Kit(id)
-	if kit == nil then
+	if inventory:Kit(id) == nil then
 		if not self.warned["kit:" .. id] then
 			self.warned["kit:" .. id] = true
 			self.ctx.log:Warn("unknown kit '%s' in the parameter kit: the loadout of weapons instead", id)
 		end
 		return false
 	end
-	inventory:GiveKit(ply, id, { drop = true })
-	local best, bestRank
-	for _, entry in ipairs(kit) do
-		local weapon = inventory:Trait(entry.item, "weapon")
-		local rank = weapon ~= nil and HANDS[weapon.slot or "primary"] or nil
-		if rank ~= nil and (bestRank == nil or rank < bestRank) then
-			best, bestRank = weapon.class, rank
-		end
-	end
-	if best ~= nil and ply:HasWeapon(best) then
-		ply:SelectWeapon(best)
-	end
+	inventory:GiveKit(ply, id, { drop = true, select = HANDS })
 	return true
 end

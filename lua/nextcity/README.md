@@ -5,7 +5,7 @@
 | Модуль | Что даёт | Зависимости |
 |---|---|---|
 | [`weaponry`](modules/weaponry/) | 6 видов патронов, 5 стволов, 3 вида холодного и 2 метательного оружия, их 16 предметов, таблицы лута оружия и патронов | `ammo`, `weapons`, `melee`, `throwables`; необязательно `inventory`, `loot`, `explosions` |
-| [`supplies`](modules/supplies/) | 27 предметов: медицина, броня, сумки, стяжки; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `homicide`, `hideseek`, `riot`, `defense`, `coop` | `inventory`; необязательно `loot`, `weaponry` |
+| [`supplies`](modules/supplies/) | 27 предметов: медицина, броня, сумки, стяжки; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `dm`, `homicide`, `hideseek`, `riot`, `defense`, `coop` | `inventory`; необязательно `loot`, `weaponry` |
 | [`hostiles`](modules/hostiles/) | 12 видов врагов Half-Life 2 (зомби, хедкрабы, муравьиные львы, Гражданская оборона, солдаты Альянса, мэнхаки) и 6 групп для волн | `npcs` |
 | [`mode_homicide`](modules/mode_homicide/README.md) | режим «Хомисайд»: скрытые роли убийцы, шерифа и мирных, псевдонимы, варианты `standard`, `gunfree`, `wildwest` | `rounds`, `roles`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 | [`mode_hideseek`](modules/mode_hideseek/README.md) | режим «Прятки»: фаза пряток с ослеплёнными ищущими, охота с убийством или осаливанием | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
@@ -40,7 +40,7 @@ flowchart LR
 		S -.-> L & WY
 		HO[hostiles] --> N
 	end
-	R["Режимы: tdm, …"] -- "kit = tdm" --> S
+	R["Режимы гейммода: tdm, dm"] -- "kit = tdm, dm" --> S
 	H[mode_homicide] -- "homicide_*" --> S
 	HS[mode_hideseek] -- "hideseek_*" --> S
 	RT[mode_riot] -- "riot_*" --> S
@@ -173,6 +173,7 @@ flowchart LR
 | Набор | Состав | Где используется |
 |---|---|---|
 | `tdm` | шлем, бронежилет, MP7 и 120 патронов 4,6×30, USP и 30 патронов 9×19, нож, граната, 2 бинта, жгут | [Team Deathmatch](../../gamemodes/nextcity/gamemode/modules/mode_tdm/README.md) (параметр `kit`) |
+| `dm` | лёгкий бронежилет, MP7 и 80 патронов 4,6×30, USP и 30 патронов 9×19, нож, бинт | [Deathmatch](../../gamemodes/nextcity/gamemode/modules/mode_dm/README.md) (параметр `kit`) |
 | `homicide_murderer` | нож | [Хомисайд](modules/mode_homicide/README.md#наборы): убийца |
 | `homicide_murderer_wildwest` | нож, Кольт Питон, 12 патронов .357 | Хомисайд, «Дикий Запад»: убийца |
 | `homicide_sheriff` | Кольт Питон, 12 патронов .357 | Хомисайд: шериф |

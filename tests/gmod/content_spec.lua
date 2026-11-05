@@ -54,9 +54,9 @@ describe("official package", function()
 		expect(m.throwables:All()):toEqual({ "nc_frag", "nc_bottle" })
 		expect(#items(m)):toBe(43)
 		expect(m.loot:Crates()):toEqual({ "crate_medical", "crate_military", "crate_wood" })
-		expect(m.inventory:Kits()):toEqual({ "coop", "defense", "defense_resupply", "hideseek_seeker", "homicide_murderer",
-			"homicide_murderer_wildwest", "homicide_sheriff", "homicide_sheriff_gunfree", "homicide_wildwest",
-			"riot_police", "riot_police_armed", "riot_rioter", "tdm" })
+		expect(m.inventory:Kits()):toEqual({ "coop", "defense", "defense_resupply", "dm", "hideseek_seeker",
+			"homicide_murderer", "homicide_murderer_wildwest", "homicide_sheriff", "homicide_sheriff_gunfree",
+			"homicide_wildwest", "riot_police", "riot_police_armed", "riot_rioter", "tdm" })
 		expect(m.npcs:Kinds()):toEqual({ "antlion", "combine", "combine_elite", "combine_shotgun", "headcrab",
 			"headcrab_fast", "headcrab_poison", "manhack", "metrocop", "zombie", "zombie_fast", "zombie_poison" })
 		expect(m.npcs:Groups()):toEqual({ "antlions", "combine", "combine_elite", "metrocops", "zombies",
