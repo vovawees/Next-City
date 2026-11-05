@@ -5,8 +5,8 @@ NAMES AND BUDGET
   component   one string per store "nc.<module>:<component>"
   platform    nc.hello (client info + ready, rate 2/burst 4), nc.info (later info changes, 2/8), nc.grants<s>
               (privileges of the player: on net.ready, then on change only; platform/permissions.lua)
-  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 44 = 25 messages +
-              16 components + 3 platform (module example is off; it adds 2 messages + 1 component)
+  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 45 = 25 messages +
+              17 components + 3 platform (module example is off; it adds 2 messages + 1 component)
 
 CLIENT -> SERVER CHECKS (cheap first)
   ready (nc.hello received, else drop notReady) -> token bucket per player and message (rate/s, burst; default
@@ -28,22 +28,24 @@ COMPONENTS (platform/components.lua)
 
 MESSAGES BY MODULE (s = server -> client; c = client -> server with rate/burst)
   doors       door<c 4/8>                         economy     cash<c 4/8>
+  identity    change<c 1/3> (name <= 96 bytes, gender enum)
   inventory   act<c 6/12> close<c 10/20> move<c 12/24> closed<s> contents<s>
   law         law<c 4/8>                          medical     examine<c 2/4> treat<c 4/8> report<s>
   menu        ask<c 1/3> commands<s> (array 128 of {name, module, help <= 160, admin}, on demand of the help tab)
   notices     notice<s>                           organism    succumb<c 1/2>
   ragdoll     fall<c 2/3>                         roles       known<s>
   rounds      state<s> status<s> result<s>        teams       scores<s>
-  mode_city   buy<c 4/8> job<c 2/4> name<c 1/2>   mode_hideseek phase<s>
+  mode_city   buy<c 4/8> job<c 2/4>               mode_hideseek phase<s>
   example     state<s> wave<c 1/3> (template, off by default)
 
 COMPONENTS BY MODULE (audience, flushes/s, field count)
   actions action{owner 10 f4}     armor armor{owner 4 f1}         doors door{all 4 f6}
-  economy account{owner 4 f1}     inventory ground{all 4 f2} place{all 2 f3}
+  economy account{owner 4 f1}     identity identity{all 4 f2} character{owner 2 f4}
+  inventory ground{all 4 f2} place{all 2 f3}
   law jailed{all 4 f1} wanted{all 4 f2} warrant{all 4 f2}         organism vitals{owner 10 f17}
   players life{all 10 f2}         ragdoll body{owner 20 f4}       restraints tied{all 4 f1}
   profiles summary{owner 1 f9}
-  mode_city citizen{all 4 f1}     mode_homicide alias{all 4 f1}   example profile{all 4 f2}
+  mode_homicide alias{all 4 f1}   example profile{all 4 f2}
 
 STATS AND TOOLS
   nc_net         sent/received/dropped per message by reason (notReady, rate, size, invalid, noHandler, unpooled)

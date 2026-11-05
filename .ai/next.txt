@@ -1,13 +1,11 @@
-NEXT (ordered; M0-M7, #25-#31 done)
+NEXT (ordered; M0-M7, #25-#32 done)
   1 M8 services (milestone #9, issues #27-#36 in this order; each: code, tests, module README in russian with API
     and "Проверить в реальном GMod", lang en/ru, .ai refresh, commit "Closes #N", check the issue closed):
     #29 done: storage:Collection (record per key, lazy Get, Release, file per record) + backend sqlite
     #30 done: profiles (collection 'profiles', sections, stats, summary owner component, nc_profile)
     #31 done: menu (F1: AddTab/AddHelp API, profile tab of profiles, settings/language, help keys + commands)
-    #32 identity: name + gender in the profile, validation/uniqueness, random names, cooldown, on when a mode
-        answers identity.enabled; move mode_city rp names (storage ns city, component citizen, nc_rpname, F4 name
-        entry) to identity; "Персонаж" tab (menu:AddTab, order 20; kit Entry/Button; mode_city.command.nc_rpname
-        lang keys move too)
+    #32 done: identity (name + gender in the profile section, random names en/ru, cooldown, uniqueness by the
+        registry, players.name answer, on by identity.enabled; mode_city names moved; F1 tab character)
     #33 appearance: model sets from packages (HL2 citizens), model/skin/bodygroups/player color in the profile,
         applied on spawn at low priority after mode answers of gm.PlayerSetModel (city job models win), Reduce
         appearance.look, preview UI (DModelPanel)

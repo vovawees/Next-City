@@ -1,4 +1,4 @@
--- City, shared part: the jobs, the shop of the jobs and the names of citizens.
+-- City, shared part: the jobs and the shop of the jobs.
 --
 -- A job is a public role (roles, visible = all) registered on both realms in the same
 -- order, with the data of the city: a salary per payday, a limit of places (0: none), the
@@ -8,7 +8,6 @@
 --
 --   city:RegisterJob(id, def), city:Job(id), city:Jobs() -> ids in order, city:DefaultJob()
 --   city:JobOf(ply) -> the job (known on the client: every job is public), city:IsPolice(ply)
---   city:CitizenName(ply) -> the name he goes by in the city, or nil (players.name)
 --   doors.member (ply, group): a job holds the keys of the doors of its group (by its key;
 --   "police": every job that keeps the law and the mayor)
 --   law.officer (ply), law.authority (ply): the jobs that keep the law are its officers, the
@@ -117,7 +116,6 @@ function M:Init(ctx)
 end
 
 function M:Start(ctx)
-	ctx:On("players.name", "AnswerName")
 	ctx:On("doors.member", "AnswerMember")
 	ctx:On("law.officer", "AnswerOfficer")
 	ctx:On("law.authority", "AnswerAuthority")
@@ -248,19 +246,6 @@ function M:OffersFor(ply)
 		end
 	end
 	return out
-end
-
--- The name a player goes by in the city, or nil.
-function M:CitizenName(ply)
-	local citizen = self.ctx.components.citizen:Get(ply)
-	if citizen == nil or citizen.name == "" then
-		return nil
-	end
-	return citizen.name
-end
-
-function M:AnswerName(_, ply)
-	return self:CitizenName(ply)
 end
 
 -- The groups of doors of the map in the city: a job by its key; the police doors open to

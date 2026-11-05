@@ -13,12 +13,11 @@
 -- his account and then his cash (economy:Charge), the things go into his inventory and what
 -- does not fit falls at his feet. Bought things are his own, unlike the gear of the job.
 --
--- Names: with param names a citizen goes by the name he chooses (nc_rpname), kept in
--- storage (namespace city) and shown to everybody instead of the nick (players.name).
+-- Names: with param names everybody sees the characters of citizens instead of their nicks
+-- (the identity module: the city answers identity.enabled; nc_rpname, the tab of F1).
 --
 --   city:SetJob(ply, id, force) -> true or false, reason[, seconds]   reasons: mode, unknown,
 --                                  same, limit, cooldown, jailed, denied
---   city:SetName(ply, name) -> true or false, reason                  reasons: short, long, chars, taken
 --   city:Buy(ply, offer, times) -> true, things or false, reason      reasons: closed, mode, dead,
 --                                  unknown, job, times, jailed, denied, funds
 --   city:Round() -> the running round of the city, or nil; city:Members(id); city:Payday(round)
@@ -32,8 +31,7 @@
 -- and arrest, the mayor issues warrants (sh_city.lua); the jailed get no salary, change no
 -- job and buy nothing (reason jailed); the end of the city is an amnesty.
 --
--- Commands: nc_job [job], nc_buy [offer [times]], nc_rpname <name> (everybody),
---           nc_setjob <player> <job> (admin).
+-- Commands: nc_job [job], nc_buy [offer [times]] (everybody), nc_setjob <player> <job> (admin).
 
 local M = NC.Module("mode_city")
 
@@ -55,11 +53,8 @@ function M:_InitServer(ctx)
 	self.inventory = ctx:Require("inventory")
 	self.economy = ctx:Require("economy")
 	self.notices = ctx:Require("notices")
-	self.storage = ctx:Require("storage")
 	self.doors = ctx:Require("doors")
 	self.law = ctx:Require("law")
-	self.store = self.storage ~= nil and self.storage:Open("city") or nil
-	self.memory = {}  -- names without storage: key -> { name }
 	self.changed = {} -- ply -> CurTime of his last job change
 	self.rounds:RegisterMode({
 		id = "city",
@@ -73,7 +68,8 @@ function M:_InitServer(ctx)
 				desc = "s between salaries (0: no salaries)" },
 			jobCooldown = { type = "number", default = 30, min = 0, max = 3600,
 				desc = "s a player waits between job changes" },
-			names = { type = "boolean", default = true, desc = "citizens go by the names they choose (nc_rpname)" },
+			names = { type = "boolean", default = true,
+				desc = "everybody sees the characters of citizens (identity: nc_rpname, F1) instead of nicks" },
 		},
 		Setup = function(round)
 			self:Setup(round)
@@ -95,14 +91,11 @@ end
 
 function M:_StartServer(ctx)
 	ctx.net:Receive("job", "OnJobRequest")
-	ctx.net:Receive("name", "OnNameRequest")
 	ctx.net:Receive("buy", "OnBuyRequest")
 	ctx:On("players.left", "OnLeft")
 	ctx.commands:Add("nc_job", { help = "[job] - the jobs of the city, or become one", admin = false }, "JobCommand")
 	ctx.commands:Add("nc_buy", { help = "[offer [times]] - the shop of your job, or buy", admin = false },
 		"BuyCommand")
-	ctx.commands:Add("nc_rpname", { help = "<name> - the name you go by in the city", admin = false },
-		"NameCommand")
 	ctx.commands:Add("nc_setjob", { help = "<player> <job> - give a player a job at once" }, "SetJobCommand")
 end
 
@@ -137,6 +130,11 @@ function M:Setup(round)
 	round:On("law.enabled", function()
 		return true
 	end)
+	if round.params.names then
+		round:On("identity.enabled", function()
+			return true
+		end)
+	end
 	local inventory = self.inventory
 	if inventory == nil then
 		return
@@ -153,16 +151,10 @@ function M:Setup(round)
 	end)
 end
 
--- A citizen arrives: the default job and the name he chose.
-function M:Arrive(round, ply)
+-- A citizen arrives with the default job.
+function M:Arrive(_, ply)
 	self.changed[ply] = nil
 	self.roles:Assign(ply, self.defaultJob)
-	if round.params.names then
-		local name = self:StoredName(ply)
-		if name ~= nil and self:_NameProblem(name, ply) == nil then
-			self:_ShowName(ply, name)
-		end
-	end
 end
 
 function M:Begin(round)
@@ -175,7 +167,6 @@ function M:Begin(round)
 end
 
 function M:Cleanup()
-	self.ctx.components.citizen:Clear()
 	self.changed = {}
 	if self.doors ~= nil then
 		self.doors:ReleaseAll()
@@ -388,99 +379,6 @@ function M:Payday(round)
 	end
 end
 
--- Names ----------------------------------------------------------------------------------
-
-function M:_Key(ply)
-	if self.storage ~= nil then
-		return self.storage:PlayerKey(ply)
-	end
-	return ply:IsBot() and "bot_" .. ply:Nick() or ply:SteamID64()
-end
-
--- The name a player chose before, or nil.
-function M:StoredName(ply)
-	local key = self:_Key(ply)
-	local record
-	if self.store ~= nil then
-		record = self.store:Get(key)
-	else
-		record = self.memory[key]
-	end
-	return type(record) == "table" and type(record.name) == "string" and record.name or nil
-end
-
--- A name cleaned up: no spaces at the ends, single spaces inside.
-function M.CleanName(text)
-	return (tostring(text or ""):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""))
-end
-
--- Why a name cannot be used by `ply`, or nil.
-function M:_NameProblem(name, ply)
-	if #name < 2 then
-		return "short"
-	end
-	if #name > 32 then
-		return "long"
-	end
-	if name:find("[%c<>\"\\]") then
-		return "chars"
-	end
-	local lower = name:lower()
-	for _, other in ipairs(self.players:ReadyPlayers()) do
-		local taken = other ~= ply and self:CitizenName(other)
-		if taken and taken:lower() == lower then
-			return "taken"
-		end
-	end
-	return nil
-end
-
-function M:_ShowName(ply, name)
-	local citizen = self.ctx.components.citizen
-	if citizen:Get(ply) == nil then
-		citizen:Add(ply, { name = name })
-	else
-		citizen:Set(ply, "name", name)
-	end
-end
-
--- Sets the name a player goes by (kept for his next visits); true or false, reason.
-function M:SetName(ply, text)
-	local name = M.CleanName(text)
-	local problem = self:_NameProblem(name, ply)
-	if problem ~= nil then
-		return false, problem
-	end
-	local key = self:_Key(ply)
-	if self.store ~= nil then
-		self.store:Set(key, { name = name })
-	else
-		self.memory[key] = { name = name }
-	end
-	local round = self:Round()
-	if round ~= nil and round.params.names and round:IsParticipant(ply) then
-		self:_ShowName(ply, name)
-	end
-	return true
-end
-
--- A name asked by a player; he learns what came of it.
-function M:RequestName(ply, text)
-	local ok, reason = self:SetName(ply, text)
-	if self.notices ~= nil then
-		if ok then
-			self.notices:Send(ply, "mode_city.named", { name = M.CleanName(text) }, "good")
-		else
-			self.notices:Send(ply, "mode_city.fail.name." .. reason, nil, "bad")
-		end
-	end
-	return ok, reason
-end
-
-function M:OnNameRequest(data, ply)
-	self:RequestName(ply, data.name)
-end
-
 -- Commands ------------------------------------------------------------------------------
 
 function M:JobCommand(caller, args)
@@ -528,17 +426,6 @@ function M:BuyCommand(caller, args)
 	local offer = self.offers[id]
 	return format("nc_buy %s: bought %d for %s", id, offer.count * times,
 		self.economy:Format(offer.price * times))
-end
-
-function M:NameCommand(caller, args)
-	if not IsValid(caller) then
-		return "nc_rpname: run it in the game"
-	end
-	local ok, reason = self:RequestName(caller, concat(args, " "))
-	if not ok then
-		return "nc_rpname: " .. reason
-	end
-	return "nc_rpname: you are " .. M.CleanName(concat(args, " "))
 end
 
 function M:SetJobCommand(caller, args)

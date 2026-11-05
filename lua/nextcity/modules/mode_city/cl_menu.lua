@@ -1,8 +1,8 @@
--- City, the menu (F4, gm_showspare2): the jobs (take one, go by a name), the shop of the
--- job, the bank (the account and the cash in the pockets) and, for those who keep the law,
--- the police (want, warrant, release). An open menu looks twice a second whether what it
--- shows changed and builds the tab again then (not while the player types in it); what he
--- typed stays.
+-- City, the menu (F4, gm_showspare2): the jobs (take one; the name of the character and
+-- the way to its tab in F1), the shop of the job, the bank (the account and the cash in
+-- the pockets) and, for those who keep the law, the police (want, warrant, release). An
+-- open menu looks twice a second whether what it shows changed and builds the tab again
+-- then (not while the player types in it); what he typed stays.
 --
 --   city:OpenMenu(tab)      -> the frame; tab: "jobs", "shop", "bank", "police" (default:
 --                              the last one)
@@ -350,16 +350,20 @@ end
 
 function BUILD.jobs(self, body)
 	local me, i18n = LocalPlayer(), self.ctx.i18n
-	local line = addRow(body, ROW + 6)
-	addCaption(line, i18n:T("mode_city.menu.name"))
-	local save = addButton(line, i18n:T("mode_city.menu.rename"), RIGHT, 160, nil)
-	save:DockMargin(0, 4, 4, 4)
-	save.ncAction = "name"
-	local entry = self:_Entry(line, "name", self:CitizenName(me) or me:Nick())
-	save.DoClick = function()
-		self:AskName(entry:GetValue())
+	if self.identity ~= nil then
+		local line = addRow(body, ROW + 6)
+		addCaption(line, i18n:T("mode_city.menu.name"))
+		local playerMenu = self.playerMenu
+		if playerMenu ~= nil then
+			local change = addButton(line, i18n:T("mode_city.menu.rename"), RIGHT, 160, function()
+				self:CloseMenu()
+				playerMenu:Open("character")
+			end)
+			change:DockMargin(0, 4, 4, 4)
+			change.ncAction = "character"
+		end
+		addLabel(line, self.players:Name(me), FONT, WHITE, FILL).ncName = true
 	end
-	entry.OnEnter = save.DoClick
 	local mine = self.roles:Of(me)
 	for _, id in ipairs(self.jobOrder) do
 		self:_JobRow(body, self.jobs[id], id == mine)

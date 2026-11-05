@@ -9,6 +9,7 @@
 --   profiles:Key(ply)              -> the storage key (SteamID64, "bot_<name>")
 --   profiles:ByKey(key)            -> the record of anybody (on the server or in storage), or nil
 --   profiles:IsLoaded(ply), profiles:Save(ply) (counts the playtime and writes now)
+--   profiles:IsPersistent(ply)     -> whether his record outlives the session (storage, not a bot)
 --
 -- A record: { v = 1, name = last nick, first, last = unix times of the first visit and of
 -- the last join or leave, visits, playtime = s, stats = { kills, deaths, rounds, wins,
@@ -95,6 +96,10 @@ end
 
 local function persistent(self, ply)
 	return self.collection ~= nil and (not ply:IsBot() or self.ctx.config.bots == true)
+end
+
+function M:IsPersistent(ply)
+	return persistent(self, ply)
 end
 
 local function newRecord(now)

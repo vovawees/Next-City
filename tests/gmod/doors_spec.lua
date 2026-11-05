@@ -30,6 +30,7 @@ local function boot(opts)
 	opts = opts or {}
 	local server = Env.Server({ data = opts.data, patch = { [Env.CONFIG] = function(cfg)
 		cfg.modules.settings.rounds = { mode = "city", shuffle = false }
+		cfg.modules.settings.identity = { random = false } -- the nicks in the texts
 		return cfg
 	end } })
 	for i = 0, 5 do

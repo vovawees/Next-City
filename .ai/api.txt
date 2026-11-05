@@ -81,6 +81,16 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   cl       RebuildStatuses()
   listens  organism.vitals organism.capabilities armor.changed i18n.changed gm.HUDShouldDraw gm.HUDPaint
            gm.RenderScreenspaceEffects
+[core] identity
+  sh       .Random(n) .CleanName(text) .Fold(name) .Length(name) NameProblem(name) AddNames(language,lists)
+           RandomName(gender,language,taken) IsShown(ply) Name(ply) Gender(ply)
+  sv       .Now() Character(ply) Refresh(ply) IsTaken(name,ply) Wait(ply) Change(ply,name,gender,force)
+           Request(ply,name,gender)
+  cl       Character() Wait() Ask(name,gender)
+  emits    identity.changed
+  asks     identity.enabled identity.canChange
+  listens  players.name profiles.loaded profiles.leaving players.ready players.stateChanged rounds.phase
+  commands nc_rpname nc_gender nc_setname
 [core] inventory
   sh       RegisterItem(id,def) Def(id) Items() Trait(id,name) WithTrait(name) Name(id) Description(id)
            RegisterVerb(id,spec) HandleVerb(id,fn) VerbApplies(id,item,where,kind) VerbsFor(item,where,kind)
@@ -200,8 +210,8 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   commands nc_players
 [core] profiles
   sh       Summary(ply) SummaryPlaytime(ply)
-  sv       .Now() Key(ply) Get(ply) IsLoaded(ply) ByKey(key) Section(ply,id) Touch(ply) Playtime(ply) Save(ply)
-           Stat(ply,name) AddStat(ply,name,amount) Won(ply,result,round)
+  sv       .Now() Key(ply) IsPersistent(ply) Get(ply) IsLoaded(ply) ByKey(key) Section(ply,id) Touch(ply)
+           Playtime(ply) Save(ply) Stat(ply,name) AddStat(ply,name,amount) Won(ply,result,round)
   cl       FormatPlaytime(seconds)
   emits    profiles.loaded profiles.leaving profiles.stat
   asks     profiles.won
@@ -288,20 +298,19 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
 [addons] hostiles
 [addons] mode_city
   sh       RegisterJob(id,def) Job(id) Jobs() DefaultJob() JobOf(ply) IsPolice(ply) IsMayor(ply)
-           RegisterOffer(id,def) Offer(id) Offers() MayBuy(ply,offer) OffersFor(ply) CitizenName(ply)
-  sv       Round() Setup(round) Arrive(round,ply) Begin(round) Cleanup() Members(id) ModelFor(ply,job) Equip(ply)
+           RegisterOffer(id,def) Offer(id) Offers() MayBuy(ply,offer) OffersFor(ply)
+  sv       Round() Setup(round) Arrive(_,ply) Begin(round) Cleanup() Members(id) ModelFor(ply,job) Equip(ply)
            Unequip(ply) SetJob(ply,id,force) RequestJob(ply,id) Buy(ply,id,times) RequestBuy(ply,id,times)
-           Payday(round) StoredName(ply) .CleanName(text) SetName(ply,text) RequestName(ply,text)
-  cl       IsRunning() Count(id) Money(amount) HudLines() AskJob(id) AskName(name) AskBuy(id,times) MenuTabs()
-           IsMenuOpen() MenuTab() OpenMenu(tab) CloseMenu() ToggleMenu() MenuKey() ShowTab(tab) RefreshMenu(force)
-           MayWarrant()
+           Payday(round)
+  cl       IsRunning() Count(id) Money(amount) HudLines() AskJob(id) AskBuy(id,times) MenuTabs() IsMenuOpen()
+           MenuTab() OpenMenu(tab) CloseMenu() ToggleMenu() MenuKey() ShowTab(tab) RefreshMenu(force) MayWarrant()
   emits    mode_city.job mode_city.bought
   asks     mode_city.canJob mode_city.canBuy mode_city.salary
   reduces  mode_city.salary
-  listens  players.name doors.member law.officer law.authority players.left gm.PlayerSetModel doors.property
-           doors.canRam law.enabled inventory.canMove inventory.canAct players.targetLines gm.HUDPaint
+  listens  doors.member law.officer law.authority players.left gm.PlayerSetModel doors.property doors.canRam
+           law.enabled identity.enabled inventory.canMove inventory.canAct players.targetLines gm.HUDPaint
            gm.PlayerBindPress doors.groupName roles.changed i18n.changed
-  commands nc_job nc_buy nc_rpname nc_setjob
+  commands nc_job nc_buy nc_setjob
 [addons] mode_coop
   sv       Setup(round) Begin(round) Loadout(round,ply) Feed(round) Left(round) Update(round) Fell(round,ply)
            CheckWin(round)
@@ -340,6 +349,8 @@ QUESTIONS AND REDUCTIONS (name  askers -> answerers)
   doors.property               doors -> mode_city
   gm.PlayerShouldTakeDamage    damage -> players,rounds
   hands.grab                   hands -> -
+  identity.canChange           identity -> -
+  identity.enabled             identity -> mode_city
   inventory.canAct             inventory -> law,restraints,mode_city
   inventory.canMove            inventory -> law,restraints,mode_city
   inventory.place              inventory -> equipment
@@ -354,7 +365,7 @@ QUESTIONS AND REDUCTIONS (name  askers -> answerers)
   mode_city.salary             mode_city -> -
   movement.speed               movement -> equipment,law,restraints
   organism.canSuccumb          organism -> -
-  players.name                 players -> mode_city,mode_homicide
+  players.name                 players -> identity,mode_homicide
   players.spawnPoint           players -> rounds
   players.targetLines          players -> law,restraints,mode_city
   profiles.won                 profiles -> mode_coop,mode_defense
@@ -386,6 +397,7 @@ EVENTS (name  emitters -> listeners)
   explosions.exploded          explosions -> -
   hands.dropped                hands -> -
   hands.grabbed                hands -> -
+  identity.changed             identity -> -
   inventory.changed            inventory -> equipment
   inventory.closed             inventory -> inventory
   inventory.dropped            inventory -> -
@@ -421,11 +433,11 @@ EVENTS (name  emitters -> listeners)
   players.left                 players -> actions,armor,damage,doors,economy,equipment,inventory,law,medical,movement,
                                           organism,ragdoll,restraints,roles,rounds,spectator,mode_city
   players.loadout              players -> armor,hands,inventory,rounds
-  players.ready                players -> economy,rounds
+  players.ready                players -> economy,identity,rounds
   players.spawned              players -> inventory,law,movement,organism,ragdoll,restraints,rounds
-  players.stateChanged         players -> actions,armor,movement,organism,ragdoll,spectator,teams
-  profiles.leaving             profiles -> -
-  profiles.loaded              profiles -> -
+  players.stateChanged         players -> actions,armor,identity,movement,organism,ragdoll,spectator,teams
+  profiles.leaving             profiles -> identity
+  profiles.loaded              profiles -> identity
   profiles.stat                profiles -> -
   ragdoll.corpse               ragdoll -> inventory,ragdoll_control
   ragdoll.fell                 ragdoll -> ragdoll_control
@@ -436,7 +448,7 @@ EVENTS (name  emitters -> listeners)
   restraints.untied            restraints -> mode_riot
   roles.assigned               roles -> -
   roles.changed                roles -> mode_city
-  rounds.phase                 rounds -> profiles
+  rounds.phase                 rounds -> identity,profiles
   spectator.target             spectator -> -
   storage.flushed              storage -> -
   teams.changed                teams -> spectator
@@ -445,4 +457,4 @@ EVENTS (name  emitters -> listeners)
   throwables.thrown            throwables -> equipment
   weapons.fired                weapons -> -
 
-46 modules, 640 public methods
+47 modules, 655 public methods

@@ -1,8 +1,9 @@
--- Menu (F1): the frame with the tabs in order (the profile of profiles first, then the
--- settings and the help), F1 toggles it, the language from the settings tab, the help
--- with the keys of the modules and the commands of the player (admin ones only with the
--- privilege, asked again when the privileges change), tabs and help entries of modules
--- through the API, stamps, entries that keep what was typed, a failing tab.
+-- Menu (F1): the frame with the tabs in order (the profile of profiles first, the character
+-- of identity, then the settings and the help), F1 toggles it, the language from the
+-- settings tab, the help with the keys of the modules and the commands of the player
+-- (admin ones only with the privilege, asked again when the privileges change), tabs and
+-- help entries of modules through the API, stamps, entries that keep what was typed, a
+-- failing tab.
 
 local Env = dofile(T.root .. "tests/gmod/env.lua")
 
@@ -69,7 +70,7 @@ local function texts(list)
 end
 
 describe("menu", function()
-	it("opens on F1 with the profile, the settings and the help; F1 closes it", function()
+	it("opens on F1 with the profile, the character, the settings and the help; F1 closes it", function()
 		local server = boot()
 		local client = Env.Join(server, { name = "Gordon", language = "en" })
 		settle(server, client)
@@ -78,7 +79,7 @@ describe("menu", function()
 		expect({ menu:IsOpen(), menu:Tab() }):toEqual({ true, "profile" })
 		local frame = panels(client, "ncMenu")[1]
 		expect(frame.popup):toBe(true)
-		expect(fields(client, "ncTab")):toEqual({ "profile", "settings", "help" })
+		expect(fields(client, "ncTab")):toEqual({ "profile", "character", "settings", "help" })
 		expect(panels(client, "ncTab", "profile")[1]:GetText()):toBe("Profile")
 		expect(panels(client, "ncTab", "profile")[1].ncActive):toBe(true)
 		expect(rows(client, "ncStat")):toEqual({
@@ -319,7 +320,7 @@ describe("menu", function()
 		local again = client:Get("NC").Modules:Instance("menu")
 		expect(again:IsOpen()):toBe(false)
 		expect(Env.BindPress(client, "gm_showhelp")):toBe(true)
-		expect(fields(client, "ncTab")):toEqual({ "profile", "settings", "help" })
+		expect(fields(client, "ncTab")):toEqual({ "profile", "character", "settings", "help" })
 		expect(client:Errors()):toEqual({})
 	end)
 end)

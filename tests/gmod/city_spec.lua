@@ -1,18 +1,20 @@
 -- City (the official package): an endless round, the jobs with their limits, cooldown and
 -- gear (it stays with its owner and goes with the job), respawns, salaries into the bank
--- accounts, the names of citizens kept in storage and the shop of the jobs, with the real
--- gamemode and package files.
+-- accounts, the characters of citizens (identity) instead of nicks and the shop of the
+-- jobs, with the real gamemode and package files.
 
 local Env = dofile(T.root .. "tests/gmod/env.lua")
 
 local World = Env.World
 local Vector = World.Vector
 
--- opts: params of the city, data (DATA of an earlier server).
+-- opts: params of the city, data (DATA of an earlier server). Newcomers keep their nicks
+-- until they choose a character (no random names of identity).
 local function boot(opts)
 	opts = opts or {}
 	local server = Env.Server({ data = opts.data, patch = { [Env.CONFIG] = function(cfg)
 		cfg.modules.settings.rounds = { mode = "city", shuffle = false, params = { city = opts.params or {} } }
+		cfg.modules.settings.identity = { random = false }
 		return cfg
 	end } })
 	for i = 0, 5 do
@@ -22,7 +24,7 @@ local function boot(opts)
 	server:Call("InitPostEntity")
 	local NC = server:Get("NC")
 	local m = { NC = NC }
-	for _, id in ipairs({ "rounds", "roles", "players", "inventory", "economy", "law", "mode_city" }) do
+	for _, id in ipairs({ "rounds", "roles", "players", "inventory", "economy", "law", "identity", "mode_city" }) do
 		m[id] = NC.Modules:Instance(id)
 	end
 	return server, m
@@ -204,16 +206,19 @@ describe("city", function()
 		run(server, 60)
 		expect({ economy:Balance(gordon), economy:Balance(alyx) }):toEqual({ 670, 545 })
 
-		-- Names: cleaned up, unique, shown to everybody, kept for the next visit.
+		-- Characters (identity): cleaned up, unique, everybody sees them in the city, kept for the
+		-- next visit.
 		gordon.printed = {}
+		expect(m.players:Name(gordon)):toBe("Gordon")
 		server:Command("nc_rpname", gordon, { "  John", " Freeman " })
-		expect(gordon.printed[1]):toBe("nc_rpname: you are John Freeman")
+		expect(gordon.printed[1]):toBe("nc_rpname: you are John Freeman, male")
 		expect(m.players:Name(gordon)):toBe("John Freeman")
-		expect({ city:SetName(alyx, "john freeman") }):toEqual({ false, "taken" })
-		expect({ city:SetName(alyx, "A") }):toEqual({ false, "short" })
-		expect({ city:SetName(alyx, string.rep("x", 33)) }):toEqual({ false, "long" })
-		expect({ city:SetName(alyx, "<b>Alyx") }):toEqual({ false, "chars" })
-		expect(city:SetName(alyx, "Алиса Вэнс")):toBe(true)
+		local identity = m.identity
+		expect({ identity:Change(alyx, "john freeman") }):toEqual({ false, "taken" })
+		expect({ identity:Change(alyx, "A") }):toEqual({ false, "short" })
+		expect({ identity:Change(alyx, string.rep("x", 33)) }):toEqual({ false, "long" })
+		expect({ identity:Change(alyx, "<b>Alyx") }):toEqual({ false, "chars" })
+		expect(identity:Change(alyx, "Алиса Вэнс", "female")):toBe(true)
 		server:Advance(0.3)
 		hud(server, client)
 		local players = client:Get("NC").Modules:Instance("players")
@@ -309,10 +314,10 @@ describe("city", function()
 		end
 		expect(dropped):toBe(true)
 
-		-- The menu changes jobs and names over the net too.
+		-- The menus change jobs and characters over the net too.
 		run(server, 30)
 		cl:AskJob("medic")
-		cl:AskName("Gordon Freeman")
+		client:Get("NC").Modules:Instance("identity"):Ask("Gordon Freeman")
 		hud(server, client)
 		expect({ m.roles:Of(gordon), m.players:Name(gordon) }):toEqual({ "medic", "Gordon Freeman" })
 
@@ -377,16 +382,21 @@ describe("city", function()
 		expect(roles:Of(gordon)):toBe("police")
 		expect(fields(client, "ncTab")):toEqual({ "jobs", "shop", "bank", "police" })
 		expect(panels(client, "ncJob", "police")[1]:GetText()):toBe("Police officer — your job")
-		local entry = panels(client, "ncEntry", "name")[1]
-		expect(entry:GetValue()):toBe("Gordon")
-		entry:SetValue("Gordon Freeman")
-		click(server, client, "ncAction", "name")
+		-- The name of the character: its tab in the menu of F1 changes it.
+		expect(panels(client, "ncName")[1]:GetText()):toBe("Gordon")
+		click(server, client, "ncAction", "character")
+		local playerMenu = client:Get("NC").Modules:Instance("menu")
+		expect({ cl:IsMenuOpen(), playerMenu:IsOpen(), playerMenu:Tab() }):toEqual({ false, true, "character" })
+		panels(client, "ncEntry", "name")[1]:SetValue("Gordon Freeman")
+		click(server, client, "ncAction", "save")
 		expect(m.players:Name(gordon)):toBe("Gordon Freeman")
+		playerMenu:Close()
+		cl:OpenMenu()
 		city:SetJob(alyx, "mayor", true)
 		settle()
 		local mayor = panels(client, "ncJob", "mayor")[1]
 		expect({ mayor.ncFull, childText(mayor, "ncInfo") }):toEqual({ true, "Salary $130 · places 1/1" })
-		expect(panels(client, "ncEntry", "name")[1]:GetValue()):toBe("Gordon Freeman")
+		expect(panels(client, "ncName")[1]:GetText()):toBe("Gordon Freeman")
 
 		-- The shop of the job: once or five times at once; the money above follows.
 		click(server, client, "ncTab", "shop")

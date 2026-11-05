@@ -15,7 +15,6 @@ return {
 	["job.bandit.desc"] = "Rob, pick locks and stay out of jail",
 	became = "{who} is now: {job}",
 	payday = "Payday: {amount} into your account",
-	named = "You go by the name {name} now",
 	["fail.mode"] = "Jobs are only in the city",
 	["fail.unknown"] = "No such job",
 	["fail.same"] = "That is your job already",
@@ -26,10 +25,6 @@ return {
 	},
 	["fail.denied"] = "You cannot change your job now",
 	["fail.jailed"] = "You cannot change your job in jail",
-	["fail.name.short"] = "The name is too short",
-	["fail.name.long"] = "The name is too long",
-	["fail.name.chars"] = "The name has characters that are not allowed",
-	["fail.name.taken"] = "Somebody goes by that name already",
 	bought = "Bought: {item} ×{count} for {price}",
 	dropped = {
 		one = "{count} thing did not fit and fell at your feet",
@@ -50,7 +45,7 @@ return {
 	["menu.tab.bank"] = "Bank",
 	["menu.tab.police"] = "Police",
 	["menu.name"] = "Your name in the city",
-	["menu.rename"] = "Change the name",
+	["menu.rename"] = "Change the character",
 	["menu.mine"] = "{job} — your job",
 	["menu.job"] = "Salary {salary} · places {places}",
 	["menu.buy"] = "Buy",
@@ -84,5 +79,4 @@ return {
 	["help.menu"] = "The menu of the city: jobs, the shop, the bank, the police",
 	["command.nc_job"] = "[job] — the jobs of the city, or become one",
 	["command.nc_buy"] = "[offer [times]] — the shop of your job, or buy",
-	["command.nc_rpname"] = "<name> — the name you go by in the city",
 }

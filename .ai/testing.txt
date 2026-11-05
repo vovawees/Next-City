@@ -3,7 +3,7 @@ TESTING
              toBeTruthy, toBeFalsy, toBeNil, toBeCloseTo, toContain, notToContain, toFail) + T (root, gamemode,
              load(path)) + skip(reason) inside an it (counted "N skipped", listed as SKIP lines); SPECS list in
              run.lua (add every new spec file there!); `luajit tests/run.lua [filter]`
-  counts     61 specs = 11 unit + 50 gmod; 545 checks (it blocks); full run ~30-38 s local x86_64, ~34 s VPS
+  counts     62 specs = 11 unit + 51 gmod; 551 checks (it blocks); full run ~30-40 s local x86_64, ~34 s VPS
   unit       tests/unit/*_spec.lua: pure core (runner, log, events, scheduler, fsm, modules, schema, i18n,
              components, params, scope)
   gmod       tests/gmod/*_spec.lua: real gamemode + package files in emulated realms (boot, packages, bridge,

@@ -4,7 +4,7 @@
 --
 --   city:IsRunning()  -> the city is the round now (as the rounds module tells this client)
 --   city:Count(id)    -> players with job `id` this client knows of
---   city:AskJob(id), city:AskName(name), city:AskBuy(offer, times) -> ask the server
+--   city:AskJob(id), city:AskBuy(offer, times) -> ask the server
 --
 -- Answers: doors.property (doors are property while the city runs), doors.groupName (a
 --          group of doors by the name of its job).
@@ -33,9 +33,11 @@ function M:_InitClient(ctx)
 	self.economy = ctx:Require("economy")
 	self.inventory = ctx:Require("inventory")
 	self.law = ctx:Require("law")
+	self.identity = ctx:Require("identity")
 	self.hud = nil -- { expires, money, salary }
 	self:_InitMenu()
 	local playerMenu = ctx:Require("menu")
+	self.playerMenu = playerMenu
 	if playerMenu ~= nil then
 		playerMenu:AddHelp("mode_city.menu", { bind = "gm_showspare2", fallback = "f4", text = "mode_city.help.menu",
 			order = 40, visible = function() return self:IsRunning() end })
@@ -153,10 +155,6 @@ function M:AskJob(id)
 			return
 		end
 	end
-end
-
-function M:AskName(name)
-	self.ctx.net:SendToServer("name", { name = tostring(name) })
 end
 
 function M:AskBuy(id, times)
