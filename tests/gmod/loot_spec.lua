@@ -121,7 +121,7 @@ end
 
 describe("loot", function()
 	it("rolls weighted draws with counts, tables inside tables and nothing", function()
-		local server, loot = boot()
+		local server, loot, _, NC = boot()
 		expect(server:Errors()):toEqual({})
 		expect(loot:Tables()):toEqual({ "ammo", "broken", "deep", "flask", "many", "pile", "small" })
 		expect(loot:Crates()):toEqual({ "kit_crate", "kit_refill" })
@@ -141,6 +141,18 @@ describe("loot", function()
 		expect(loot:Roll("flask")[1].state.water):toBe(3)
 		-- A roll has a budget of draws.
 		expect(loot:Roll("many")):toEqual({ { id = "ammo", count = 32 } })
+
+		-- A mode keeps things out of the loot: loot.allow (id, def) -> false.
+		local asked = {}
+		NC.Events:On("loot.allow", function(id, def)
+			asked[#asked + 1] = id .. ":" .. tostring(def.category)
+			if def.category == "ammo" then
+				return false
+			end
+		end)
+		dice(loot, { 3, 0.1, 2, 0.7, 0, 25, 0.95 })
+		expect(loot:Roll("small")):toEqual({ { id = "bandage", count = 2 } })
+		expect(asked):toEqual({ "bandage:medical", "ammo:ammo" })
 		expect(server:Errors()):toEqual({})
 	end)
 

@@ -350,6 +350,36 @@ describe("rounds", function()
 		expect(server:Errors()):toEqual({})
 	end)
 
+	it("keeps deaths quiet and the living away from the chat and voice of the dead", function()
+		local server, rounds = boot({
+			modes = { { id = "test", minPlayers = 2, rules = { "silent_deaths", "dead_mute" } } },
+		})
+		local GM = server:Get("GM")
+		local a, b, c = bots(server, "A", "B", "C")
+		server:Advance(5)
+		expect(rounds:Phase()):toBe("active")
+		local notices = #(server.deathNotices or {})
+		Env.Kill(a, b)
+		expect(#(server.deathNotices or {})):toBe(notices)
+		local _, seen = Env.Say(server, a, "it was B")
+		expect(seen):toEqual({ a })
+		_, seen = Env.Say(server, b, "nobody saw it")
+		expect(seen):toEqual({ a, b, c })
+		expect({ GM:PlayerCanHearPlayersVoice(b, a) }):toEqual({ false, false })
+		expect({ GM:PlayerCanHearPlayersVoice(a, b) }):toEqual({ true, false })
+
+		-- The rules end with their round.
+		rounds:RegisterMode({ id = "plain", minPlayers = 2 })
+		expect(rounds:Restart("plain")):toBe(true)
+		server:Advance(5)
+		expect(rounds:Round().mode):toBe("plain")
+		Env.Kill(c, b)
+		expect(#server.deathNotices):toBe(notices + 1)
+		_, seen = Env.Say(server, c, "B again")
+		expect(seen):toEqual({ a, b, c })
+		expect(server:Errors()):toEqual({})
+	end)
+
 	it("keeps players that do not take part as spectators", function()
 		local log = {}
 		local server, rounds, players = boot({ modes = { mode(log, {

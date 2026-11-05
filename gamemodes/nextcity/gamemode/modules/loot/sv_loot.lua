@@ -251,7 +251,14 @@ function M:Roll(id)
 		return out
 	end
 	self:_Roll(t, out, 1, { left = self.ctx.config.maxDraws })
-	return out
+	-- A mode or a rule keeps things out of the loot: loot.allow (id, def) -> false.
+	local events, kept = self.ctx.events, {}
+	for _, got in ipairs(out) do
+		if events:Query("loot.allow", got.id, self.inventory:Def(got.id)) ~= false then
+			kept[#kept + 1] = got
+		end
+	end
+	return kept
 end
 
 -- Puts a roll of table `id` into a container; the number of things put in.

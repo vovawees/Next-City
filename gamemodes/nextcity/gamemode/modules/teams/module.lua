@@ -13,8 +13,10 @@ return {
 	config = {},
 	net = {
 		-- Server -> client: scores of the teams in play (team 1 first); empty without teams.
+		-- names: translation keys of the names a round gave the teams ("" = the palette).
 		scores = { from = "server", fields = {
 			{ "scores", "array", max = 4, of = { "int", bits = 16 } },
+			{ "names", "array", max = 4, of = { "string", max = 48 } },
 		} },
 	},
 }

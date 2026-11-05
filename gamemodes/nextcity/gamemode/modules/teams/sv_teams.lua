@@ -11,6 +11,7 @@ local ipairs = ipairs
 function M:Init(ctx)
 	self.players = ctx:Require("players")
 	self.scores = {}
+	self.names = {}
 	self.pending = false
 	self:SetUpTeams()
 	local rounds = ctx:Require("rounds")
@@ -68,13 +69,16 @@ function M:AliveCount(index)
 end
 
 -- Starts team play with `count` teams at zero; 0 ends team play and every player is
--- unassigned again.
-function M:SetCount(count)
-	local scores = {}
+-- unassigned again. names: translation keys of the team names (nil or "" = the palette).
+function M:SetCount(count, names)
+	local scores, keys = {}, {}
 	for index = 1, math.min(count, self.MAX) do
 		scores[index] = 0
+		keys[index] = type(names) == "table" and type(names[index]) == "string" and names[index] or ""
 	end
 	self.scores = scores
+	self.names = keys
+	self:SetUpTeams()
 	for _, ply in ipairs(player.GetAll()) do
 		self:_Sync(ply)
 	end
@@ -133,7 +137,7 @@ function M:_Changed()
 	self.pending = true
 	self.ctx:After(0, function()
 		self.pending = false
-		self.ctx.net:Broadcast("scores", { scores = self.scores })
+		self.ctx.net:Broadcast("scores", { scores = self.scores, names = self.names })
 		self.ctx.events:Emit("teams.scores", self.scores)
 	end)
 end
@@ -143,5 +147,5 @@ function M:OnStateChanged(ply)
 end
 
 function M:OnNetReady(ply)
-	self.ctx.net:Send("scores", ply, { scores = self.scores })
+	self.ctx.net:Send("scores", ply, { scores = self.scores, names = self.names })
 end

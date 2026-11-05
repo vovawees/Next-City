@@ -25,7 +25,7 @@ local PROBE = {
 			"gm.CanPlayerSuicide", "gm.EntityTakeDamage", "gm.ScalePlayerDamage", "gm.GetFallDamage",
 			"gm.OnPlayerHitGround", "gm.HUDShouldDraw", "gm.PlayerBindPress", "gm.PlayerUse",
 			"gm.PlayerCanPickupWeapon", "gm.PlayerSay", "gm.PlayerCanSeePlayersChat", "gm.PlayerCanHearPlayersVoice",
-			"gm.HUDDrawTargetID",
+			"gm.HUDDrawTargetID", "gm.PlayerDeathNotice", "gm.OnPlayerChat",
 		}
 		function M:Start(ctx)
 			for _, name in ipairs(NOTIFY) do
@@ -91,7 +91,7 @@ describe("bridge", function()
 		local bot = Env.Bot(server)
 		probe:Names()
 		bot:Kill()
-		expect(probe:Names()):toEqual({ "gm.DoPlayerDeath", "gm.PlayerDeath" })
+		expect(probe:Names()):toEqual({ "gm.DoPlayerDeath", "gm.PlayerDeathNotice", "gm.PlayerDeath" })
 		expect(bot:Deaths()):toBe(1)
 		expect(bot:Frags()):toBe(-1)
 
@@ -108,6 +108,44 @@ describe("bridge", function()
 		local names = probe:Names()
 		expect(names[#names]):toBe("gm.PlayerDeathThink")
 		expect(names[#names - 1]):toBe("gm.PlayerSilentDeath")
+	end)
+
+	it("keeps deaths quiet and chat lines out of the chat when a module asks", function()
+		local server, probe = boot()
+		local first, second = Env.Bot(server, { name = "Alyx" }), Env.Bot(server, { name = "Barney" })
+		first:Kill()
+		expect(#server.deathNotices):toBe(1)
+		expect(server.deathNotices[1].victim):toBe(first)
+
+		-- false: no kill feed and no console line, the respawn delay stays.
+		local asked
+		probe.answers["gm.PlayerDeathNotice"] = function(...)
+			asked = { ... }
+			return false
+		end
+		probe:Names()
+		Env.Kill(second, first)
+		expect(asked):toEqual({ second, first, first })
+		expect(#server.deathNotices):toBe(1)
+		expect(probe:Names()):toEqual({ "gm.DoPlayerDeath", "gm.PlayerDeathNotice", "gm.PlayerDeath" })
+		server:Advance(1)
+		expect(second:Alive()):toBe(false)
+		server:Advance(1.5)
+		expect(second:Alive()):toBe(true)
+
+		-- The client prints "Name: text" unless a module prints its own line.
+		local client, ply = Env.Join(server, { name = "Eli" })
+		local clientProbe = client:Get("NC").Modules:Instance("probe")
+		Env.Say(server, ply, "hello")
+		expect(client.chatLines[#client.chatLines]):toBe("Eli: hello")
+		clientProbe:Names()
+		clientProbe.answers["gm.OnPlayerChat"] = true
+		local lines = #client.chatLines
+		Env.Say(server, ply, "secret")
+		expect(#client.chatLines):toBe(lines)
+		expect(clientProbe.seen[#clientProbe.seen]):toEqual({ "gm.OnPlayerChat", ply, "secret", false, false })
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
 	end)
 
 	it("answers damage and suicide questions or falls back to the base gamemode", function()

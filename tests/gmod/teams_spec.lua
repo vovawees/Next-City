@@ -116,6 +116,35 @@ describe("teams", function()
 		expect(server:Errors()):toEqual({})
 	end)
 
+	it("lets a round name the teams in every realm", function()
+		local server, rounds, teams = boot({
+			settings = { params = { test = { teamNames = { "teams.blue", "teams.red" } } } },
+			mode = { rules = { "teams" } },
+		})
+		local client = Env.Join(server, { name = "Gordon", language = "ru" })
+		bots(server, "A")
+		server:Advance(5)
+		expect(rounds:Phase()):toBe("active")
+		expect(teams:NameKey(1)):toBe("teams.blue")
+		expect(server:Get("team").GetName(2)):toBe("Reds")
+		Env.Flush(server, client)
+		local clientTeams = client:Get("NC").Modules:Instance("teams")
+		expect(clientTeams:NameKey(2)):toBe("teams.red")
+		expect(client:Get("team").GetName(1)):toBe("Синие")
+		expect(teams:NameKey(3)):toBe("teams.green")
+
+		-- A round without names is back to the palette.
+		rounds:SetParam("test", "teamNames", {})
+		expect(rounds:Restart()):toBe(true)
+		server:Advance(0.1)
+		Env.Flush(server, client)
+		expect(teams:NameKey(1)):toBe("teams.red")
+		expect(clientTeams:NameKey(1)):toBe("teams.red")
+		expect(client:Get("team").GetName(2)):toBe("Синие")
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
+	end)
+
 	it("ends the round when one team is left", function()
 		local server, rounds = boot({ mode = { rules = { "teams", "team_elimination" } } })
 		local a, b, c, d = bots(server, "A", "B", "C", "D")

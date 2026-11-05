@@ -1445,9 +1445,12 @@ World.BASE = {
 			attacker:AddFrags(attacker == ply and -1 or 1)
 		end
 	end,
-	PlayerDeath = function(env, _, ply)
+	-- Announces the death to everybody (env.deathNotices: the kill feed and the console line).
+	PlayerDeath = function(env, _, ply, inflictor, attacker)
 		ply.NextSpawnTime = env.time + 2
 		ply.DeathTime = env.time
+		env.deathNotices = env.deathNotices or {}
+		env.deathNotices[#env.deathNotices + 1] = { victim = ply, inflictor = inflictor, attacker = attacker }
 	end,
 	PlayerSilentDeath = function(env, _, ply)
 		ply.NextSpawnTime = env.time + 2
@@ -1474,6 +1477,10 @@ World.BASE = {
 	CanPlayerSuicide = function() return true end,
 	GetFallDamage = function() return 10 end,
 	HUDShouldDraw = function() return true end,
+	-- The chat line of a player (env.chatLines of the client).
+	OnPlayerChat = function(env, _, ply, text)
+		env.G.chat.AddText(ply:Nick(), ": ", text)
+	end,
 	-- The view of the player's eyes (no vehicle, drive or weapon view in tests).
 	CalcView = function(_, _, _, origin, angles, fov, znear, zfar)
 		return { origin = origin, angles = angles, fov = fov, znear = znear, zfar = zfar, drawviewer = false }

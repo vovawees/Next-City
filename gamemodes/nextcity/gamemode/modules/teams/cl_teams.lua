@@ -12,6 +12,7 @@ surface.CreateFont(FONT, { font = "Roboto", size = 22, weight = 700, extended = 
 
 function M:Init(ctx)
 	self.scores = {}
+	self.names = {}
 	self.texts = {}
 	self:SetUpTeams()
 	ctx.net:Receive("scores", "OnScores")
@@ -29,6 +30,8 @@ end
 
 function M:OnScores(data)
 	self.scores = data.scores
+	self.names = data.names
+	self:SetUpTeams()
 	self:_Refresh()
 	self.ctx.events:Emit("teams.scores", self.scores)
 end

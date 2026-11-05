@@ -202,7 +202,7 @@ describe("melee", function()
 		end
 		local blunt = { kind = "blunt" }
 		expect(problem("t1", {})):toBe("primary must be a table")
-		expect(problem("t2", { primary = { kind = "pierce" } })):toBe("primary.kind must be blunt, slash or stab")
+		expect(problem("t2", { primary = { kind = "pierce" } })):toBe("primary.kind must be blunt, slash, stab or stun")
 		expect(problem("t3", { primary = { kind = "blunt", energy = -1 } })):toBe(
 			"primary.energy must be a number >= 0")
 		expect(problem("t4", { primary = { kind = "blunt", windup = 0, recovery = 0 } })):toBe(
@@ -210,7 +210,7 @@ describe("melee", function()
 		expect(problem("t5", { primary = { kind = "stab", depth = 0 } })):toBe("primary.depth must be a number > 0")
 		expect(problem("t6", { primary = { kind = "blunt", anims = 5 } })):toBe("primary.anims must be a table")
 		expect(problem("t7", { primary = blunt, secondary = { kind = "cut" } })):toBe(
-			"secondary.kind must be blunt, slash or stab")
+			"secondary.kind must be blunt, slash, stab or stun")
 		expect(problem("t8", { primary = blunt, hands = 3 })):toBe("hands must be 1 or 2")
 		expect(problem("t9", { primary = blunt, draw = -1 })):toBe("draw must be a number >= 0")
 		expect(problem("Bad Class", { primary = blunt })):toBe(

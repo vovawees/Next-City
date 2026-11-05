@@ -7,7 +7,7 @@ local M = NC.Module("melee")
 local format = string.format
 local IsValid = IsValid
 
-local DAMAGE_TYPES = { blunt = DMG_CLUB, slash = DMG_SLASH, stab = DMG_SLASH }
+local DAMAGE_TYPES = { blunt = DMG_CLUB, slash = DMG_SLASH, stab = DMG_SLASH, stun = DMG_CLUB }
 local FORCE = 20     -- engine force per J of a strike
 local AMOUNT = 1 / 8 -- the amount of a hit per J: the punch of the view, knocking down
 
@@ -41,7 +41,7 @@ function M:_Deal(owner, weapon, attack, index, tr, dir, scale)
 				phys:ApplyForceOffset(force, tr.HitPos)
 			end
 		end
-		if attack.kind ~= "blunt" then
+		if attack.kind == "slash" or attack.kind == "stab" then
 			util.Effect("BloodImpact", data, true, true)
 		end
 		self:_Sound(owner, attack.sounds.hit)

@@ -74,7 +74,7 @@ M.MELEE = {
 				world = "Weapon_Crowbar.Melee_HitWorld" } } } },
 	{ "nc_stunstick", { hands = 1, draw = 0.5, holdType = "melee", viewModel = "models/weapons/c_stunstick.mdl",
 		worldModel = "models/weapons/w_stunbaton.mdl", useHands = true,
-		primary = { kind = "blunt", energy = 70, reach = 48, windup = 0.15, recovery = 0.4, stamina = 0.03,
+		primary = { kind = "stun", energy = 70, reach = 48, windup = 0.15, recovery = 0.4, stamina = 0.03,
 			sounds = { swing = "Weapon_StunStick.Swing", hit = "Weapon_StunStick.Melee_Hit",
 				world = "Weapon_StunStick.Melee_HitWorld" } } } },
 	-- Models of CS:S (mounted on most servers).

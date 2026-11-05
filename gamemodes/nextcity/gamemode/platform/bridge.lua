@@ -26,7 +26,12 @@
 -- whose answer replaces the text ("" drops the message), PlayerCanSeePlayersChat a
 -- question, PlayerCanHearPlayersVoice a question answered with true, false or "3d"
 -- (heard, positional). On the client HUDDrawTargetID is a question: true hides the
--- name of the player under the crosshair.
+-- name of the player under the crosshair; OnPlayerChat a question: true keeps the base
+-- line out of the chat (a module prints its own, e.g. with a hidden name).
+--
+-- Deaths: PlayerDeath asks gm.PlayerDeathNotice first: false keeps the death quiet (the
+-- base gamemode announces every death to everybody: the kill feed and a console line),
+-- then gm.PlayerDeath is emitted either way.
 
 local CurTime = CurTime
 
@@ -155,7 +160,12 @@ if SERVER then
 	end
 
 	function GM:PlayerDeath(ply, inflictor, attacker)
-		base(self, "PlayerDeath", ply, inflictor, attacker)
+		if NC.Events:Query("gm.PlayerDeathNotice", ply, inflictor, attacker) == false then
+			ply.NextSpawnTime = CurTime() + 2
+			ply.DeathTime = CurTime()
+		else
+			base(self, "PlayerDeath", ply, inflictor, attacker)
+		end
 		NC.Events:Emit("gm.PlayerDeath", ply, inflictor, attacker)
 	end
 
@@ -286,6 +296,14 @@ else
 		if NC.Events:Query("gm.HUDDrawTargetID") ~= true then
 			return base(self, "HUDDrawTargetID")
 		end
+	end
+
+	-- Question: true keeps the base line ("Name: text") out of the chat.
+	function GM:OnPlayerChat(ply, text, teamChat, dead)
+		if NC.Events:Query("gm.OnPlayerChat", ply, text, teamChat, dead) == true then
+			return true
+		end
+		return base(self, "OnPlayerChat", ply, text, teamChat, dead)
 	end
 
 	-- Pipeline, every frame: the view of the base gamemode (vehicles, drive, the weapon),

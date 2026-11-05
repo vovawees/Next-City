@@ -16,10 +16,17 @@ function M:IsPlayable(index)
 	return type(index) == "number" and self.PALETTE[index] ~= nil
 end
 
--- Translation key of a team name, e.g. "teams.red".
+-- Translation key of a team name: the name the round gave it or the palette ("teams.red").
 function M:NameKey(index)
 	local entry = self.PALETTE[index]
-	return entry and "teams." .. entry.key or nil
+	if entry == nil then
+		return nil
+	end
+	local name = self.names ~= nil and self.names[index] or nil
+	if name ~= nil and name ~= "" then
+		return name
+	end
+	return "teams." .. entry.key
 end
 
 function M:Color(index)
@@ -31,7 +38,7 @@ end
 function M:SetUpTeams()
 	local i18n = self.ctx.i18n
 	for index, entry in ipairs(self.PALETTE) do
-		team.SetUp(index, i18n:T("teams." .. entry.key), entry.color, false)
+		team.SetUp(index, i18n:T(self:NameKey(index)), entry.color, false)
 	end
 end
 

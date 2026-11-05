@@ -4,7 +4,8 @@
 -- order): Register(class, def) makes the scripted weapon `class` on the base nc_melee
 -- (sh_swing.lua). A definition is data:
 --   primary      the attack of the attack key; secondary: of the attack 2 key (optional):
---                  kind      the injury: "blunt", "slash" or "stab"
+--                  kind      the injury: "blunt", "slash", "stab" or "stun" (a blunt blow that
+--                            often knocks out: stun batons)
 --                  energy    J of a full strike (60)
 --                  depth     cm a blade goes in at full energy (slash 4, stab 12; blades)
 --                  reach     units from the eyes (48); size: the half side of the swing (4)
@@ -37,7 +38,7 @@ local TraceLine = util.TraceLine
 local TraceHull = util.TraceHull
 
 M.BASE = "nc_melee"
-M.KINDS = { blunt = true, slash = true, stab = true }
+M.KINDS = { blunt = true, slash = true, stab = true, stun = true }
 
 local ATTACK = { energy = 60, reach = 48, size = 4, windup = 0.15, recovery = 0.35, stamina = 0.02 }
 local DEPTH = { slash = 4, stab = 12 } -- cm a blade goes in by default
@@ -71,7 +72,7 @@ function M:Attack(given, name)
 		return nil, name .. " must be a table"
 	end
 	if not M.KINDS[given.kind] then
-		return nil, name .. ".kind must be blunt, slash or stab"
+		return nil, name .. ".kind must be blunt, slash, stab or stun"
 	end
 	local attack = {}
 	for key, value in pairs(given) do

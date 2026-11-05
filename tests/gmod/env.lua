@@ -44,7 +44,7 @@ local HOOK_NAMES = {
 	"CanPlayerSuicide", "PlayerRequestTeam", "PostCleanupMap", "HUDPaint", "StartCommand", "OnPlayerHitGround",
 	"EntityTakeDamage", "GetFallDamage", "HUDShouldDraw", "RenderScreenspaceEffects", "PlayerBindPress",
 	"CalcView", "PlayerUse", "PlayerCanPickupWeapon", "WeaponEquip", "OnNPCKilled", "PlayerSay",
-	"PlayerCanSeePlayersChat", "PlayerCanHearPlayersVoice", "HUDDrawTargetID",
+	"PlayerCanSeePlayersChat", "PlayerCanHearPlayersVoice", "HUDDrawTargetID", "OnPlayerChat",
 }
 
 Env.World = World
@@ -1024,6 +1024,10 @@ function Env.Say(server, ply, text, teamChat)
 			seen[#seen + 1] = listener
 			listener.heard = listener.heard or {}
 			listener.heard[#listener.heard + 1] = { speaker = ply, text = said, team = teamChat == true }
+			local client = server.links[listener]
+			if client ~= nil then
+				client:Call("OnPlayerChat", ply, said, teamChat == true, not ply:Alive())
+			end
 		end
 	end
 	return said, seen

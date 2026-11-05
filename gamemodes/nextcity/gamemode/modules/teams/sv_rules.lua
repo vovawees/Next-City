@@ -1,7 +1,8 @@
 -- Teams module, server part: rule blocks for rounds.
 --
---   teams             teams (2..4), friendlyFire: participants are spread over the teams
---                     (the smallest first), team 1 spawns on side "a", team 2 on side "b"
+--   teams             teams (2..4), friendlyFire, teamNames: participants are spread over
+--                     the teams (the smallest first), team 1 spawns on side "a", team 2 on
+--                     side "b"; teamNames are translation keys of the names (empty: palette)
 --   team_elimination  a team without living members and pending respawns is out; the
 --                     last team standing wins
 --   team_score        scoreLimit (0 = none): a kill of an enemy scores for the team of the
@@ -22,9 +23,11 @@ function M:_RegisterRules(rounds, ctx)
 		params = {
 			teams = { type = "integer", default = 2, min = 2, max = self.MAX, desc = "number of teams" },
 			friendlyFire = { type = "boolean", desc = "teammates can hurt each other" },
+			teamNames = { type = "list", of = { type = "string", max = 48 }, max = self.MAX, default = {},
+				desc = "translation keys of the team names (empty: red, blue, ...)" },
 		},
 		Setup = function(round)
-			teams:SetCount(round.params.teams)
+			teams:SetCount(round.params.teams, round.params.teamNames)
 		end,
 		PlayerAdded = function(round, ply)
 			teams:Assign(ply, teams:Smallest(round.params.teams))
