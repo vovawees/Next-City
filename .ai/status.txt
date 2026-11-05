@@ -23,5 +23,6 @@ STATUS (update every step)
        #15 hideseek: hide phase (frozen, blindfold), kill/tag, late hiders, alive scores   done
        #16 riot: restraints core module + mode_riot (package): police third, tie enemies/untie allies, standing = alive & not tied, firearms param   done
        #17 defense: npcs core module, rounds status line + result params, hostiles package, mode_defense   done
+       #18 coop: mode_coop (package): map NPCs adopted + group spawned, shared lives, out players stay out   done
   docs overhaul        todo (#25)
-  last full run        51 specs, 493 passed, 0 failed (26 s); lint clean
+  last full run        52 specs, 496 passed, 0 failed (27 s); lint clean

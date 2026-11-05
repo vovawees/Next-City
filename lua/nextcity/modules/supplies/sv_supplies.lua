@@ -122,4 +122,12 @@ function M:_Kits(inventory)
 		{ "bandage", 2 }, { "tourniquet" },
 	})
 	inventory:RegisterKit("defense_resupply", { { "ammo_556", 60 }, { "ammo_9x19", 15 }, { "bandage" } })
+	-- CO-OP: the team clearing the map (lua/nextcity/modules/mode_coop).
+	inventory:RegisterKit("coop", {
+		{ "helmet" }, { "vest_light" },
+		{ "mp7" }, { "ammo_46x30", 160 },
+		{ "usp" }, { "ammo_9x19", 30 },
+		{ "crowbar" }, { "frag" },
+		{ "bandage", 3 }, { "tourniquet" },
+	})
 end

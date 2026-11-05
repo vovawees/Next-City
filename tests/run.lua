@@ -60,6 +60,7 @@ local SPECS = {
 	"tests/gmod/riot_spec.lua",
 	"tests/gmod/npcs_spec.lua",
 	"tests/gmod/defense_spec.lua",
+	"tests/gmod/coop_spec.lua",
 	"tests/gmod/soak_spec.lua",
 }
 
