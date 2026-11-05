@@ -11,9 +11,9 @@
 [![Lua](https://img.shields.io/badge/Lua-5.1%20%7C%20LuaJIT%202.1-2C2D72?logo=lua&logoColor=white)](https://luajit.org/)
 [![License](https://img.shields.io/badge/license-Next--City%201.0-lightgrey)](LICENSE)
 
-[![Tests](https://img.shields.io/badge/tests-551%20passed-brightgreen)](#разработка)
+[![Tests](https://img.shields.io/badge/tests-556%20passed-brightgreen)](#разработка)
 [![glualint](https://img.shields.io/badge/glualint-clean-brightgreen)](https://github.com/FPtje/GLuaFixer)
-[![Modules](https://img.shields.io/badge/modules-38%20core%20%2B%209%20package-blueviolet)](#модули)
+[![Modules](https://img.shields.io/badge/modules-39%20core%20%2B%2010%20package-blueviolet)](#модули)
 [![i18n](https://img.shields.io/badge/i18n-en%20%7C%20ru-informational)](#языки)
 
 [![Last commit](https://img.shields.io/github/last-commit/vovawees/Next-City)](https://github.com/vovawees/Next-City/commits/main)
@@ -79,6 +79,7 @@ Z-City и Homigrad задали жанр реалистичного GMod, но �
 | Медицина | повязки, жгуты, шины, дренажи, препараты, реанимация — себе и другим, осмотр раненого | `medical`, `actions` |
 | Город | наличные-предмет и банковский счёт, двери как собственность с ключами, отмычки и тараны, розыск, ордера, арест наручниками, тюрьма, обыск | `economy`, `doors`, `law`, `restraints` |
 | Раунды | автомат состояний, режимы из блоков правил с типизированными параметрами, команды, скрытые роли, наблюдение, существа для режимов против NPC | `rounds`, `teams`, `roles`, `spectator`, `npcs` |
+| Персонаж | профиль между заходами со статистикой, имя и пол персонажа, внешность — модель, скин, бодигруппы и цвет одежды с превью, меню F1 | `profiles`, `identity`, `appearance`, `menu` |
 | Платформа | загрузчик модулей и пакетов, мост движка, сеть по схемам, компоненты с репликацией, переводы, права без привязки к админке (ULX и SAM через CAMI), хранилище, уведомления, профайлер | ядро, платформа, `storage`, `notices`, `cami` |
 
 ## Режимы
@@ -87,8 +88,8 @@ Z-City и Homigrad задали жанр реалистичного GMod, но �
 
 | Режим | `id` | Игроков | Суть | Где |
 |---|---|---|---|---|
-| [City](lua/nextcity/modules/mode_city/README.md) | `city` | 1+ | бесконечное городское RP: профессии с лимитом мест, снаряжением и зарплатой, магазин профессий, имена персонажей, двери как собственность, полиция, ордера и тюрьма, меню F4 | пакет |
-| [Homicide](lua/nextcity/modules/mode_homicide/README.md) | `homicide` | 3+ | найти убийцу среди мирных: скрытые роли убийцы и шерифа, псевдонимы, варианты `standard`, `gunfree`, `wildwest`, `random` | пакет |
+| [City](lua/nextcity/modules/mode_city/README.md) | `city` | 1+ | бесконечное городское RP: профессии с лимитом мест, снаряжением и зарплатой, магазин профессий, имена и внешность персонажей, форма по полу, двери как собственность, полиция, ордера и тюрьма, меню F4 | пакет |
+| [Homicide](lua/nextcity/modules/mode_homicide/README.md) | `homicide` | 3+ | найти убийцу среди мирных: скрытые роли убийцы и шерифа, псевдонимы с их внешностью, варианты `standard`, `gunfree`, `wildwest`, `random` | пакет |
 | [Hide and Seek](lua/nextcity/modules/mode_hideseek/README.md) | `hideseek` | 2+ | одни прячутся, пока ищущие ослеплены, потом охота — убить или осалить | пакет |
 | [Riot](lua/nextcity/modules/mode_riot/README.md) | `riot` | 2+ | полиция связывает бунтовщиков, бунтовщики отбиваются и освобождают своих | пакет |
 | [Defense](lua/nextcity/modules/mode_defense/README.md) | `defense` | 1+ | продержаться против волн существ с передышками; павшие возвращаются после волны | пакет |
@@ -198,7 +199,7 @@ return {
 | E | поднять вещь, обыскать тело, открыть ящик; с предметом — связать игрока, вскрыть дверь отмычкой или выбить тараном |
 | Alt + E | запереть или отпереть дверь, от которой есть ключи |
 | C | инвентарь |
-| F1 | меню игрока: профиль и статистика, персонаж (имя и пол), настройки (язык), справка по клавишам и командам |
+| F1 | меню игрока: профиль и статистика, персонаж (имя и пол), внешность (модель, скин, бодигруппы, цвет одежды), настройки (язык), справка по клавишам и командам |
 | F2 | меню двери перед глазами |
 | F3 | осмотр раненого перед собой или себя |
 | F4 | меню города (режим City): профессии, магазин, банк, полиция |
@@ -285,6 +286,7 @@ stateDiagram-v2
 | Сервисы | [`storage`](gamemodes/nextcity/gamemode/modules/storage/README.md) | постоянные данные модулей: JSON-файлы папки DATA или SQLite, коллекции с записью на ключ | — |
 | | [`profiles`](gamemodes/nextcity/gamemode/modules/profiles/README.md) | профили игроков между заходами: визиты, время в игре, статистика, разделы модулей | — |
 | | [`identity`](gamemodes/nextcity/gamemode/modules/identity/README.md) | личность персонажа: имя и пол в профиле, случайные имена новичкам, уникальность, смена с кулдауном, имя вместо ника там, где его включает режим | `players`, `profiles` |
+| | [`appearance`](gamemodes/nextcity/gamemode/modules/appearance/README.md) | внешность персонажа: модель из наборов пакетов по полу, скин, бодигруппы и цвет одежды в профиле, вкладка с превью; форма режимов и внешности псевдонимов поверх неё, цвет одежды на телах | `players`, `profiles` |
 | | [`menu`](gamemodes/nextcity/gamemode/modules/menu/README.md) | меню игрока на F1: вкладки модулей, настройки (язык), справка по клавишам и командам | — |
 | | [`notices`](gamemodes/nextcity/gamemode/modules/notices/README.md) | переведённые сообщения игрокам: всплывающие и в чат | — |
 | | [`cami`](gamemodes/nextcity/gamemode/modules/cami/README.md) | права из админок (ULX, SAM) через CAMI: привилегии в админке, решает она; без админки ничего не делает | — |
@@ -323,6 +325,7 @@ stateDiagram-v2
 | [`weaponry`](lua/nextcity/modules/weaponry) | 6 видов патронов, 5 стволов, 3 вида холодного и 2 метательного оружия, их предметы и лут | `ammo`, `weapons`, `melee`, `throwables` |
 | [`supplies`](lua/nextcity/modules/supplies) | 30 предметов: медицина, броня, сумки, стяжки, наручники, отмычка, таран; таблицы лута, ящики, наборы режимов | `inventory` |
 | [`hostiles`](lua/nextcity/modules/hostiles) | 12 видов врагов Half-Life 2 и 6 групп для волн | `npcs` |
+| [`wardrobe`](lua/nextcity/README.md#внешность) | 3 набора внешности: горожане, горожанки и беженцы Half-Life 2 | `appearance` |
 | [`mode_city`](lua/nextcity/modules/mode_city/README.md), [`mode_homicide`](lua/nextcity/modules/mode_homicide/README.md), [`mode_hideseek`](lua/nextcity/modules/mode_hideseek/README.md), [`mode_riot`](lua/nextcity/modules/mode_riot/README.md), [`mode_defense`](lua/nextcity/modules/mode_defense/README.md), [`mode_coop`](lua/nextcity/modules/mode_coop/README.md) | режимы — см. [таблицу режимов](#режимы) | `rounds`, `players` и др. |
 
 Необязательные зависимости (`optional`) подключают модуль, если он есть: без `loot` нет ящиков, без `weaponry` наборы режимов выдают оружие движка. Новый модуль начинается с копии [`modules/example`](gamemodes/nextcity/gamemode/modules/example/README.md); контент и режимы кладутся в пакет, а не в ядро.
@@ -362,6 +365,7 @@ stateDiagram-v2
 | `nc_profile [игрок \| steamid64]` | профиль: визиты, время в игре, статистика — свой все, чужой с правом `profiles.view` |
 | `nc_rpname [имя]` / `nc_gender [male \| female]` | имя / пол своего персонажа (раз в кулдаун; первая смена — сразу) |
 | `nc_setname <игрок> <имя>` | админ: дать имя персонажу игрока |
+| `nc_look [random]` / `nc_looks` | своя внешность (`random` — случайная из своих наборов, раз в кулдаун) / наборы моделей |
 
 </details>
 
@@ -446,9 +450,9 @@ Next-City/
 │       ├── core/                     # L0: чистый Lua, тестируется вне игры
 │       ├── platform/                 # L1: загрузчик, пакеты, мост GM:*, сеть, компоненты, переводы, команды
 │       ├── lang/<код>/               # переводы ядра: _language.lua + файл на модуль
-│       └── modules/<id>/             # 35 модулей ядра: module.lua, sh_/sv_/cl_*.lua, README.md
+│       └── modules/<id>/             # 39 модулей ядра: module.lua, sh_/sv_/cl_*.lua, README.md
 ├── lua/nextcity/                     # официальный пакет (D15)
-│   ├── modules/<id>/                 # weaponry, supplies, hostiles и шесть режимов
+│   ├── modules/<id>/                 # weaponry, supplies, hostiles, wardrobe и шесть режимов
 │   └── lang/<код>/                   # их переводы
 ├── tests/
 │   ├── run.lua, bench.lua            # раннер спеков и бенчмарки горячих путей
@@ -484,9 +488,9 @@ glualint lint gamemodes tests lua  # линтер (настройки в .gluali
 
 | Что | Сколько |
 |---|---|
-| Спеки | 62: 11 юнит-тестов ядра, 51 — модули в эмуляции GMod (загрузка обоих realm, сеть, режимы, долгий прогон) |
-| Проверки | 551, все проходят; полный прогон ~40 с |
-| Код | ~44 тыс. строк Lua в 279 файлах, ~26 тыс. строк тестов |
+| Спеки | 63: 11 юнит-тестов ядра, 52 — модули в эмуляции GMod (загрузка обоих realm, сеть, режимы, долгий прогон) |
+| Проверки | 556, все проходят; полный прогон ~45 с |
+| Код | ~45 тыс. строк Lua в 289 файлах, ~26 тыс. строк тестов |
 | Перед коммитом | тесты, линтер и обновлённые документы — [CONTRIBUTING](CONTRIBUTING.md) |
 
 В реальном GMod модули проверяются по чек-листам «Проверить в реальном GMod» в их README; стоимость в игре меряется `nc_perf` и `nc_net`.

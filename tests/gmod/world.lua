@@ -448,7 +448,16 @@ function Player:InVehicle() return self.vehicle ~= nil end
 function Player:GetVehicle() return self.vehicle or World.NULL end
 function Player:GetSkin() return self.skin or 0 end
 function Player:SetSkin(value) self.skin = value end
-function Player:GetNumBodyGroups() return 2 end
+function Player:SkinCount() return World.ModelInfo(self.model).skins end
+function Player:GetNumBodyGroups() return #World.ModelInfo(self.model).bodygroups end
+function Player:GetBodygroupCount(id)
+	local group = World.ModelInfo(self.model).bodygroups[id + 1]
+	return group ~= nil and group[2] or 0
+end
+function Player:GetBodygroupName(id)
+	local group = World.ModelInfo(self.model).bodygroups[id + 1]
+	return group ~= nil and group[1] or ""
+end
 function Player:GetBodygroup(id) return (self.bodygroups or {})[id] or 0 end
 function Player:SetBodygroup(id, value)
 	self.bodygroups = self.bodygroups or {}
@@ -1857,6 +1866,56 @@ function World.InstallDrawing(env, G)
 	World.InstallInterface(env, G)
 end
 
+-- Models -------------------------------------------------------------------------------
+
+-- What specs say a model has: World.MODELS[path] = { skins = n, bodygroups = { { name,
+-- count }, ... } } (group 0 first); other models have one skin and two groups of one choice.
+World.MODELS = {}
+local PLAIN_MODEL = { skins = 1, bodygroups = { { "studio", 1 }, { "body", 1 } } }
+
+function World.ModelInfo(path)
+	return World.MODELS[type(path) == "string" and path:lower() or ""] or PLAIN_MODEL
+end
+
+-- A client-side model (ClientsideModel, the entity of a model panel): skins and bodygroups
+-- of World.MODELS; other methods (any key that starts with a capital letter) do nothing.
+local ClientModel = {}
+local function nothing() end
+local ClientModelMeta = {
+	__index = function(_, key)
+		local method = ClientModel[key]
+		if method ~= nil then
+			return method
+		end
+		if type(key) == "string" and key:find("^%u") then
+			return nothing
+		end
+		return nil
+	end,
+}
+
+function World.ClientModel(model)
+	return setmetatable({ model = model, skin = 0, bodygroups = {} }, ClientModelMeta)
+end
+
+function ClientModel:IsValid() return not self.removed end
+function ClientModel:Remove() self.removed = true end
+function ClientModel:GetModel() return self.model end
+function ClientModel:SkinCount() return World.ModelInfo(self.model).skins end
+function ClientModel:GetSkin() return self.skin end
+function ClientModel:SetSkin(value) self.skin = value end
+function ClientModel:GetNumBodyGroups() return #World.ModelInfo(self.model).bodygroups end
+function ClientModel:GetBodygroupCount(id)
+	local group = World.ModelInfo(self.model).bodygroups[id + 1]
+	return group ~= nil and group[2] or 0
+end
+function ClientModel:GetBodygroupName(id)
+	local group = World.ModelInfo(self.model).bodygroups[id + 1]
+	return group ~= nil and group[1] or ""
+end
+function ClientModel:GetBodygroup(id) return self.bodygroups[id] or 0 end
+function ClientModel:SetBodygroup(id, value) self.bodygroups[id] = value end
+
 -- Panels of vgui.Create: every method the code calls exists (unknown ones, any key that
 -- starts with a capital letter, do nothing and return nil); kept are the class, parent
 -- and children, text, value, size, position, visibility and removal. Every panel is in
@@ -1935,7 +1994,14 @@ function Panel:AddSubMenu(text)
 end
 function Panel:AddSpacer() end
 function Panel:MakePopup() self.popup = true end
-function Panel:SetModel(model) self.model = model end
+-- A model panel shows a client-side model (panel.Entity) with the skins and bodygroups of
+-- World.MODELS.
+function Panel:SetModel(model)
+	self.model = model
+	if self.class == "DModelPanel" or self.class == "DAdjustableModelPanel" then
+		self.Entity = World.ClientModel(model)
+	end
+end
 function Panel:GetModel() return self.model end
 function Panel:SetTooltip(text) self.tooltip = text end
 

@@ -5,8 +5,8 @@ NAMES AND BUDGET
   component   one string per store "nc.<module>:<component>"
   platform    nc.hello (client info + ready, rate 2/burst 4), nc.info (later info changes, 2/8), nc.grants<s>
               (privileges of the player: on net.ready, then on change only; platform/permissions.lua)
-  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 45 = 25 messages +
-              17 components + 3 platform (module example is off; it adds 2 messages + 1 component)
+  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 48 = 26 messages +
+              19 components + 3 platform (module example is off; it adds 2 messages + 1 component)
 
 CLIENT -> SERVER CHECKS (cheap first)
   ready (nc.hello received, else drop notReady) -> token bucket per player and message (rate/s, burst; default
@@ -27,6 +27,7 @@ COMPONENTS (platform/components.lua)
   store:Changed(mask, field); keys = entities or entity indexes.
 
 MESSAGES BY MODULE (s = server -> client; c = client -> server with rate/burst)
+  appearance  change<c 1/3> (model <= 128 bytes, skin u8, bodygroups array 16 of u8, color u24)
   doors       door<c 4/8>                         economy     cash<c 4/8>
   identity    change<c 1/3> (name <= 96 bytes, gender enum)
   inventory   act<c 6/12> close<c 10/20> move<c 12/24> closed<s> contents<s>
@@ -40,6 +41,7 @@ MESSAGES BY MODULE (s = server -> client; c = client -> server with rate/burst)
 
 COMPONENTS BY MODULE (audience, flushes/s, field count)
   actions action{owner 10 f4}     armor armor{owner 4 f1}         doors door{all 4 f6}
+  appearance look{owner 2 f6} clothes{all 4 f1} (keyed by the ragdoll)
   economy account{owner 4 f1}     identity identity{all 4 f2} character{owner 2 f4}
   inventory ground{all 4 f2} place{all 2 f3}
   law jailed{all 4 f1} wanted{all 4 f2} warrant{all 4 f2}         organism vitals{owner 10 f17}

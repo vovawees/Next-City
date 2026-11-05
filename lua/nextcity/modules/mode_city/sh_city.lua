@@ -2,9 +2,11 @@
 --
 -- A job is a public role (roles, visible = all) registered on both realms in the same
 -- order, with the data of the city: a salary per payday, a limit of places (0: none), the
--- kit of its gear (inventory, default city_<id>), player models, and whether it keeps the
--- law (police) or heads the city (mayor). Packages add jobs with RegisterJob in their Init
--- on both realms.
+-- kit of its gear (inventory, default city_<id>), player models (the uniform; those of the
+-- gender of the character where it has them), whether its people wear their own looks
+-- instead (own: the appearance module; the models only for those without a look), and
+-- whether it keeps the law (police) or heads the city (mayor). Packages add jobs with
+-- RegisterJob in their Init on both realms.
 --
 --   city:RegisterJob(id, def), city:Job(id), city:Jobs() -> ids in order, city:DefaultJob()
 --   city:JobOf(ply) -> the job (known on the client: every job is public), city:IsPolice(ply)
@@ -44,7 +46,7 @@ local MEDICS = models("models/player/group03m/%s.mdl", { "male_01", "male_02", "
 	"male_06", "male_07", "male_08", "male_09", "female_01", "female_02", "female_03", "female_04", "female_06" })
 
 M.JOBS = {
-	{ "citizen", { color = Color(90, 180, 100), salary = 45, default = true, models = CITIZENS } },
+	{ "citizen", { color = Color(90, 180, 100), salary = 45, default = true, own = true, models = CITIZENS } },
 	{ "police", { color = Color(70, 120, 235), salary = 85, limit = 4, police = true,
 		models = { "models/player/police.mdl", "models/player/police_fem.mdl" } } },
 	{ "medic", { color = Color(225, 90, 130), salary = 70, limit = 3, models = MEDICS } },
@@ -93,7 +95,7 @@ M.SHOP = {
 M.MAX_TIMES = 20
 
 local JOB_KEYS = { name = true, description = true, color = true, salary = true, limit = true, kit = true,
-	models = true, police = true, mayor = true, default = true }
+	models = true, own = true, police = true, mayor = true, default = true }
 
 function M:Init(ctx)
 	self.roles = ctx:Require("roles")
@@ -141,6 +143,7 @@ function M:RegisterJob(id, def)
 		limit = math.max(0, math.floor(def.limit or 0)),
 		kit = def.kit or "city_" .. id,
 		models = type(def.models) == "table" and def.models or {},
+		own = def.own == true,
 		police = def.police == true,
 		mayor = def.mayor == true,
 	}

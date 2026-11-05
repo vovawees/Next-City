@@ -7,12 +7,13 @@
 | [`weaponry`](modules/weaponry/) | 6 видов патронов, 5 стволов, 3 вида холодного и 2 метательного оружия, их 16 предметов, таблицы лута оружия и патронов | `ammo`, `weapons`, `melee`, `throwables`; необязательно `inventory`, `loot`, `explosions` |
 | [`supplies`](modules/supplies/) | 30 предметов: медицина, броня, сумки, стяжки, наручники, отмычка, таран; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `dm`, `homicide`, `hideseek`, `riot`, `defense`, `coop`, `city` | `inventory`; необязательно `loot`, `weaponry` |
 | [`hostiles`](modules/hostiles/) | 12 видов врагов Half-Life 2 (зомби, хедкрабы, муравьиные львы, Гражданская оборона, солдаты Альянса, мэнхаки) и 6 групп для волн | `npcs` |
-| [`mode_homicide`](modules/mode_homicide/README.md) | режим «Хомисайд»: скрытые роли убийцы, шерифа и мирных, псевдонимы, варианты `standard`, `gunfree`, `wildwest` | `rounds`, `roles`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
+| [`wardrobe`](#внешность) | 3 набора внешности персонажей: горожане и горожанки (9 + 6 моделей `group01`), беженцы (4 модели `group02`) Half-Life 2 | `appearance` |
+| [`mode_homicide`](modules/mode_homicide/README.md) | режим «Хомисайд»: скрытые роли убийцы, шерифа и мирных, псевдонимы и их внешности, варианты `standard`, `gunfree`, `wildwest` | `rounds`, `roles`, `players`; необязательно `inventory`, `loot`, `notices`, `hands`, `appearance` |
 | [`mode_hideseek`](modules/mode_hideseek/README.md) | режим «Прятки»: фаза пряток с ослеплёнными ищущими, охота с убийством или осаливанием | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 | [`mode_riot`](modules/mode_riot/README.md) | режим «Бунт»: полиция связывает бунтовщиков, бунтовщики отбиваются и освобождают своих | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `restraints` |
 | [`mode_defense`](modules/mode_defense/README.md) | режим «Оборона»: волны существ с передышками, павшие возвращаются после волны | `rounds`, `players`, `npcs`; необязательно `inventory`, `loot`, `notices` |
 | [`mode_coop`](modules/mode_coop/README.md) | режим «Кооператив»: зачистка карты от NPC с общими жизнями команды | `rounds`, `players`, `npcs`; необязательно `inventory`, `loot`, `notices` |
-| [`mode_city`](modules/mode_city/README.md) | режим «Город»: бесконечный раунд, профессии с лимитами, снаряжением и зарплатами, магазин профессий, имена персонажей (`identity`), двери как собственность, полиция и тюрьма, меню F4 и HUD денег | `rounds`, `roles`, `players`; необязательно `inventory`, `economy`, `notices`, `doors`, `law`, `menu`, `identity` |
+| [`mode_city`](modules/mode_city/README.md) | режим «Город»: бесконечный раунд, профессии с лимитами, снаряжением и зарплатами, магазин профессий, имена персонажей (`identity`), своя внешность горожан (`appearance`) и форма по полу персонажа, двери как собственность, полиция и тюрьма, меню F4 и HUD денег | `rounds`, `roles`, `players`; необязательно `inventory`, `economy`, `notices`, `doors`, `law`, `menu`, `identity`, `appearance` |
 
 ```text
 lua/nextcity/
@@ -20,20 +21,21 @@ lua/nextcity/
 │   ├── weaponry/      # module.lua, sh_weaponry.lua (данные), sv_weaponry.lua (взрывы, лут)
 │   ├── supplies/      # module.lua, sh_supplies.lua (предметы), sv_supplies.lua (лут, ящики, наборы)
 │   ├── hostiles/      # module.lua, sv_hostiles.lua (виды и группы существ)
+│   ├── wardrobe/      # module.lua, sh_wardrobe.lua (наборы внешности)
 │   ├── mode_homicide/ # module.lua, sh_homicide.lua (роли, псевдонимы), sv_homicide.lua (режим)
 │   ├── mode_hideseek/ # module.lua, sh_hideseek.lua (команды), sv_hideseek.lua (режим), cl_hideseek.lua (повязка)
 │   ├── mode_riot/     # module.lua, sh_riot.lua (команды), sv_riot.lua (режим)
 │   ├── mode_defense/  # module.lua, sv_defense.lua (режим)
 │   ├── mode_coop/     # module.lua, sv_coop.lua (режим)
 │   └── mode_city/     # module.lua, sh_city.lua (профессии), sv_city.lua (режим), cl_city.lua (HUD), cl_menu.lua (F4)
-└── lang/<код>/        # ammo, weapons, melee, throwables, items, loot, mode_homicide, mode_hideseek, mode_riot,
-                       # mode_defense, mode_coop, mode_city
+└── lang/<код>/        # ammo, weapons, melee, throwables, items, loot, wardrobe, mode_homicide, mode_hideseek,
+                       # mode_riot, mode_defense, mode_coop, mode_city
 ```
 
 ```mermaid
 flowchart LR
 	subgraph core["Ядро (gamemode)"]
-		A[ammo] & W[weapons] & M[melee] & T[throwables] & I[inventory] & L[loot] & N[npcs]
+		A[ammo] & W[weapons] & M[melee] & T[throwables] & I[inventory] & L[loot] & N[npcs] & AP[appearance]
 	end
 	subgraph pack["Пакет (lua/nextcity)"]
 		WY[weaponry] --> A & W & M & T
@@ -41,6 +43,7 @@ flowchart LR
 		S[supplies] --> I
 		S -.-> L & WY
 		HO[hostiles] --> N
+		WR[wardrobe] --> AP
 	end
 	R["Режимы гейммода: tdm, dm"] -- "kit = tdm, dm" --> S
 	H[mode_homicide] -- "homicide_*" --> S
@@ -226,6 +229,18 @@ flowchart LR
 | `combine_elite` | солдат 3, солдат с дробовиком 1, элита 2 |
 
 Свои виды и группы — `npcs:RegisterKind` и `npcs:RegisterGroup` в своём пакете; группы режима задают его параметры (`groups` у обороны, `group` у кооператива).
+
+## Внешность
+
+Модуль `wardrobe` добавляет в [`appearance`](../../gamemodes/nextcity/gamemode/modules/appearance/README.md) наборы моделей, из которых персонажи выбирают внешность во вкладке «Внешность» меню F1 (`nc_looks` — список). Только модели Half-Life 2, которые есть у каждого; цвет одежды (цвет игрока) виден на всех.
+
+| Набор | Пол | Модели |
+|---|---|---|
+| `citizens_male` — горожане | мужской | `models/player/group01/male_01.mdl` … `male_09.mdl` |
+| `citizens_female` — горожанки | женский | `models/player/group01/female_01.mdl` … `female_06.mdl` |
+| `refugees` — беженцы | мужской | `models/player/group02/male_02.mdl`, `male_04`, `male_06`, `male_08` |
+
+Свои наборы — `appearance:AddSet` в `Init` своего пакета на обоих realm; тот же id заменяет набор `wardrobe`. Форму профессий города и внешности псевдонимов Homicide задают сами режимы.
 
 ## Свой контент
 

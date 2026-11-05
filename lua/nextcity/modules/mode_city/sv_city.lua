@@ -5,7 +5,9 @@
 --
 -- A job change (nc_job, the menu of the city) checks the limit of places, the cooldown of
 -- jobCooldown s and the question mode_city.canJob; the gear of the old job goes away, the
--- gear of the new one comes with the model. The gear of a job (its kit, given with
+-- gear of the new one comes with its clothes: the uniform of the job (a model of the gender
+-- of the character where the job has one) or, for jobs without one (own: the citizens),
+-- the look of the character (the appearance module). The gear of a job (its kit, given with
 -- issued = true in the state of every thing) stays with its owner: it cannot be dropped or
 -- put into somebody else's container; the dead leave it on the body like the rest.
 --
@@ -55,6 +57,8 @@ function M:_InitServer(ctx)
 	self.notices = ctx:Require("notices")
 	self.doors = ctx:Require("doors")
 	self.law = ctx:Require("law")
+	self.identity = ctx:Require("identity")
+	self.appearance = ctx:Require("appearance")
 	self.changed = {} -- ply -> CurTime of his last job change
 	self.rounds:RegisterMode({
 		id = "city",
@@ -114,9 +118,13 @@ local function issued(item)
 end
 
 function M:Setup(round)
+	-- The uniform of the job; the own look (appearance answers) where the job has none.
 	round:On("gm.PlayerSetModel", function(ply)
 		local job = self:JobOf(ply)
-		return job ~= nil and self:ModelFor(ply, job) or nil
+		if job == nil or job.own and self.appearance ~= nil and self.appearance:Look(ply) ~= nil then
+			return nil
+		end
+		return self:ModelFor(ply, job)
 	end)
 	-- Doors are property in the city; only the police break them in.
 	round:On("doors.property", function()
@@ -189,13 +197,46 @@ function M:Members(id)
 	return self.roles:Members(id)
 end
 
+local function female(path)
+	return path:find("female", 1, true) ~= nil or path:find("_fem", 1, true) ~= nil
+end
+
+-- The models of a job for the gender of a player's character (identity): those of it, or
+-- all when the job has none of it.
+function M:_ModelsFor(ply, models)
+	local character = self.identity ~= nil and self.identity:Character(ply) or nil
+	local gender = character ~= nil and character.gender or nil
+	if gender == nil then
+		return models
+	end
+	local out = {}
+	for _, path in ipairs(models) do
+		if female(path) == (gender == "female") then
+			out[#out + 1] = path
+		end
+	end
+	return out[1] ~= nil and out or models
+end
+
 -- The model of a job for a player: the same one every life.
 function M:ModelFor(ply, job)
-	local list = job.models
+	local list = self:_ModelsFor(ply, job.models)
 	if list[1] == nil then
 		return nil
 	end
 	return list[(ply:EntIndex() - 1) % #list + 1]
+end
+
+-- The clothes of his job on a living player (his own look where the job has no uniform).
+function M:_Dress(ply, job)
+	if self.appearance ~= nil then
+		self.appearance:Dress(ply)
+		return
+	end
+	local model = self:ModelFor(ply, job)
+	if model ~= nil then
+		ply:SetModel(model)
+	end
 end
 
 -- The gear of his job for a living player (the model comes with gm.PlayerSetModel).
@@ -259,10 +300,7 @@ function M:SetJob(ply, id, force)
 	if self.players:IsAlive(ply) then
 		self:Unequip(ply)
 		self:Equip(ply)
-		local model = self:ModelFor(ply, job)
-		if model ~= nil then
-			ply:SetModel(model)
-		end
+		self:_Dress(ply, job)
 	end
 	if self.notices ~= nil then
 		self.notices:Broadcast("mode_city.became", { who = self.players:Name(ply), job = { key = job.name } },

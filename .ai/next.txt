@@ -1,4 +1,4 @@
-NEXT (ordered; M0-M7, #25-#32 done)
+NEXT (ordered; M0-M7, #25-#33 done)
   1 M8 services (milestone #9, issues #27-#36 in this order; each: code, tests, module README in russian with API
     and "Проверить в реальном GMod", lang en/ru, .ai refresh, commit "Closes #N", check the issue closed):
     #29 done: storage:Collection (record per key, lazy Get, Release, file per record) + backend sqlite
@@ -6,9 +6,10 @@ NEXT (ordered; M0-M7, #25-#32 done)
     #31 done: menu (F1: AddTab/AddHelp API, profile tab of profiles, settings/language, help keys + commands)
     #32 done: identity (name + gender in the profile section, random names en/ru, cooldown, uniqueness by the
         registry, players.name answer, on by identity.enabled; mode_city names moved; F1 tab character)
-    #33 appearance: model sets from packages (HL2 citizens), model/skin/bodygroups/player color in the profile,
-        applied on spawn at low priority after mode answers of gm.PlayerSetModel (city job models win), Reduce
-        appearance.look, preview UI (DModelPanel)
+    #33 done: appearance (sets of packages: wardrobe = HL2 citizens/refugees by gender; model, skin, bodygroups,
+        clothes color in the profile section; gm.PlayerSetModel answer at -10 under the modes; Reduce
+        appearance.look; F1 tab with DModelPanel preview; clothes color on ragdolls); city: own looks for
+        citizens, uniforms by gender; homicide: alias looks
     #34 chat: global vs proximity by a mode answer; whisper/yell, /me, /it, OOC, LOOC, PM, module chat commands,
         antispam, unconscious -> OOC only (organism:IsUnconscious), own net lines (answer gm.PlayerSay with ""),
         respect gm.PlayerCanSeePlayersChat (rounds dead_mute)

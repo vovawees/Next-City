@@ -63,6 +63,13 @@ describe("homicide", function()
 			"murderer", "sheriff", "innocent", "innocent" })
 		expect({ m.players:Name(alyx), m.players:Name(barney), m.players:Name(gordon), m.players:Name(eli) }):toEqual({
 			"Alpha", "Bravo", "Charlie", "Delta" })
+		-- Everybody wears the look of his alias (appearance), so a face gives no name away.
+		local appearance = server:Get("NC").Modules:Instance("appearance")
+		for _, ply in ipairs({ alyx, barney, eli, gordon }) do
+			local look = m.mode_homicide:AliasLook(ply)
+			expect({ ply:GetModel(), appearance.FromVector(ply:GetPlayerColor()) }):toEqual({ look.model, look.color })
+		end
+		expect(m.mode_homicide:AliasLook(alyx).color):notToBe(m.mode_homicide:AliasLook(barney).color)
 
 		-- Kits: a knife for the murderer, a revolver for the sheriff; empty hands for all.
 		expect(alyx:WeaponClasses()):toEqual({ "nc_hands", "nc_knife" })

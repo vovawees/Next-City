@@ -24,7 +24,8 @@ local function boot(opts)
 	server:Call("InitPostEntity")
 	local NC = server:Get("NC")
 	local m = { NC = NC }
-	for _, id in ipairs({ "rounds", "roles", "players", "inventory", "economy", "law", "identity", "mode_city" }) do
+	for _, id in ipairs({ "rounds", "roles", "players", "inventory", "economy", "law", "identity", "appearance",
+		"mode_city" }) do
 		m[id] = NC.Modules:Instance(id)
 	end
 	return server, m
@@ -103,8 +104,10 @@ describe("city", function()
 		local city, inventory, roles = m.mode_city, m.inventory, m.roles
 		expect({ roles:Of(gordon), roles:Of(alyx) }):toEqual({ "citizen", "citizen" })
 		expect(inventory:Count(gordon, "bandage")):toBe(1)
-		expect(gordon:GetModel()):toBe(city:ModelFor(gordon, city:Job("citizen")))
-		expect(gordon:GetModel()):toContain("models/player/group01/")
+		-- Citizens wear their own looks (appearance: random ones of the sets of the wardrobe).
+		local look = m.appearance:Look(gordon)
+		expect(gordon:GetModel()):toBe(look.model)
+		expect(m.appearance:Allows(look.model)):toBe(true)
 
 		-- A newcomer joins the running city.
 		local barney = Env.Bot(server, { name = "Barney" })
@@ -182,6 +185,10 @@ describe("city", function()
 		expect({ roles:Of(gordon), inventory:Count(gordon, "bandage") }):toEqual({ "medic", 5 })
 		run(server, 600)
 		expect(m.rounds:Phase()):toBe("active")
+
+		-- Back among the citizens he wears his own look again.
+		expect(city:SetJob(gordon, "citizen")):toBe(true)
+		expect(gordon:GetModel()):toBe(look.model)
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
 	end)
@@ -219,6 +226,12 @@ describe("city", function()
 		expect({ identity:Change(alyx, string.rep("x", 33)) }):toEqual({ false, "long" })
 		expect({ identity:Change(alyx, "<b>Alyx") }):toEqual({ false, "chars" })
 		expect(identity:Change(alyx, "Алиса Вэнс", "female")):toBe(true)
+		-- Her random look follows the gender of the character, the uniform of the police too.
+		expect(alyx:GetModel()):toBe(m.appearance:Look(alyx).model)
+		expect(alyx:GetModel()):toContain("female")
+		expect(city:SetJob(alyx, "police")):toBe(true)
+		expect({ gordon:GetModel(), alyx:GetModel() }):toEqual({ "models/player/police.mdl",
+			"models/player/police_fem.mdl" })
 		server:Advance(0.3)
 		hud(server, client)
 		local players = client:Get("NC").Modules:Instance("players")

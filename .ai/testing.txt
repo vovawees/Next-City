@@ -3,7 +3,7 @@ TESTING
              toBeTruthy, toBeFalsy, toBeNil, toBeCloseTo, toContain, notToContain, toFail) + T (root, gamemode,
              load(path)) + skip(reason) inside an it (counted "N skipped", listed as SKIP lines); SPECS list in
              run.lua (add every new spec file there!); `luajit tests/run.lua [filter]`
-  counts     62 specs = 11 unit + 51 gmod; 551 checks (it blocks); full run ~30-40 s local x86_64, ~34 s VPS
+  counts     63 specs = 11 unit + 52 gmod; 556 checks (it blocks); full run ~40-45 s local x86_64, ~34 s VPS
   unit       tests/unit/*_spec.lua: pure core (runner, log, events, scheduler, fsm, modules, schema, i18n,
              components, params, scope)
   gmod       tests/gmod/*_spec.lua: real gamemode + package files in emulated realms (boot, packages, bridge,
@@ -26,7 +26,9 @@ EMULATOR (tests/gmod)
              Env.Geometry(realm) (traces see boxes), Env.AmmoID, Env.BoneHitGroup; world.lua: entities, players,
              ragdolls (bones, physics), weapons (sweps.lua), NPCs (.schedule .enemyMemory .relationships ...), doors
              (Fire inputs, m_bLocked, m_eDoorState, MapCreationID kept across cleanup), DATA files, vgui fakes
-             (World.FindPanels(env, fn, all)), chat/notification/surface fakes, input helpers
+             (World.FindPanels(env, fn, all)), chat/notification/surface fakes, input helpers; models:
+             World.MODELS / World.ModelInfo(path) (skins, bodygroups; default 1 skin, 2 groups of 1) drive
+             SkinCount/GetNumBodyGroups/GetBodygroupCount/GetBodygroupName; World.ClientModel; DModelPanel.Entity
   user groups FakePlayer/Env.Join opts.group; ply:GetUserGroup() (default "user", superadmin = true ->
              "superadmin"), SetUserGroup, IsUserGroup; IsAdmin = admin group or superadmin (like the engine)
   globals    hook library (Add/Remove/GetTable/Call(name, gm, ...)/Run; first non-nil return wins, then gm[name];

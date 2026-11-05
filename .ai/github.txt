@@ -29,6 +29,7 @@ ISSUES -> COMMITS (all closed)
   #26 .ai knowledge base (first a0fe18b)               696eae3
   #27 permissions (platform service)             69bea44   #28 cami adapter module               919c4bd
   #29 storage collections + SQLite               17339b6   #30 profiles                          3d029a5
-  #31 F1 menu (tabs, help, settings)             3c3d426   #32 identity: hash in the next commit
+  #31 F1 menu (tabs, help, settings)             3c3d426   #32 identity                          1939092
+  #33 appearance (+ package wardrobe): hash in the next commit
   no issue: notices 5780ce0, CI removal cbc867a
-  M8 open: #33 appearance #34 chat #35 voice #36 docs (plan: next.txt); M9 issues: not created yet
+  M8 open: #34 chat #35 voice #36 docs (plan: next.txt); M9 issues: not created yet

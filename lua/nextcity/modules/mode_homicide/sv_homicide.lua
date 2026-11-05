@@ -12,7 +12,9 @@
 -- Kits of the package by variant and role (M.KITS); without the inventory or the kit the
 -- engine weapons of M.WEAPONS. Everybody starts with empty hands. A player of the
 -- innocent side who kills an innocent pays (param penalty): drops his firearms (drop),
--- dies (kill) or nothing (none). With aliases every participant gets one for the round.
+-- dies (kill) or nothing (none). With aliases every participant gets one for the round
+-- and wears its look (appearance.look: a model of the sets for the gender of his character
+-- and a color of clothes by the number of the alias), so a face gives no name away.
 
 local M = NC.Module("mode_homicide")
 
@@ -48,6 +50,7 @@ function M:_InitServer(ctx)
 	self.inventory = ctx:Require("inventory")
 	self.notices = ctx:Require("notices")
 	self.hands = ctx:Require("hands")
+	self.appearance = ctx:Require("appearance")
 	self.warned = {}
 	local rules = { "time_limit", "roles", "silent_deaths", "dead_mute" }
 	if ctx:Require("loot") ~= nil then
@@ -119,6 +122,11 @@ function M:Setup(round)
 		variant = M.VARIANTS[M.Random(#M.VARIANTS)]
 	end
 	round.data.variant = variant
+	if round.params.aliases and self.appearance ~= nil then
+		round:On("appearance.look", function(_, ply)
+			return self:AliasLook(ply)
+		end)
+	end
 	if variant == "gunfree" then
 		round:On("loot.allow", function(_, def)
 			if self:IsFirearm(def) then
@@ -146,6 +154,16 @@ function M:Deal(round, ready)
 		order[i], order[j] = order[j], order[i]
 	end
 	data.aliases, data.given = order, 0
+end
+
+-- The look of the alias of a participant (appearance), or nil without an alias.
+function M:AliasLook(ply)
+	local alias = self.ctx.components.alias:Get(ply)
+	local appearance = self.appearance
+	if alias == nil or alias.index == 0 or appearance == nil then
+		return nil
+	end
+	return appearance:Pick(appearance:GenderOf(ply), alias.index)
 end
 
 function M:Join(round, ply)

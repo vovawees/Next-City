@@ -1,0 +1,33 @@
+-- Strings of appearance: keys "appearance.<key>".
+return {
+	tab = "Appearance",
+	heading = "Your look",
+	waiting = "The server has not sent your look yet",
+	none = "The server has no sets of models: you wear the model of the game",
+	nolook = "You have no look yet: choose one and save it",
+	given = "The look was given at random: choose your own",
+	dressed = "A mode dresses you in its own way now: your look comes back when it stops",
+	set = "Clothes",
+	skin = "Skin",
+	color = "Color",
+	random = "Random look",
+	undo = "Undo",
+	save = "Save the look",
+	unsaved = "The look is not saved yet",
+	hint = "The look stays in your profile; the color of the clothes shows on the models that have it",
+	wait = {
+		one = "You can change the look again in {count} second",
+		other = "You can change the look again in {count} seconds",
+	},
+	changed = "Your look is saved",
+	["fail.loading"] = "Your look is not loaded yet",
+	["fail.model"] = "This model is not for your character",
+	["fail.same"] = "That is your look already",
+	["fail.cooldown"] = {
+		one = "You can change the look in {count} second",
+		other = "You can change the look in {count} seconds",
+	},
+	["fail.denied"] = "You cannot change the look now",
+	["command.nc_look"] = "[random] — your look; random: a random one of your sets",
+	["command.nc_looks"] = "the sets of models of looks",
+}
