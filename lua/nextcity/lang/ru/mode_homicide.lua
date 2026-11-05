@@ -1,0 +1,23 @@
+-- Строки режима Homicide: ключи "mode_homicide.<ключ>".
+return {
+	name = "Хомисайд",
+	["role.murderer"] = "Убийца",
+	["role.sheriff"] = "Шериф",
+	["role.innocent"] = "Мирный",
+	["goal.murderer"] = "Убейте всех и не попадитесь",
+	["goal.sheriff"] = "Найдите и остановите убийцу; не стреляйте в мирных",
+	["goal.innocent"] = "Выживите и помогите найти убийцу",
+	["variant.standard"] = "Стандарт: у убийцы нож, у шерифа револьвер",
+	["variant.gunfree"] = "Зона без оружия: огнестрела нет, у шерифа дубинка",
+	["variant.wildwest"] = "Дикий Запад: у всех револьверы",
+	["win.innocents"] = "Мирные победили",
+	["win.murderer"] = "Убийца {player} победил",
+	["win.murderers"] = "Убийцы победили",
+	["reason.stopped"] = "Убийца остановлен",
+	["reason.fled"] = "Убийца сбежал",
+	["reason.innocents"] = "Мирных не осталось",
+	["reveal.murderer"] = "Убийцей был {who}",
+	["reveal.sheriff"] = "Шерифом был {who}",
+	["penalty.drop"] = "Вы убили мирного и выронили оружие",
+	["penalty.kill"] = "Вы убили мирного и поплатились жизнью",
+}

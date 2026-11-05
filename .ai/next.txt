@@ -1,6 +1,6 @@
 NEXT (ordered)
   1 done: M6 complete (notices, storage #2, actions #3, inventory #4-#7, equipment #8, medical #9, loot #10,
     content package #11, tdm kits #12); ROADMAP M6 done, ARCHITECTURE v0.5 has D17/D18
-  4 done: roles #13 -> NEXT homicide #14 -> hideseek #15 -> riot #16 -> defense #17 -> coop #18 -> dm #19
+  4 done: roles #13, homicide #14 -> NEXT hideseek #15 -> riot #16 -> defense #17 -> coop #18 -> dm #19
   5 city #20 -> city_economy #21 -> city_doors #22 -> city_police #23 -> city UI #24 -> close M7
   6 docs overhaul #25 (README showcase, ARCHITECTURE D17+, ROADMAP, CONTRIBUTING without CI) -> .ai final update #26

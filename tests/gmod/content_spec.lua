@@ -54,7 +54,8 @@ describe("official package", function()
 		expect(m.throwables:All()):toEqual({ "nc_frag", "nc_bottle" })
 		expect(#items(m)):toBe(42)
 		expect(m.loot:Crates()):toEqual({ "crate_medical", "crate_military", "crate_wood" })
-		expect(m.inventory:Kits()):toEqual({ "tdm" })
+		expect(m.inventory:Kits()):toEqual({ "homicide_murderer", "homicide_murderer_wildwest", "homicide_sheriff",
+			"homicide_sheriff_gunfree", "homicide_wildwest", "tdm" })
 	end)
 
 	it("refers only to registered rounds, weapons, kinds of armor, treatments, items and tables", function()
@@ -106,9 +107,11 @@ describe("official package", function()
 		for _, line in ipairs(server:Lines("WARN")) do
 			problem(line)
 		end
-		for _, entry in ipairs(m.inventory:Kit("tdm")) do
-			if inventory:Def(entry.item) == nil then
-				problem("kit tdm: " .. entry.item)
+		for _, kit in ipairs(m.inventory:Kits()) do
+			for _, entry in ipairs(m.inventory:Kit(kit)) do
+				if inventory:Def(entry.item) == nil then
+					problem("kit " .. kit .. ": " .. entry.item)
+				end
 			end
 		end
 		expect(problems):toEqual({})

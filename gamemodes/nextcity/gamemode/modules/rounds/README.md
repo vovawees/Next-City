@@ -54,7 +54,7 @@ end
 - `round:Participants()`, `ParticipantCount()`, `IsParticipant(ply)`, `Alive()`, `AliveCount()`, `AddParticipant(ply)`.
 - `round:Respawn(ply, delay)`, `CancelRespawn(ply)`, `IsRespawning(ply)`, `RespawnCount()` — клиенты видят время возрождения (`players.life.respawnAt`).
 - `round:SetTimeLimit(seconds)`, `TimeLeft()`, `Elapsed()`, `Phase()`, `IsActive()`.
-- `round:CheckWin()` — проверить победу на следующем тике; `round:End(result)` — `{ reason, team, winner, key }` и свои поля режима.
+- `round:CheckWin()` — проверить победу на следующем тике; `round:End(result)` — `{ reason, team, winner, key }` и свои поля режима. `reason` — короткая причина (`time`, `elimination`, …: подзаголовок `rounds.reason.<reason>`) или собственный ключ перевода с точкой (`"mode_homicide.reason.fled"`); `key` — ключ заголовка с параметрами `{team}` и `{player}` (имя победителя — `players:Name`).
 
 ## Встроенные правила
 

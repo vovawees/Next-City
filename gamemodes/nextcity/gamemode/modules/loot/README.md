@@ -84,3 +84,15 @@ if ctx:Require("loot") ~= nil then
 	rules[#rules + 1] = "loot"
 end
 ```
+
+Лут раунда появляется на следующем тике после `Setup`: режим успевает в своём `Setup` подписаться на вопрос `loot.allow` и убрать лишнее из лута этого раунда (так «Зона без оружия» в Homicide убирает огнестрел и патроны):
+
+```lua
+Setup = function(round)
+	round:On("loot.allow", function(id, def)
+		if def.traits.ammo ~= nil then
+			return false
+		end
+	end)
+end,
+```

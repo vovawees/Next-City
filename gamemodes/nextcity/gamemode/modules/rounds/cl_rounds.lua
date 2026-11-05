@@ -114,7 +114,11 @@ function M:_Headline(result)
 			key = "rounds.result.draw"
 		end
 	end
-	local reason = "rounds.reason." .. result.reason
+	-- A reason with a dot is a translation key of its own ("mode_homicide.reason.fled").
+	local reason = result.reason
+	if not reason:find(".", 1, true) then
+		reason = "rounds.reason." .. reason
+	end
 	local subtitle = i18n:Has(reason) and i18n:T(reason, params) or nil
 	local color = result.team > 0 and team.GetColor(result.team) or WHITE
 	return translate(i18n, key, params), subtitle, color

@@ -5,14 +5,16 @@
 | Модуль | Что даёт | Зависимости |
 |---|---|---|
 | [`weaponry`](modules/weaponry/) | 6 видов патронов, 5 стволов, 3 вида холодного и 2 метательного оружия, их 16 предметов, таблицы лута оружия и патронов | `ammo`, `weapons`, `melee`, `throwables`; необязательно `inventory`, `loot`, `explosions` |
-| [`supplies`](modules/supplies/) | 26 предметов: медицина, броня, сумки; таблицы лута, 3 вида ящиков, набор режима `tdm` | `inventory`; необязательно `loot`, `weaponry` |
+| [`supplies`](modules/supplies/) | 26 предметов: медицина, броня, сумки; таблицы лута, 3 вида ящиков, наборы режимов `tdm` и `homicide` | `inventory`; необязательно `loot`, `weaponry` |
+| [`mode_homicide`](modules/mode_homicide/README.md) | режим «Хомисайд»: скрытые роли убийцы, шерифа и мирных, псевдонимы, варианты `standard`, `gunfree`, `wildwest` | `rounds`, `roles`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 
 ```text
 lua/nextcity/
 ├── modules/
 │   ├── weaponry/      # module.lua, sh_weaponry.lua (данные), sv_weaponry.lua (взрывы, лут)
-│   └── supplies/      # module.lua, sh_supplies.lua (предметы), sv_supplies.lua (лут, ящики, наборы)
-└── lang/<код>/        # ammo, weapons, melee, throwables, items, loot
+│   ├── supplies/      # module.lua, sh_supplies.lua (предметы), sv_supplies.lua (лут, ящики, наборы)
+│   └── mode_homicide/ # module.lua, sh_homicide.lua (роли, псевдонимы), sv_homicide.lua (режим)
+└── lang/<код>/        # ammo, weapons, melee, throwables, items, loot, mode_homicide
 ```
 
 ```mermaid
@@ -27,6 +29,7 @@ flowchart LR
 		S -.-> L & WY
 	end
 	R["Режимы: tdm, …"] -- "kit = tdm" --> S
+	H[mode_homicide] -- "homicide_*" --> S
 ```
 
 Сплошные стрелки — обязательные зависимости, пунктир — необязательные: без `loot` нет таблиц и ящиков, без `weaponry` в таблицах `supplies` нет оружия и не регистрируется набор `tdm`.
@@ -146,6 +149,11 @@ flowchart LR
 | Набор | Состав | Где используется |
 |---|---|---|
 | `tdm` | шлем, бронежилет, MP7 и 120 патронов 4,6×30, USP и 30 патронов 9×19, нож, граната, 2 бинта, жгут | [Team Deathmatch](../../gamemodes/nextcity/gamemode/modules/mode_tdm/README.md) (параметр `kit`) |
+| `homicide_murderer` | нож | [Хомисайд](modules/mode_homicide/README.md#наборы): убийца |
+| `homicide_murderer_wildwest` | нож, Кольт Питон, 12 патронов .357 | Хомисайд, «Дикий Запад»: убийца |
+| `homicide_sheriff` | Кольт Питон, 12 патронов .357 | Хомисайд: шериф |
+| `homicide_sheriff_gunfree` | дубинка | Хомисайд, «Зона без оружия»: шериф |
+| `homicide_wildwest` | Кольт Питон, 12 патронов .357 | Хомисайд, «Дикий Запад»: шериф и мирные |
 
 `nc_kits` — все наборы, `nc_kit <игрок> <набор>` — выдать набор (администратор).
 

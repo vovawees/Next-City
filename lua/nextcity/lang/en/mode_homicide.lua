@@ -1,0 +1,23 @@
+-- Strings of the Homicide mode: keys "mode_homicide.<key>".
+return {
+	name = "Homicide",
+	["role.murderer"] = "Murderer",
+	["role.sheriff"] = "Sheriff",
+	["role.innocent"] = "Innocent",
+	["goal.murderer"] = "Kill everybody and do not get caught",
+	["goal.sheriff"] = "Find and stop the murderer; do not shoot innocents",
+	["goal.innocent"] = "Survive and help to find the murderer",
+	["variant.standard"] = "Standard: the murderer has a knife, the sheriff a revolver",
+	["variant.gunfree"] = "Gun-free zone: no firearms, the sheriff has a stun baton",
+	["variant.wildwest"] = "Wild West: everybody has a revolver",
+	["win.innocents"] = "The innocents win",
+	["win.murderer"] = "The murderer {player} wins",
+	["win.murderers"] = "The murderers win",
+	["reason.stopped"] = "The murderer is stopped",
+	["reason.fled"] = "The murderer fled",
+	["reason.innocents"] = "Nobody innocent is left",
+	["reveal.murderer"] = "The murderer was {who}",
+	["reveal.sheriff"] = "The sheriff was {who}",
+	["penalty.drop"] = "You killed an innocent and dropped your weapon",
+	["penalty.kill"] = "You killed an innocent and paid with your life",
+}

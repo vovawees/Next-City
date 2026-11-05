@@ -70,7 +70,11 @@ function M:Init(ctx)
 			Setup = function(round)
 				self:ClearAll()
 				if round.params.loot then
-					self:SpawnAll(round.params.lootShare)
+					-- On the next tick: after the Setup of the mode, which may keep things out
+					-- of the loot of its round (loot.allow).
+					round:After(0, function()
+						self:SpawnAll(round.params.lootShare)
+					end)
 				end
 			end,
 			Cleanup = function()

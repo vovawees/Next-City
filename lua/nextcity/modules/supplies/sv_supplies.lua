@@ -96,4 +96,10 @@ function M:_Kits(inventory)
 		{ "knife" }, { "frag" },
 		{ "bandage", 2 }, { "tourniquet" },
 	})
+	-- Homicide: by variant and role (lua/nextcity/modules/mode_homicide).
+	inventory:RegisterKit("homicide_murderer", { { "knife" } })
+	inventory:RegisterKit("homicide_murderer_wildwest", { { "knife" }, { "python" }, { "ammo_357", 12 } })
+	inventory:RegisterKit("homicide_sheriff", { { "python" }, { "ammo_357", 12 } })
+	inventory:RegisterKit("homicide_sheriff_gunfree", { { "stunstick" } })
+	inventory:RegisterKit("homicide_wildwest", { { "python" }, { "ammo_357", 12 } })
 end

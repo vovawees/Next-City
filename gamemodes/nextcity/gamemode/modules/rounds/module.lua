@@ -37,7 +37,7 @@ return {
 		} },
 		-- Server -> client: how the round ended, sent when it ends.
 		result = { from = "server", fields = {
-			{ "reason", "string", max = 32 },        -- time, elimination, score, admin, abandoned...
+			{ "reason", "string", max = 64 },        -- time, elimination, ... or a translation key
 			{ "key", "string", max = 64 },           -- translation key of the headline, "" for the default
 			{ "team", "uint", bits = 16 },           -- winning team, 0 if none
 			{ "winner", "player", optional = true }, -- winning player
