@@ -26,6 +26,7 @@ local PROBE = {
 			"gm.OnPlayerHitGround", "gm.HUDShouldDraw", "gm.PlayerBindPress", "gm.PlayerUse",
 			"gm.PlayerCanPickupWeapon", "gm.PlayerSay", "gm.PlayerCanSeePlayersChat", "gm.PlayerCanHearPlayersVoice",
 			"gm.HUDDrawTargetID", "gm.PlayerDeathNotice", "gm.OnPlayerChat", "gm.PlayerSwitchWeapon",
+			"gm.PlayerStartVoice", "gm.PlayerEndVoice",
 		}
 		function M:Start(ctx)
 			for _, name in ipairs(NOTIFY) do
@@ -344,6 +345,20 @@ describe("bridge", function()
 		probe.answers["gm.HUDDrawTargetID"] = true
 		GM:HUDDrawTargetID()
 		expect(#client.baseCalls):toBe(calls + 1)
+
+		-- Voice panels: the base one shows up unless a module answers true (it shows the talkers itself).
+		local talker = { name = "Talker" }
+		GM:PlayerStartVoice(talker)
+		expect(client.voicePanels[talker]):toBe(true)
+		GM:PlayerEndVoice(talker)
+		expect(client.voicePanels[talker]):toBeNil()
+		probe.answers["gm.PlayerStartVoice"], probe.answers["gm.PlayerEndVoice"] = true, true
+		expect(GM:PlayerStartVoice(talker)):toBe(true)
+		expect(client.voicePanels[talker]):toBeNil()
+		client.voicePanels[talker] = true
+		GM:PlayerEndVoice(talker)
+		expect(client.voicePanels[talker]):toBe(true)
+		probe:Names()
 		expect(client:Errors()):toEqual({})
 	end)
 

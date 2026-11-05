@@ -303,9 +303,10 @@ function M:OnCommands(msg)
 		list[#list + 1] = { name = command.name, module = command.module, help = command.help,
 			admin = command.admin }
 	end
-	-- Commands of the client run here and are for everybody.
+	-- Commands of the client run here and are for everybody; key commands (+name, -name)
+	-- belong to the keys.
 	for _, command in ipairs(self.ctx.commands:List()) do
-		if not seen[command.name] then
+		if not seen[command.name] and not command.name:find("^[%+%-]") then
 			list[#list + 1] = { name = command.name, module = command.module, help = command.help or "",
 				admin = false }
 		end

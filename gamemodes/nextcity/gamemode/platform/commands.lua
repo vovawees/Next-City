@@ -14,7 +14,9 @@
 -- privilege of its own: the id is the command name, the level `level` ("superadmin" if
 -- not given). `privilege` names a privilege instead, so several commands share one: an
 -- own privilege of the manifest by its name or any privilege by its id. Commands added on
--- the client run locally and are never checked.
+-- the client run locally and are never checked. Key commands come in pairs: "+nc_radio" runs
+-- when a key bound to it goes down, "-nc_radio" when it comes up (the help of the menu shows
+-- them as keys, not as commands).
 --
 --   ctx.commands:Execute("nc_job", ply, { "police" }) -> true, lines: runs a command like the
 --   console (the privilege, the caught errors) and gives the reply instead of printing it
@@ -32,7 +34,7 @@ local xpcall = xpcall
 local format = string.format
 local traceback = debug.traceback
 
-local NAME_PATTERN = "^[a-z][a-z0-9_]*$"
+local NAME_PATTERN = "^[%+%-]?[a-z][a-z0-9_]*$" -- "+name" and "-name": key commands
 local SPEC_KEYS = { help = true, admin = true, privilege = true, level = true }
 local LEVELS = { user = true, admin = true, superadmin = true, nobody = true }
 local DEFAULT_LEVEL = "superadmin"

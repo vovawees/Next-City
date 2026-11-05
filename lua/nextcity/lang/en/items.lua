@@ -93,4 +93,6 @@ return {
 	["lockpick.desc"] = "Open a locked door: the use key on it. It takes a while.",
 	ram = "Battering ram",
 	["ram.desc"] = "Break a locked door in: the use key on it. The police need a warrant.",
+	radio = "Radio",
+	["radio.desc"] = "Talk to every radio on its frequency: /radio <frequency>, the talk key +nc_radio (F1).",
 }

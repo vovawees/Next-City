@@ -175,9 +175,10 @@ describe("menu", function()
 		expect(keys[2]):toEqual({ "F2", "The menu of the door you look at: buy, sell, keys, sign" })
 		-- The keys, then the chat.
 		expect(texts(keys)):toEqual({ "F1", "F2", "F3", "C", "E", "ALT + E", "E", "MOUSE2", "R", "E + R", "R", "MOUSE2",
-			"SPACE", "not bound", "R", "MOUSE1 + MOUSE2", "SPACE", "/w", "/y", "/me", "/it", "//", ".//", "/pm", "/r",
-			"/..." })
-		expect(keys[18]):toEqual({ "/w", "whisper: heard only right next to you" })
+			"SPACE", "not bound", "R", "not bound", "not bound", "not bound", "MOUSE1 + MOUSE2", "SPACE", "/w", "/y",
+			"/me", "/it", "//", ".//", "/pm", "/r", "/..." })
+		expect(keys[16]):toEqual({ "not bound", "Talk (your voice: normal)" })
+		expect(keys[21]):toEqual({ "/w", "whisper: heard only right next to you" })
 		expect(#World.FindPanels(client, function(panel)
 			return panel.class == "DLabel" and panel:GetText() == "Chat — type it in the chat box (Y)"
 		end)):toBe(1)
@@ -187,7 +188,8 @@ describe("menu", function()
 		end
 		expect(ids):toEqual({ "menu", "doors.menu", "medical.examine", "inventory.screen", "inventory.use",
 			"doors.lock", "restraints.tie", "weapons.aim", "weapons.reload", "weapons.mode", "hands.raise",
-			"hands.carry", "ragdoll.up", "ragdoll.fall", "hud.succumb", "spectator.next", "spectator.camera" })
+			"hands.carry", "ragdoll.up", "ragdoll.fall", "hud.succumb", "voice.talk", "voice.radio", "voice.mode",
+			"spectator.next", "spectator.camera" })
 		-- The commands come from the server: asked once, the tab shows them when they arrive.
 		expect(menu:Commands()):toBeNil()
 		expect(#client:Sent("nc.menu.ask")):toBe(1)

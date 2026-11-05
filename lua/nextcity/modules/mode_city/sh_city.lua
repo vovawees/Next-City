@@ -63,6 +63,7 @@ M.SHOP = {
 	{ "bandage", { price = 15 } },
 	{ "pouch", { price = 40 } },
 	{ "backpack", { price = 180 } },
+	{ "radio", { price = 60 } },
 	{ "gauze", { price = 30, jobs = MEDIC } },
 	{ "tourniquet", { price = 40, jobs = MEDIC } },
 	{ "splint", { price = 35, jobs = MEDIC } },

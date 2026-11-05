@@ -5,8 +5,8 @@ NAMES AND BUDGET
   component   one string per store "nc.<module>:<component>"
   platform    nc.hello (client info + ready, rate 2/burst 4), nc.info (later info changes, 2/8), nc.grants<s>
               (privileges of the player: on net.ready, then on change only; platform/permissions.lua)
-  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 49 = 27 messages +
-              19 components + 3 platform (module example is off; it adds 2 messages + 1 component)
+  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 52 = 28 messages +
+              21 components + 3 platform (module example is off; it adds 2 messages + 1 component)
 
 CLIENT -> SERVER CHECKS (cheap first)
   ready (nc.hello received, else drop notReady) -> token bucket per player and message (rate/s, burst; default
@@ -37,6 +37,7 @@ MESSAGES BY MODULE (s = server -> client; c = client -> server with rate/burst)
   notices     notice<s>                           organism    succumb<c 1/2>
   ragdoll     fall<c 2/3>                         roles       known<s>
   rounds      state<s> status<s> result<s>        teams       scores<s>
+  voice       ptt<c 4/8> (on bool: the talk key of the radio held or released)
   mode_city   buy<c 4/8> job<c 2/4>               mode_hideseek phase<s>
   example     state<s> wave<c 1/3> (template, off by default)
 
@@ -47,7 +48,7 @@ COMPONENTS BY MODULE (audience, flushes/s, field count)
   inventory ground{all 4 f2} place{all 2 f3}
   law jailed{all 4 f1} wanted{all 4 f2} warrant{all 4 f2}         organism vitals{owner 10 f17}
   players life{all 10 f2}         ragdoll body{owner 20 f4}       restraints tied{all 4 f1}
-  profiles summary{owner 1 f9}
+  profiles summary{owner 1 f9}    voice voice{all 4 f2} radio{owner 2 f2} (mode enum + radio; frequency u10 + on)
   mode_homicide alias{all 4 f1}   example profile{all 4 f2}
 
 STATS AND TOOLS

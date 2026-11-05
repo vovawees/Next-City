@@ -55,6 +55,7 @@ local SPECS = {
 	"tests/gmod/identity_spec.lua",
 	"tests/gmod/appearance_spec.lua",
 	"tests/gmod/chat_spec.lua",
+	"tests/gmod/voice_spec.lua",
 	"tests/gmod/inventory_spec.lua",
 	"tests/gmod/equipment_spec.lua",
 	"tests/gmod/medical_spec.lua",

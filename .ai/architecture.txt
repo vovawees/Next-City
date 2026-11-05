@@ -18,7 +18,7 @@ LAYERS (dependencies point down only, D2)
                mode_homicide mode_hideseek mode_riot mode_defense mode_coop + content modules weaponry supplies
                hostiles wardrobe
   L4 client    cl_* files of modules: HUD, screens (Derma), camera pipeline, effects; sends intents only
-  counts       40 core modules (example disabled by default) + 10 package modules; ~46k lines Lua in 295 files
+  counts       41 core modules (example disabled by default) + 10 package modules; ~47k lines Lua in 301 files
 
 BOOT
   init.lua / cl_init.lua -> platform/boot.lua: kernel (core objects) -> packages.List (core, derived gamemode, addons)

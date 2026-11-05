@@ -311,6 +311,16 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   emits    throwables.thrown throwables.detonated
   listens  gm.EntityRemoved i18n.changed
   commands nc_throwables
+[core] voice
+  sh       .Next(mode) .IsMode(mode) RadioTrait(id)
+  sv       Proximity(ply) Mode(ply) SetMode(ply,mode) Radio(ply) Frequency(ply) IsTransmitting(ply)
+           Tune(ply,frequency) Switch(ply,on,item) Transmit(ply,on)
+  cl       Talkers() IsTalking() Mode(ply) Radio() IsTransmitting() TalkRadio(on) Lines()
+  emits    voice.mode voice.radio
+  asks     voice.proximity voice.canTalk
+  listens  players.ready players.left gm.PlayerCanHearPlayersVoice inventory.changed gm.PlayerStartVoice
+           gm.PlayerEndVoice gm.HUDPaint i18n.changed
+  commands nc_voice nc_radio
 [core] weapons
   sh       Register(class,def) Get(class) All() IsFirearm(weapon) Name(class) SetAmmoSource(source)
            CountAmmo(ply,weapon,ammoId) TakeAmmo(ply,weapon,ammoId,count) ReloadAmmo(ply,weapon) Sprinting(ply)
@@ -331,8 +341,8 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   asks     mode_city.canJob mode_city.canBuy mode_city.salary
   reduces  mode_city.salary
   listens  doors.member law.officer law.authority players.left gm.PlayerSetModel doors.property doors.canRam
-           law.enabled identity.enabled chat.proximity inventory.canMove inventory.canAct players.targetLines
-           gm.HUDPaint gm.PlayerBindPress doors.groupName roles.changed i18n.changed
+           law.enabled identity.enabled chat.proximity voice.proximity inventory.canMove inventory.canAct
+           players.targetLines gm.HUDPaint gm.PlayerBindPress doors.groupName roles.changed i18n.changed
   commands nc_job nc_buy nc_setjob
 [addons] mode_coop
   sv       Setup(round) Begin(round) Loadout(round,ply) Feed(round) Left(round) Update(round) Fell(round,ply)
@@ -407,6 +417,8 @@ QUESTIONS AND REDUCTIONS (name  askers -> answerers)
   restraints.canUntie          restraints -> law,mode_riot
   restraints.tool              restraints -> -
   spectator.canObserve         spectator -> -
+  voice.canTalk                voice -> -
+  voice.proximity              voice -> mode_city
 
 EVENTS (name  emitters -> listeners)
   actions.cancelled            actions -> -
@@ -431,7 +443,7 @@ EVENTS (name  emitters -> listeners)
   hands.dropped                hands -> -
   hands.grabbed                hands -> -
   identity.changed             identity -> appearance
-  inventory.changed            inventory -> equipment
+  inventory.changed            inventory -> equipment,voice
   inventory.closed             inventory -> inventory
   inventory.dropped            inventory -> -
   inventory.moved              inventory -> -
@@ -464,9 +476,9 @@ EVENTS (name  emitters -> listeners)
   organism.wounded             organism -> -
   players.died                 players -> actions,armor,inventory,movement,organism,profiles,restraints,rounds
   players.left                 players -> actions,armor,chat,damage,doors,economy,equipment,inventory,law,medical,
-                                          movement,organism,ragdoll,restraints,roles,rounds,spectator,mode_city
+                                          movement,organism,ragdoll,restraints,roles,rounds,spectator,voice,mode_city
   players.loadout              players -> armor,hands,inventory,rounds
-  players.ready                players -> appearance,economy,identity,rounds
+  players.ready                players -> appearance,economy,identity,rounds,voice
   players.spawned              players -> appearance,inventory,law,movement,organism,ragdoll,restraints,rounds
   players.stateChanged         players -> actions,armor,identity,movement,organism,ragdoll,spectator,teams
   profiles.leaving             profiles -> appearance,identity
@@ -488,6 +500,8 @@ EVENTS (name  emitters -> listeners)
   teams.scores                 teams -> -
   throwables.detonated         throwables -> -
   throwables.thrown            throwables -> equipment
+  voice.mode                   voice -> -
+  voice.radio                  voice -> -
   weapons.fired                weapons -> -
 
-50 modules, 701 public methods
+51 modules, 720 public methods

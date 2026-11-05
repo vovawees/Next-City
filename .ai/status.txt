@@ -15,11 +15,11 @@ STATUS (update every step)
   .ai base               done   #26 696eae3: dense notes, tools/apimap.lua -> api.txt, modmap wraps at 120
   M8 services            doing  #27 permissions (platform service, D21) 69bea44, #28 cami (adapter module) 919c4bd,
                                 #29 storage collections + SQLite 17339b6, #30 profiles 3d029a5, #31 F1 menu 3c3d426,
-                                #32 identity 1939092, #33 appearance (+ wardrobe) 654f483, #34 chat done; next
-                                #35 voice, #36 docs
+                                #32 identity 1939092, #33 appearance (+ wardrobe) 654f483, #34 chat 8e012f8,
+                                #35 voice done; next #36 docs
   M9 polish              later  bot load tests, optimization passes, Workshop release
 
-  last full run        64 specs, 564 passed, 0 failed (50 s local x86_64; VPS aarch64 33.7 s at 696eae3)
+  last full run        65 specs, 571 passed, 0 failed (52 s local x86_64; VPS aarch64 33.7 s at 696eae3)
   lint                 glualint lint gamemodes tests lua and glualint lint tools: clean
 
 PENDING CHECKS (every milestone)

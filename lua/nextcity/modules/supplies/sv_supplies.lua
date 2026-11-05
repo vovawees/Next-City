@@ -61,6 +61,7 @@ function M:_Loot(loot, weaponry)
 		{ item = "duffel_bag", weight = 1 },
 		{ item = "chest_rig", weight = 2 },
 		{ item = "pouch", weight = 4 },
+		{ item = "radio", weight = 2 },
 	} })
 	local civilian = {
 		{ table = "medical_small", weight = 4 },
@@ -132,11 +133,14 @@ function M:_Kits(inventory)
 	})
 	-- City: the gear of the jobs, given with issued = true (lua/nextcity/modules/mode_city).
 	inventory:RegisterKit("city_citizen", { { "bandage" } })
+	-- The radios of the police and the medics are tuned to their frequencies (102, 103).
 	inventory:RegisterKit("city_police", {
 		{ "vest_light" }, { "stunstick" }, { "handcuffs" }, { "ram" }, { "usp" }, { "ammo_9x19", 30 }, { "bandage" },
+		{ "radio", 1, { frequency = 102 } },
 	})
 	inventory:RegisterKit("city_medic", {
 		{ "bandage", 5 }, { "gauze", 3 }, { "tourniquet", 2 }, { "splint", 2 }, { "morphine", 2 }, { "epinephrine" },
+		{ "radio", 1, { frequency = 103 } },
 	})
 	inventory:RegisterKit("city_gundealer", { { "usp" }, { "ammo_9x19", 15 } })
 	inventory:RegisterKit("city_mayor", { { "vest_light" }, { "bandage" } })

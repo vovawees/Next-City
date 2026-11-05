@@ -1,0 +1,26 @@
+-- Strings of the voice: keys "voice.<key>".
+return {
+	["mode.whisper"] = "whisper",
+	["mode.normal"] = "normal",
+	["mode.yell"] = "yell",
+	["verb.radio"] = "Radio on / off",
+	["radio.on"] = "Radio on: {frequency}",
+	["radio.off"] = "Radio off ({frequency})",
+	["fail.none"] = "You carry no radio",
+	["fail.off"] = "Your radio is off: /radio on",
+	["fail.frequency"] = "Frequencies are 1 to {max}: /radio <frequency>",
+	["hud.radio"] = "radio",
+	["hud.more"] = {
+		one = "and {count} more",
+		other = "and {count} more",
+	},
+	["hud.own"] = "Your voice: {mode}",
+	["hud.transmit"] = "You talk into the radio: {frequency}",
+	["hud.radio_on"] = "Radio: {frequency}",
+	["hud.radio_off"] = "Radio off ({frequency})",
+	["help.talk"] = "Talk (your voice: {mode})",
+	["help.radio"] = "Talk into your radio while held (a key for it: bind b +nc_radio; the frequency: /radio 7)",
+	["help.mode"] = "Whisper, normal voice or yell in turn (a key for it: bind n \"nc_voice cycle\"; or /voice yell)",
+	["command.nc_voice"] = "[whisper|normal|yell|cycle] - the mode of your voice",
+	["command.nc_radio"] = "[frequency|on|off] - your radio",
+}

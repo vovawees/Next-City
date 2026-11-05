@@ -83,6 +83,8 @@ M.ITEMS = {
 		traits = { lockpick = { time = 10 } } } },
 	{ "ram", { model = "models/props_canal/mattpipe.mdl", weight = 6, category = "gear",
 		traits = { ram = { time = 3 } } } },
+	-- A radio (the voice module: a frequency, the talk key +nc_radio).
+	{ "radio", { model = "models/props_lab/reciever01b.mdl", weight = 0.3, category = "gear", traits = { radio = {} } } },
 }
 
 function M:Init(ctx)

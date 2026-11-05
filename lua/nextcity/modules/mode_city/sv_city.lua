@@ -18,7 +18,8 @@
 -- Names: with param names everybody sees the characters of citizens instead of their nicks
 -- (the identity module: the city answers identity.enabled; nc_rpname, the tab of F1). The
 -- chat: with param localChat what is said in character is heard only around (the chat
--- module: the city answers chat.proximity).
+-- module: the city answers chat.proximity); the voice: with param localVoice voices are
+-- heard by distance, farther by radio (the voice module: the city answers voice.proximity).
 --
 --   city:SetJob(ply, id, force) -> true or false, reason[, seconds]   reasons: mode, unknown,
 --                                  same, limit, cooldown, jailed, denied
@@ -78,6 +79,8 @@ function M:_InitServer(ctx)
 				desc = "everybody sees the characters of citizens (identity: nc_rpname, F1) instead of nicks" },
 			localChat = { type = "boolean", default = true,
 				desc = "what is said in character is heard only around (chat: whisper, say, yell)" },
+			localVoice = { type = "boolean", default = true,
+				desc = "voices are heard by distance, farther by radio (voice: whisper, normal, yell)" },
 		},
 		Setup = function(round)
 			self:Setup(round)
@@ -149,6 +152,11 @@ function M:Setup(round)
 	end
 	if round.params.localChat then
 		round:On("chat.proximity", function()
+			return true
+		end)
+	end
+	if round.params.localVoice then
+		round:On("voice.proximity", function()
 			return true
 		end)
 	end

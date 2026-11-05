@@ -50,6 +50,7 @@ local HOOK_NAMES = {
 	"EntityTakeDamage", "GetFallDamage", "HUDShouldDraw", "RenderScreenspaceEffects", "PlayerBindPress",
 	"CalcView", "PlayerUse", "PlayerCanPickupWeapon", "WeaponEquip", "OnNPCKilled", "PlayerSay",
 	"PlayerCanSeePlayersChat", "PlayerCanHearPlayersVoice", "HUDDrawTargetID", "OnPlayerChat", "PlayerSwitchWeapon",
+	"PlayerStartVoice", "PlayerEndVoice",
 }
 
 Env.World = World
@@ -1172,14 +1173,61 @@ function Env.KillNPC(npc, attacker, inflictor)
 end
 
 -- The client presses a key bound to `bind` (e.g. "+menu_context"): GM:PlayerBindPress;
--- unless it answers true, the console command of the bind runs when the client has one.
--- Returns the answer.
+-- unless it answers true, the console command of the bind runs when the client has one
+-- (releasing a key of "+name" runs "-name"). Returns the answer.
 function Env.BindPress(client, bind, pressed)
 	local answer = client:Call("PlayerBindPress", client.localPlayer, bind, pressed ~= false, 0)
-	if answer ~= true and client.commands[bind] then
-		client:Command(bind, client.localPlayer, {})
+	local command = bind
+	if pressed == false and bind:sub(1, 1) == "+" then
+		command = "-" .. bind:sub(2)
+	end
+	if answer ~= true and client.commands[command] then
+		client:Command(command, client.localPlayer, {})
 	end
 	return answer
+end
+
+-- `talker` talks into the microphone (on, default) or stops, like the engine sends voices:
+-- GM:PlayerCanHearPlayersVoice for every other player; the client of each one who hears
+-- him gets GM:PlayerStartVoice (once), of each one who stops hearing him
+-- GM:PlayerEndVoice; his own client both when he begins and ends. Call it again while he
+-- talks to send the voice again (who hears may change). Returns the players who hear him in
+-- index order and, by player, whether in 3D.
+function Env.Voice(server, talker, on)
+	on = on ~= false
+	local before = talker.voiceHeardBy or {}
+	local now, heard, positional = {}, {}, {}
+	if on then
+		for _, listener in ipairs(server.G.player.GetAll()) do
+			if listener ~= talker then
+				local hears, around = server:Call("PlayerCanHearPlayersVoice", listener, talker)
+				if hears then
+					now[listener] = true
+					heard[#heard + 1] = listener
+					positional[listener] = around == true
+				end
+			end
+		end
+	end
+	local own = server.links[talker]
+	if own ~= nil and on ~= (talker.speaking == true) then
+		own:Call(on and "PlayerStartVoice" or "PlayerEndVoice", talker)
+	end
+	talker.speaking = on
+	for listener in pairs(before) do
+		local client = server.links[listener]
+		if not now[listener] and client ~= nil then
+			client:Call("PlayerEndVoice", talker)
+		end
+	end
+	for _, listener in ipairs(heard) do
+		local client = server.links[listener]
+		if not before[listener] and client ~= nil then
+			client:Call("PlayerStartVoice", talker)
+		end
+	end
+	talker.voiceHeardBy = now
+	return heard, positional
 end
 
 -- Damage --------------------------------------------------------------------------------

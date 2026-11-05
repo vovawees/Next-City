@@ -1,9 +1,9 @@
 -- City: the main mode. An endless round of city life: everybody has a job (a public role)
 -- with a salary, a limit of places and the gear of the job; the dead come back, newcomers
 -- join at any time, citizens go by their characters (identity), wear their own looks
--- (appearance) where the job has no uniform and are heard around them (chat), the shop sells
--- to each job what it trades in. Money, doors and the police come from the modules economy,
--- doors and law.
+-- (appearance) where the job has no uniform and are heard around them (chat and voice; the
+-- police and the medics carry radios), the shop sells to each job what it trades in. Money,
+-- doors and the police come from the modules economy, doors and law.
 return {
 	id = "mode_city",
 	description = "City: endless city life with jobs, salaries, the gear and the shop of jobs, characters of citizens",

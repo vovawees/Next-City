@@ -29,7 +29,9 @@
 -- question, PlayerCanHearPlayersVoice a question answered with true, false or "3d"
 -- (heard, positional). On the client HUDDrawTargetID is a question: true hides the
 -- name of the player under the crosshair; OnPlayerChat a question: true keeps the base
--- line out of the chat (a module prints its own, e.g. with a hidden name).
+-- line out of the chat (a module prints its own, e.g. with a hidden name);
+-- PlayerStartVoice and PlayerEndVoice questions: true keeps the base voice panel (the
+-- nick and the avatar of the talker) off the screen (a module shows who talks).
 --
 -- Deaths: PlayerDeath asks gm.PlayerDeathNotice first: false keeps the death quiet (the
 -- base gamemode announces every death to everybody: the kill feed and a console line),
@@ -324,6 +326,22 @@ else
 			return true
 		end
 		return base(self, "OnPlayerChat", ply, text, teamChat, dead)
+	end
+
+	-- Questions: true keeps the base voice panel of a talker off the screen (the engine
+	-- hides its own voice icon too).
+	function GM:PlayerStartVoice(ply)
+		if NC.Events:Query("gm.PlayerStartVoice", ply) == true then
+			return true
+		end
+		return base(self, "PlayerStartVoice", ply)
+	end
+
+	function GM:PlayerEndVoice(ply)
+		if NC.Events:Query("gm.PlayerEndVoice", ply) == true then
+			return
+		end
+		return base(self, "PlayerEndVoice", ply)
 	end
 
 	-- Pipeline, every frame: the view of the base gamemode (vehicles, drive, the weapon),

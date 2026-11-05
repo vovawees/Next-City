@@ -308,6 +308,7 @@ function Player:IsUserGroup(group) return self:GetUserGroup() == group end
 function Player:IsSuperAdmin() return self:IsUserGroup("superadmin") end
 function Player:IsAdmin() return self:IsSuperAdmin() or self:IsUserGroup("admin") end
 function Player:Nick() return self.name end
+function Player:IsSpeaking() return self.speaking == true end
 Player.Name = Player.Nick
 function Player:PrintMessage(_, text) self.printed[#self.printed + 1] = text end
 function Player:ChatPrint(text) self.chat[#self.chat + 1] = text end
@@ -1501,6 +1502,16 @@ World.BASE = {
 		return not teamOnly or listener:Team() == speaker:Team()
 	end,
 	PlayerCanHearPlayersVoice = function() return true, false end,
+	-- The voice panel of a talker (env.voicePanels[ply] = true while it is up).
+	PlayerStartVoice = function(env, _, ply)
+		env.voicePanels = env.voicePanels or {}
+		env.voicePanels[ply] = true
+	end,
+	PlayerEndVoice = function(env, _, ply)
+		if env.voicePanels ~= nil then
+			env.voicePanels[ply] = nil
+		end
+	end,
 	CanPlayerSuicide = function() return true end,
 	GetFallDamage = function() return 10 end,
 	HUDShouldDraw = function() return true end,
@@ -2058,6 +2069,11 @@ function World.InstallInterface(env, G)
 	}
 	G.gui = {
 		EnableScreenClicker = function(value) env.screenClicker = value == true end,
+	}
+	-- The microphone a script turns on and off (env.voiceChat).
+	env.voiceChat = false
+	G.permissions = {
+		EnableVoiceChat = function(on) env.voiceChat = on == true end,
 	}
 	G.surface.PlaySound = function(name)
 		env.uiSounds[#env.uiSounds + 1] = name

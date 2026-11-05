@@ -1,0 +1,28 @@
+-- Строки голоса: ключи "voice.<ключ>".
+return {
+	["mode.whisper"] = "шёпот",
+	["mode.normal"] = "обычный",
+	["mode.yell"] = "крик",
+	["verb.radio"] = "Рация: вкл. / выкл.",
+	["radio.on"] = "Рация включена: {frequency}",
+	["radio.off"] = "Рация выключена ({frequency})",
+	["fail.none"] = "У вас нет рации",
+	["fail.off"] = "Рация выключена: /radio on",
+	["fail.frequency"] = "Частоты — от 1 до {max}: /radio <частота>",
+	["hud.radio"] = "рация",
+	["hud.more"] = {
+		one = "и ещё {count}",
+		few = "и ещё {count}",
+		many = "и ещё {count}",
+		other = "и ещё {count}",
+	},
+	["hud.own"] = "Ваш голос: {mode}",
+	["hud.transmit"] = "Вы говорите в рацию: {frequency}",
+	["hud.radio_on"] = "Рация: {frequency}",
+	["hud.radio_off"] = "Рация выключена ({frequency})",
+	["help.talk"] = "Говорить (ваш голос: {mode})",
+	["help.radio"] = "Говорить в рацию, пока держите (клавиша для этого: bind b +nc_radio; частота: /radio 7)",
+	["help.mode"] = "Шёпот, обычный голос или крик по очереди (клавиша: bind n \"nc_voice cycle\"; или /voice yell)",
+	["command.nc_voice"] = "[whisper|normal|yell|cycle] — режим вашего голоса",
+	["command.nc_radio"] = "[частота|on|off] — ваша рация",
+}

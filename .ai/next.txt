@@ -1,4 +1,4 @@
-NEXT (ordered; M0-M7, #25-#34 done)
+NEXT (ordered; M0-M7, #25-#35 done)
   1 M8 services (milestone #9, issues #27-#36 in this order; each: code, tests, module README in russian with API
     and "Проверить в реальном GMod", lang en/ru, .ai refresh, commit "Closes #N", check the issue closed):
     #29 done: storage:Collection (record per key, lazy Get, Release, file per record) + backend sqlite
@@ -13,8 +13,10 @@ NEXT (ordered; M0-M7, #25-#34 done)
     #34 done: chat (own net line, answer gm.PlayerSay ""; local by chat.proximity: city param localChat;
         whisper/yell/me/it/ooc/looc/pm/r, /word -> chat.command or nc_word via ctx.commands:Execute, antispam,
         unconscious OOC only, dead apart where local + gm.PlayerCanSeePlayersChat; F1 help section chat)
-    #35 voice: 3D proximity with ranges (whisper/normal/yell), hearing matrix cached by the scheduler, radio item
-        with frequency + PTT (permissions.EnableVoiceChat on the client), listen below rounds dead_mute, HUD icon
+    #35 done: voice (matrix listener->talker rebuilt every 0.25 s, answer gm.PlayerCanHearPlayersVoice at -10
+        under dead_mute; 3D by mode range where voice.proximity (city param localVoice), dead to non-alive,
+        radios: trait radio items, frequency/off in the item state, +nc_radio PTT, police 102 / medic 103 kits;
+        HUD of talkers instead of the base voice panels: bridge PlayerStartVoice/PlayerEndVoice questions)
     #36 docs: README, ARCHITECTURE (M8 decisions D22+, section 6 persistence row, version 0.8), ROADMAP, .ai
   2 real-GMod verification of M0-M8 on an x86_64 machine (srcds is x86 only; the VPS is aarch64): boot,
     sections "Проверить в реальном GMod" of module READMEs, nc_perf/nc_net numbers with bots -> docs, status

@@ -25,7 +25,7 @@ local function boot(opts)
 	local NC = server:Get("NC")
 	local m = { NC = NC }
 	for _, id in ipairs({ "rounds", "roles", "players", "inventory", "economy", "law", "identity", "appearance",
-		"mode_city" }) do
+		"voice", "mode_city" }) do
 		m[id] = NC.Modules:Instance(id)
 	end
 	return server, m
@@ -125,6 +125,7 @@ describe("city", function()
 		expect(gordon:GetModel()):toContain("models/player/police")
 		expect(city:IsPolice(gordon)):toBe(true)
 		local drawn = hud(server, client)
+		expect(m.voice:Frequency(gordon)):toBe(102) -- the radio of the police (found on the next tick)
 		expect(client.chatLines):toContain("Gordon is now: Police officer")
 		expect(drawn):toContain("Police officer")
 
@@ -174,6 +175,7 @@ describe("city", function()
 		expect(city:SetJob(gordon, "medic")):toBe(true)
 		expect({ inventory:Count(gordon, "usp"), inventory:Count(gordon, "handcuffs"), inventory:Count(gordon, "gauze"),
 			inventory:Count(gordon, "bandage"), inventory:Count(gordon, "morphine") }):toEqual({ 0, 0, 3, 5, 2 })
+		expect({ inventory:Count(gordon, "radio"), m.voice:Frequency(gordon) }):toEqual({ 1, 103 })
 		expect(gordon:WeaponClasses()):toEqual({ "nc_hands" })
 
 		-- The dead come back with the gear of their job; the city never ends.
@@ -255,6 +257,21 @@ describe("city", function()
 		Env.Say(server, gordon, "/job medic")
 		expect(client.chatLines[#client.chatLines]):toBe("nc_job: you are medic")
 
+		-- Voices of the city are heard around, farther over the radios of the jobs.
+		local voice = m.voice
+		voice:Rebuild()
+		expect({ voice:Proximity(gordon), voice:Frequency(gordon), voice:Frequency(alyx) }):toEqual({ true, 103, 102 })
+		expect(Env.Voice(server, gordon)):toEqual({ alyx })
+		alyx:SetPos(Vector(2000, 0, 0))
+		voice:Rebuild()
+		expect(Env.Voice(server, gordon)):toEqual({})
+		Env.Voice(server, gordon, false)
+		server:Command("nc_radio", gordon, { "102" })
+		voice:Transmit(gordon, true)
+		expect(Env.Voice(server, gordon)):toEqual({ alyx })
+		voice:Transmit(gordon, false)
+		Env.Voice(server, gordon, false)
+
 		server:Advance(3)
 		local again, m2 = boot({ data = server.data })
 		local _, back = Env.Join(again, { name = "Gordon", index = gordon:EntIndex() })
@@ -277,7 +294,7 @@ describe("city", function()
 		gordon.printed = {}
 		server:Command("nc_buy", gordon, {})
 		expect(gordon.printed):toEqual({ "bandage        x1        $15", "pouch          x1        $40",
-			"backpack       x1       $180" })
+			"backpack       x1       $180", "radio          x1        $60" })
 		server:Command("nc_buy", nil, {})
 		expect(server:Lines("usp ")[1]):toContain("usp            x1       $250  gundealer")
 		expect({ city:Buy(gordon, "usp") }):toEqual({ false, "job" })
@@ -434,7 +451,7 @@ describe("city", function()
 		for _, button in ipairs(panels(client, "ncTimes", 1)) do
 			offers[#offers + 1] = button.ncOffer
 		end
-		expect(offers):toEqual({ "bandage", "pouch", "backpack", "ammo_9x19", "helmet", "vest_light", "vest",
+		expect(offers):toEqual({ "bandage", "pouch", "backpack", "radio", "ammo_9x19", "helmet", "vest_light", "vest",
 			"zipties" })
 		local five
 		for _, button in ipairs(panels(client, "ncTimes", 5)) do

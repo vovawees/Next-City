@@ -52,7 +52,7 @@ describe("official package", function()
 		expect(m.weapons:All()):toEqual({ "nc_usp", "nc_python", "nc_mp7", "nc_ar2", "nc_spas12" })
 		expect(m.melee:All()):toEqual({ "nc_crowbar", "nc_stunstick", "nc_knife" })
 		expect(m.throwables:All()):toEqual({ "nc_frag", "nc_bottle" })
-		expect(#items(m)):toBe(46)
+		expect(#items(m)):toBe(47)
 		expect(m.loot:Crates()):toEqual({ "crate_medical", "crate_military", "crate_wood" })
 		expect(m.inventory:Kits()):toEqual({ "city_bandit", "city_citizen", "city_gundealer", "city_mayor",
 			"city_medic", "city_police", "coop", "defense", "defense_resupply", "dm", "hideseek_seeker",

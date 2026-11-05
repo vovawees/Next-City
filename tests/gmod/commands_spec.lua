@@ -117,6 +117,8 @@ describe("command service", function()
 					try("nc_x", { helpp = "typo" }, function() end)
 					try("nc_probe", nil, function() end)
 					try("nc_x", { help = "fine" }, function() end)
+					try("+nc_hold", nil, function() end) -- a key command: its pair -nc_hold runs on release
+					try("+-nc_x", nil, function() end)
 				end
 			]],
 		}
@@ -126,5 +128,7 @@ describe("command service", function()
 		expect(errors[2]):toContain("unknown spec key 'helpp'")
 		expect(errors[3]):toContain("command 'nc_probe' already belongs to module 'probe'")
 		expect(errors[4]):toBe("ok")
+		expect(errors[5]):toBe("ok")
+		expect(errors[6]):toContain("command name must match")
 	end)
 end)
