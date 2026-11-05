@@ -14,17 +14,17 @@ MILESTONES
 
 ISSUES
   #1  platform: engine hooks (use, pickups, chat, voice, NPC, target id) + emulator   [closed fe782d2]
-  #2  storage: persistent JSON data in DATA
-  #3  actions: timed actions with progress and cancel rules
-  #4  inventory: item registry, instances, containers
-  #5  inventory: replication of containers and client intents
-  #6  inventory: world items, crates, corpse loot
-  #7  inventory: UI
-  #8  equipment: body and weapon slots, armor, bags, weight, weapons as items
-  #9  medical: treatment items on organism
-  #10 loot: tables, crates, spawn points, round rule
-  #11 content package lua/nextcity (weaponry, supplies)
-  #12 mode_tdm loadout via inventory
+  #2  storage: persistent JSON data in DATA   [closed 5c6213c]
+  #3  actions: timed actions with progress and cancel rules   [closed 7b17e4f]
+  #4  inventory: item registry, instances, containers   [closed d229dd6]
+  #5  inventory: replication of containers and client intents   [closed d229dd6]
+  #6  inventory: world items, crates, corpse loot   [closed d229dd6]
+  #7  inventory: UI   [closed d229dd6]
+  #8  equipment: body and weapon slots, armor, bags, weight, weapons as items   [closed be82edd]
+  #9  medical: treatment items on organism   [closed 0f17c90]
+  #10 loot: tables, crates, spawn points, round rule   [closed 43825d9]
+  #11 content package lua/nextcity (weaponry, supplies)   [closed this push]
+  #12 mode_tdm loadout via inventory   [closed this push]
   #13 roles: hidden roles
   #14 mode_homicide   #15 mode_hideseek   #16 mode_riot   #17 mode_defense   #18 mode_coop   #19 mode_dm
   #20 City mode + jobs  #21 City economy  #22 City doors  #23 City police  #24 City UI (F4 + HUD)

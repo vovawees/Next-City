@@ -9,7 +9,7 @@ return {
 	optional = { "notices", "ragdoll" },
 	files = {
 		sh = { "sh_items.lua" },
-		sv = { "sv_containers.lua", "sv_inventory.lua", "sv_world.lua" },
+		sv = { "sv_containers.lua", "sv_inventory.lua", "sv_world.lua", "sv_kits.lua" },
 		cl = { "cl_inventory.lua", "cl_screen.lua" },
 	},
 	config = {

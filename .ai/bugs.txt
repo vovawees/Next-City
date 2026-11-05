@@ -12,3 +12,5 @@ PITFALLS
   specs: test traces must compare masks with server:Get("MASK_SHOT") (spec globals are not the realm's).
   pockets take size 1 only: test items of size 2 need a bag or they are never given.
   emulator: server:Advance(s) is ONE tick (scheduler jobs fire once); step in small chunks for periodic jobs.
+  kits/Give in boots without equipment: pockets take only size 1 -> sacks/rifles drop (count as missed).
+  ctx:Require(id) errors for ids not in requires/optional: a package using weapons:Register must list 'weapons'.

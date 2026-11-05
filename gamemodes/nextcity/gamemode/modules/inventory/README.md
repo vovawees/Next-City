@@ -11,7 +11,7 @@
 | Испускает | `inventory.changed (container, owner)` раз в тик, `inventory.moved`, `inventory.used (ply, item, verb, c)`, `inventory.opened`, `inventory.picked (ply, id, count)`, `inventory.dropped (ply, item, ent)`; на клиенте `inventory.updated (id, c, new)`, `inventory.closed (id)`, `inventory.screen (open)` |
 | Сеть | `contents`, `closed` (сервер → клиент); `move`, `act`, `close` (клиент → сервер, с лимитами частоты) |
 | Компоненты | `ground` (всем): что лежит на земле; `place` (всем): вид, заголовок и имя контейнера сущности |
-| Команды | `nc_items [фильтр]`, `nc_inv [игрок]`, `nc_item <игрок> <id> [кол-во]`; на клиенте `nc_inventory` |
+| Команды | `nc_items [фильтр]`, `nc_inv [игрок]`, `nc_item <игрок> <id> [кол-во]`, `nc_kit <игрок> <набор>`, `nc_kits`; на клиенте `nc_inventory` |
 | Настройки | `pockets` = 8 слотов, `reach` = 110 единиц, `useDelay` = 0.3 с, `maxGround` = 400, `dropDistance` = 36, `maxDepth` = 3, `corpses` = true, `bagModel` |
 | Переводы | `lang/<код>/inventory.lua`; названия предметов — ключи `items.<id>` из пакетов |
 
@@ -68,6 +68,21 @@ inventory:HandleVerb("use", function(ply, item, container, count) return true en
 ```
 
 `where` — `"own"` (свои контейнеры) или `"external"` (чужие). `kind` — вид контейнера, где лежит предмет (`pockets`, `equipment`, `bag`, `crate`…). Встроенные: `take`, `open` (сумка в чужом контейнере), `split`, `drop`.
+
+## Наборы
+
+Набор — именованный список предметов: пакеты регистрируют наборы, режимы выдают их игрокам при появлении (так Team Deathmatch выдаёт набор из параметра `kit`).
+
+```lua
+inventory:RegisterKit("tdm", {                   -- регистрирует или заменяет
+	{ "helmet" }, { "vest", 1, { cond = 0.8 } },  -- { предмет, количество, состояние }
+	{ item = "ammo_9x19", count = 45 },           -- или по именам
+})
+local given, missed = inventory:GiveKit(ply, "tdm", { drop = true }) -- неизвестный набор -> nil
+inventory:Kit("tdm"); inventory:Kits()           -- записи набора (не менять) / id по алфавиту
+```
+
+Предметы выдаются по порядку набора, как `Give`: то, что надевается, уходит в снаряжение (`inventory.place`), сумка в начале набора даёт место следующим вещам, что не влезло — с `drop` падает под ноги. Неизвестный предмет пропускается с одним предупреждением в журнале. `nc_kits` показывает наборы с составом, `nc_kit <игрок> <набор>` выдаёт набор (администратор). Наборы официального пакета — в его [README](../../../../../lua/nextcity/README.md#наборы).
 
 ## Мир
 

@@ -17,6 +17,6 @@ TESTING
              shared_id zc_mode testkit gearkit medkit lootkit. Package lang file must not be named common.lua; packages must not ship config/*.lua
              (tests merge them into core config).
   i18n spec  every key present in en and ru, no problems.
-  lint       glualint lint gamemodes tests -> must be empty (warnings fail): line <=120, double quotes, no shadowing,
+  lint       glualint lint gamemodes tests lua -> must be empty (warnings fail): line <=120, double quotes, no shadowing,
              no unused vars, GLua syntax allowed but repo uses plain Lua syntax.
   emulator vs GMod gaps: see bugs.txt

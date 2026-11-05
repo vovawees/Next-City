@@ -26,7 +26,7 @@ local KIT = {
 			inventory:RegisterItem("brick", { weight = 30, size = 2 })
 			inventory:RegisterItem("sack", { weight = 0.5, size = 2, category = "gear",
 				traits = { container = { slots = 4, maxWeight = 20, maxSize = 2 } } })
-			inventory:RegisterItem("pouch", { weight = 0.2, category = "gear",
+			inventory:RegisterItem("pouch", { name = "testkit.pouch", weight = 0.2, category = "gear",
 				traits = { container = { slots = 2, maxSize = 1 } } })
 		end
 	]],
@@ -544,7 +544,7 @@ describe("inventory screen", function()
 		expect(texts(options)):toEqual({ "Разделить", "Выбросить", "Переложить в" })
 		local sub = options[3]
 		expect(texts(sub:GetChildren())):toEqual({ "Сумка" })
-		expect(view:Title(view:OwnOfKind("bag"))):toBe("Сумка") -- items.pouch has no translation
+		expect(view:Title(view:OwnOfKind("bag"))):toBe("Сумка") -- testkit.pouch has no translation
 		options[1].func()
 		sync(server, client)
 		expect(counts(inventory:Pockets(ply))):toBe("bandagex2 pouchx1 bandagex2 - - - - -")
@@ -615,5 +615,42 @@ describe("inventory screen", function()
 		expect(client:Errors()):toEqual({})
 		expect(ru:Errors()):toEqual({})
 		expect(server:Errors()):toEqual({})
+	end)
+end)
+
+describe("inventory kits", function()
+	it("gives the things of a kit in order, warns once about unknown items and lists kits", function()
+		local server, inventory = boot()
+		local client, ply = join(server, "Bob")
+		inventory:RegisterKit("medic", {
+			{ "sack" },
+			{ "bandage", 7 },
+			{ item = "ammo", count = 90 },
+			{ "ghost", 2 },
+			{ "rifle" },
+		})
+		expect(inventory:Kit("medic")[2]):toEqual({ item = "bandage", count = 7 })
+		expect(inventory:Kits()):toEqual({ "medic" })
+		local given, missed = inventory:GiveKit(ply, "medic", { drop = true })
+		-- pockets take only small things: the sack and the rifle fall at his feet, ghosts do not exist
+		expect(given):toBe(97)
+		expect(missed):toBe(4)
+		expect(inventory:Count(ply, "bandage")):toBe(7)
+		expect(inventory:Count(ply, "ammo")):toBe(90)
+		inventory:GiveKit(ply, "medic")
+		expect(#server:Lines("kit medic: unknown item ghost")):toBe(1)
+		expect(inventory:GiveKit(ply, "nothing")):toBeNil()
+		expect(function() inventory:RegisterKit("Bad", {}) end):toFail("lower_snake_case")
+		expect(function() inventory:RegisterKit("bad", { { "ammo", 0 } }) end):toFail("count must be")
+
+		local admin = Env.FakePlayer({ name = "Admin", superadmin = true })
+		server:Command("nc_kit", admin, { "Bob", "medic" })
+		expect(admin.printed[#admin.printed]):toContain("Bob got")
+		server:Command("nc_kit", admin, { "Bob", "nothing" })
+		expect(admin.printed[#admin.printed]):toBe("unknown kit nothing (nc_kits)")
+		server:Command("nc_kits", admin, {})
+		expect(admin.printed[#admin.printed]):toContain("medic")
+		expect(admin.printed[#admin.printed]):toContain("bandage x7")
+		expect(client:Errors()):toEqual({})
 	end)
 end)

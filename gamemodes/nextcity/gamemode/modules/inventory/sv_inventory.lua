@@ -47,6 +47,7 @@ function M:Init(ctx)
 	self:_InitItems()
 	self:_InitContainers()
 	self:_InitWorld()
+	self:_InitKits(ctx)
 	self.pockets = {}  -- ply -> container
 	self.owned = {}    -- ply -> { containers of his own, by order }
 	self.watching = {} -- ply -> { [container] = "own" | "open" }
