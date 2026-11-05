@@ -28,3 +28,8 @@ PITFALLS
     not .realm); component replication needs server:Advance before Env.Flush (rate batches).
   modes: never name a round handler M:Start/M:Stop/M:Init (module lifecycle) -> use Begin; round:Every needs an id
          string first; mode callbacks defined in a spec cannot call CurTime (use server.time).
+- Emulator player index (=> SteamID64) is a global counter across Env servers: a player re-joining or joining a second
+  server gets a new SteamID unless Env.Join(..., { index = old:EntIndex() }). Env.Bot ignores superadmin (use Env.Join).
+  Bots are not ready in the tick they are made: server:Advance(0.1) before players:Deploy(bot).
+- Command names are global: a second ctx.commands:Add of a name owned by another module fails the module Start
+  (nc_give is weapons'; economy uses nc_givemoney).

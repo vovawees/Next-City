@@ -25,5 +25,6 @@ STATUS (update every step)
        #17 defense: npcs core module, rounds status line + result params, hostiles package, mode_defense   done
        #18 coop: mode_coop (package): map NPCs adopted + group spawned, shared lives, out players stay out   done
        #19 dm: mode_dm (core) frags from zero, frag/time limits, leader status; tdm kit select refactor   done
+       #21 economy core: cash item money, bank accounts in storage, Pay/Charge/Deposit/Withdraw/Hand/Drop   in progress (core done; shop in mode_city next)
   docs overhaul        todo (#25)
-  last full run        53 specs, 499 passed, 0 failed (26 s); lint clean
+  last full run        54 specs, 501 passed, 0 failed (28 s); lint clean
