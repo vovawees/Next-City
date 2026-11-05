@@ -30,5 +30,5 @@ STATUS (update every step)
        #22 doors: core doors module (property, keys, co-owners, titles, map groups, lockpick, ram) + city wiring   done
        #23 law: core law module (wanted, warrants, arrest by cuffs, jail points/timer/rejoin, search, ram needs warrant) + city wiring   done
        #24 ui: city F4 menu (jobs/name, shop x1/x5, bank, police tab), city HUD (money, salary, F4 key), door hints + F2 door menu   done
-  docs overhaul        todo (#25)
+  docs overhaul        done (#25): README showcase, CONTRIBUTING (no CI, module checklist), ARCHITECTURE 0.7 (D20 city = core modules + questions)
   last full run        57 specs, 512 passed, 0 failed (~30 s)
