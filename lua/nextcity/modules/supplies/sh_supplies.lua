@@ -77,6 +77,8 @@ M.ITEMS = {
 	-- Tools.
 	{ "zipties", { model = "models/items/crossbowrounds.mdl", weight = 0.02, stack = 10, category = "gear",
 		traits = { restraint = { time = 3, untie = 4, consume = true } } } },
+	{ "handcuffs", { model = "models/items/crossbowrounds.mdl", weight = 0.3, category = "gear",
+		traits = { restraint = { time = 2, untie = 6, consume = false } } } },
 }
 
 function M:Init(ctx)

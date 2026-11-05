@@ -10,7 +10,8 @@
 --   replacements   the event is emitted and the base gamemode is not called
 --
 -- Questions with a "handled" answer (PlayerSpawn, PlayerDeathThink) skip the base code
--- when a listener returns true. The scheduler is driven from GM:Tick.
+-- when a listener returns true; PlayerSetModel takes a model path (a job, a team) instead
+-- of the choice of the player. The scheduler is driven from GM:Tick.
 --
 -- The camera is a pipeline (client): GM:CalcView takes the view of the base gamemode,
 -- then every listener of "gm.CalcView" changes it in turn (Events:Reduce).
@@ -159,6 +160,18 @@ if SERVER then
 	-- Replacement: modules give the equipment; the base pistol and crowbar never appear.
 	function GM:PlayerLoadout(ply)
 		NC.Events:Emit("gm.PlayerLoadout", ply)
+	end
+
+	-- Question "gm.PlayerSetModel": a model path replaces the one the base gamemode would
+	-- set (the choice of the player); without an answer the base one stays. The base spawn
+	-- calls it after the loadout.
+	function GM:PlayerSetModel(ply)
+		local model = NC.Events:Query("gm.PlayerSetModel", ply)
+		if type(model) == "string" and model ~= "" then
+			ply:SetModel(model)
+			return
+		end
+		return base(self, "PlayerSetModel", ply)
 	end
 
 	function GM:DoPlayerDeath(ply, attacker, dmginfo)

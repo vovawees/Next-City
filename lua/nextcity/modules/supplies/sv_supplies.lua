@@ -6,7 +6,7 @@
 --   crate_wood (civilian), crate_military (military), crate_medical (medical_large)
 --
 -- Kits (inventory:GiveKit) for modes: tdm — an SMG, a pistol, armor and first aid; the kits
--- of the modes of the package (homicide_*, hideseek_*, riot_*).
+-- of the modes of the package (homicide_*, hideseek_*, riot_*, defense*, coop, city_*).
 
 local M = NC.Module("supplies")
 
@@ -130,6 +130,17 @@ function M:_Kits(inventory)
 		{ "crowbar" }, { "frag" },
 		{ "bandage", 3 }, { "tourniquet" },
 	})
+	-- City: the gear of the jobs, given with issued = true (lua/nextcity/modules/mode_city).
+	inventory:RegisterKit("city_citizen", { { "bandage" } })
+	inventory:RegisterKit("city_police", {
+		{ "vest_light" }, { "stunstick" }, { "handcuffs" }, { "usp" }, { "ammo_9x19", 30 }, { "bandage" },
+	})
+	inventory:RegisterKit("city_medic", {
+		{ "bandage", 5 }, { "gauze", 3 }, { "tourniquet", 2 }, { "splint", 2 }, { "morphine", 2 }, { "epinephrine" },
+	})
+	inventory:RegisterKit("city_gundealer", { { "usp" }, { "ammo_9x19", 15 } })
+	inventory:RegisterKit("city_mayor", { { "vest_light" }, { "bandage" } })
+	inventory:RegisterKit("city_bandit", { { "crowbar" }, { "zipties", 2 } })
 	-- Deathmatch (gamemodes/nextcity/gamemode/modules/mode_dm).
 	inventory:RegisterKit("dm", {
 		{ "vest_light" },

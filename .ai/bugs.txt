@@ -33,3 +33,5 @@ PITFALLS
   Bots are not ready in the tick they are made: server:Advance(0.1) before players:Deploy(bot).
 - Command names are global: a second ctx.commands:Add of a name owned by another module fails the module Start
   (nc_give is weapons'; economy uses nc_givemoney).
+- inventory:Move into a place needs inventory:Open(ply, place) first (CanReach checks watching set + InReach of eyes), else 'reach' before any canMove question.
+- SpawnPlace returns ent, container (not container) - PlaceOf takes the entity.

@@ -80,6 +80,7 @@ inventory:RegisterKit("tdm", {                   -- регистрирует и�
 })
 local given, missed = inventory:GiveKit(ply, "tdm", { drop = true }) -- неизвестный набор -> nil
 inventory:GiveKit(ply, "riot_police", { select = { "melee", "secondary" } }) -- что взять в руки
+inventory:GiveKit(ply, "city_police", { state = { issued = true } })       -- поля к состоянию каждой вещи
 inventory:Kit("tdm"); inventory:Kits()           -- записи набора (не менять) / id по алфавиту
 ```
 

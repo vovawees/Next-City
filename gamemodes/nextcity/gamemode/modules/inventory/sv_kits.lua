@@ -61,15 +61,29 @@ function M:Kits()
 	return out
 end
 
+-- The state of an entry of a kit with the fields of `extra` added (a new table).
+local function withState(state, extra)
+	local out = {}
+	for key, value in pairs(state or {}) do
+		out[key] = value
+	end
+	for key, value in pairs(extra) do
+		out[key] = value
+	end
+	return out
+end
+
 -- Gives a player (or a container) the things of kit `id`; opts as in Give, and select:
 -- weapon slots in the order of preference — the weapon of the kit in the first of them the
--- player got goes into his hands. Returns how many things were given and how many were not
--- (unknown kit: nil).
+-- player got goes into his hands; state: fields added to the state of every thing (e.g.
+-- issued = true for the gear of a job). Returns how many things were given and how many
+-- were not (unknown kit: nil).
 function M:GiveKit(target, id, opts)
 	local kit = self.kits[id]
 	if kit == nil then
 		return nil
 	end
+	local extra = type(opts) == "table" and type(opts.state) == "table" and opts.state or nil
 	local given, missed = 0, 0
 	for _, entry in ipairs(kit) do
 		if self.defs[entry.item] == nil then
@@ -80,7 +94,8 @@ function M:GiveKit(target, id, opts)
 			end
 			missed = missed + entry.count
 		else
-			local got = self:Give(target, entry.item, entry.count, entry.state, opts) or 0
+			local state = extra ~= nil and withState(entry.state, extra) or entry.state
+			local got = self:Give(target, entry.item, entry.count, state, opts) or 0
 			given, missed = given + got, missed + entry.count - got
 		end
 	end

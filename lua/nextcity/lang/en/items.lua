@@ -87,4 +87,6 @@ return {
 	["pouch.desc"] = "3 places for small things. Fits in a pocket.",
 	zipties = "Zip ties",
 	["zipties.desc"] = "Tie the hands of a player: the use key on him. One per tie.",
+	handcuffs = "Handcuffs",
+	["handcuffs.desc"] = "Cuff the hands of a player: the use key on him. They stay with you.",
 }
