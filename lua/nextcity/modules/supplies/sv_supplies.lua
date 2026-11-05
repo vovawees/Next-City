@@ -133,14 +133,14 @@ function M:_Kits(inventory)
 	-- City: the gear of the jobs, given with issued = true (lua/nextcity/modules/mode_city).
 	inventory:RegisterKit("city_citizen", { { "bandage" } })
 	inventory:RegisterKit("city_police", {
-		{ "vest_light" }, { "stunstick" }, { "handcuffs" }, { "usp" }, { "ammo_9x19", 30 }, { "bandage" },
+		{ "vest_light" }, { "stunstick" }, { "handcuffs" }, { "ram" }, { "usp" }, { "ammo_9x19", 30 }, { "bandage" },
 	})
 	inventory:RegisterKit("city_medic", {
 		{ "bandage", 5 }, { "gauze", 3 }, { "tourniquet", 2 }, { "splint", 2 }, { "morphine", 2 }, { "epinephrine" },
 	})
 	inventory:RegisterKit("city_gundealer", { { "usp" }, { "ammo_9x19", 15 } })
 	inventory:RegisterKit("city_mayor", { { "vest_light" }, { "bandage" } })
-	inventory:RegisterKit("city_bandit", { { "crowbar" }, { "zipties", 2 } })
+	inventory:RegisterKit("city_bandit", { { "crowbar" }, { "zipties", 2 }, { "lockpick" } })
 	-- Deathmatch (gamemodes/nextcity/gamemode/modules/mode_dm).
 	inventory:RegisterKit("dm", {
 		{ "vest_light" },

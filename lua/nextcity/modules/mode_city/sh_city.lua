@@ -9,6 +9,8 @@
 --   city:RegisterJob(id, def), city:Job(id), city:Jobs() -> ids in order, city:DefaultJob()
 --   city:JobOf(ply) -> the job (known on the client: every job is public), city:IsPolice(ply)
 --   city:CitizenName(ply) -> the name he goes by in the city, or nil (players.name)
+--   doors.member (ply, group): a job holds the keys of the doors of its group (by its key;
+--   "police": every job that keeps the law and the mayor)
 --
 -- The shop: offers in the order of the menu, registered on both realms in the same order
 -- (RegisterOffer in Init of a package). An offer sells `count` of an item (default: the
@@ -83,6 +85,7 @@ M.SHOP = {
 	{ "vest_light", { price = 250, jobs = { "gundealer", "police" } } },
 	{ "vest", { price = 450, jobs = { "police" } } },
 	{ "zipties", { count = 5, price = 25, jobs = { "police", "bandit" } } },
+	{ "lockpick", { price = 150, jobs = { "bandit" } } },
 }
 
 -- The most purchases of an offer at once.
@@ -111,6 +114,7 @@ end
 
 function M:Start(ctx)
 	ctx:On("players.name", "AnswerName")
+	ctx:On("doors.member", "AnswerMember")
 	if SERVER then
 		self:_StartServer(ctx)
 	else
@@ -251,4 +255,13 @@ end
 
 function M:AnswerName(_, ply)
 	return self:CitizenName(ply)
+end
+
+-- The groups of doors of the map in the city: a job by its key; the police doors open to
+-- every job that keeps the law and to the mayor.
+function M:AnswerMember(ply, group)
+	local job = self:JobOf(ply)
+	if job ~= nil and (job.id == group or (group == "police" and (job.police or job.mayor))) then
+		return true
+	end
 end

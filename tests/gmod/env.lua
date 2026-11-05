@@ -1288,7 +1288,8 @@ end
 
 -- A networked entity (index from 200 up, or opts.index) known to the server and every
 -- linked client, with World.EntityMethods. opts: index, class, pos, ang, map (created by
--- the map: game.CleanUpMap recreates it as a new entity instead of removing it).
+-- the map: game.CleanUpMap recreates it as a new entity with the same MapCreationID
+-- instead of removing it), mapId.
 function Env.Spawn(server, opts)
 	opts = opts or {}
 	local index = opts.index or server:_NextIndex()
@@ -1338,7 +1339,7 @@ function Env:_CleanUpMap(dontSendToClients)
 	for _, ent in ipairs(list) do
 		Env.Remove(self, ent)
 		if ent.map then
-			Env.Spawn(self, { class = ent.class, pos = ent.pos, ang = ent.ang, map = true })
+			Env.Spawn(self, { class = ent.class, pos = ent.pos, ang = ent.ang, map = true, mapId = ent:MapCreationID() })
 		end
 	end
 	self.cleanups = (self.cleanups or 0) + 1

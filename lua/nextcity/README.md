@@ -5,14 +5,14 @@
 | Модуль | Что даёт | Зависимости |
 |---|---|---|
 | [`weaponry`](modules/weaponry/) | 6 видов патронов, 5 стволов, 3 вида холодного и 2 метательного оружия, их 16 предметов, таблицы лута оружия и патронов | `ammo`, `weapons`, `melee`, `throwables`; необязательно `inventory`, `loot`, `explosions` |
-| [`supplies`](modules/supplies/) | 28 предметов: медицина, броня, сумки, стяжки, наручники; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `dm`, `homicide`, `hideseek`, `riot`, `defense`, `coop`, `city` | `inventory`; необязательно `loot`, `weaponry` |
+| [`supplies`](modules/supplies/) | 30 предметов: медицина, броня, сумки, стяжки, наручники, отмычка, таран; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `dm`, `homicide`, `hideseek`, `riot`, `defense`, `coop`, `city` | `inventory`; необязательно `loot`, `weaponry` |
 | [`hostiles`](modules/hostiles/) | 12 видов врагов Half-Life 2 (зомби, хедкрабы, муравьиные львы, Гражданская оборона, солдаты Альянса, мэнхаки) и 6 групп для волн | `npcs` |
 | [`mode_homicide`](modules/mode_homicide/README.md) | режим «Хомисайд»: скрытые роли убийцы, шерифа и мирных, псевдонимы, варианты `standard`, `gunfree`, `wildwest` | `rounds`, `roles`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 | [`mode_hideseek`](modules/mode_hideseek/README.md) | режим «Прятки»: фаза пряток с ослеплёнными ищущими, охота с убийством или осаливанием | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 | [`mode_riot`](modules/mode_riot/README.md) | режим «Бунт»: полиция связывает бунтовщиков, бунтовщики отбиваются и освобождают своих | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `restraints` |
 | [`mode_defense`](modules/mode_defense/README.md) | режим «Оборона»: волны существ с передышками, павшие возвращаются после волны | `rounds`, `players`, `npcs`; необязательно `inventory`, `loot`, `notices` |
 | [`mode_coop`](modules/mode_coop/README.md) | режим «Кооператив»: зачистка карты от NPC с общими жизнями команды | `rounds`, `players`, `npcs`; необязательно `inventory`, `loot`, `notices` |
-| [`mode_city`](modules/mode_city/README.md) | режим «Город»: бесконечный раунд, профессии с лимитами, снаряжением и зарплатами, магазин профессий, ролевые имена | `rounds`, `roles`, `players`; необязательно `inventory`, `economy`, `notices`, `storage` |
+| [`mode_city`](modules/mode_city/README.md) | режим «Город»: бесконечный раунд, профессии с лимитами, снаряжением и зарплатами, магазин профессий, ролевые имена, двери как собственность | `rounds`, `roles`, `players`; необязательно `inventory`, `economy`, `notices`, `storage`, `doors` |
 
 ```text
 lua/nextcity/
@@ -143,6 +143,8 @@ flowchart LR
 |---|---|---|---|---|---|
 | `zipties` | Стяжки | `restraint`: 3 с связать, 4 с развязать, расходуются | 0,02 | 10 | `E` на игроке ([`restraints`](../../gamemodes/nextcity/gamemode/modules/restraints/README.md)) |
 | `handcuffs` | Наручники | `restraint`: 2 с сковать, 6 с освободить, многоразовые | 0,3 | 1 | `E` на игроке; снаряжение полиции [Города](modules/mode_city/README.md#профессии) |
+| `lockpick` | Отмычка | `lockpick`: 10 с вскрыть замок | 0,1 | 1 | `E` на запертой двери ([`doors`](../../gamemodes/nextcity/gamemode/modules/doors/README.md)); снаряжение и магазин бандита |
+| `ram` | Таран | `ram`: 3 с выбить дверь | 6 | 1 | `E` на запертой двери, в городе — только полиция |
 
 ## Лут
 
@@ -191,11 +193,11 @@ flowchart LR
 | `defense_resupply` | 60 патронов 5,56×45, 15 патронов 9×19, бинт | Оборона: живым после каждой волны |
 | `coop` | шлем, лёгкий бронежилет, MP7 и 160 патронов 4,6×30, USP и 30 патронов 9×19, монтировка, граната, 3 бинта, жгут | [Кооператив](modules/mode_coop/README.md#набор) |
 | `city_citizen` | бинт | [Город](modules/mode_city/README.md#профессии): гражданин |
-| `city_police` | лёгкий бронежилет, дубинка, наручники, USP и 30 патронов 9×19, бинт | Город: полицейский |
+| `city_police` | лёгкий бронежилет, дубинка, наручники, таран, USP и 30 патронов 9×19, бинт | Город: полицейский |
 | `city_medic` | 5 бинтов, 3 гемостатические марли, 2 жгута, 2 шины, 2 шприц-тюбика морфина, автоинъектор адреналина | Город: медик |
 | `city_gundealer` | USP и 15 патронов 9×19 | Город: торговец оружием |
 | `city_mayor` | лёгкий бронежилет, бинт | Город: мэр |
-| `city_bandit` | монтировка, 2 стяжки | Город: бандит |
+| `city_bandit` | монтировка, 2 стяжки, отмычка | Город: бандит |
 
 `nc_kits` — все наборы, `nc_kit <игрок> <набор>` — выдать набор (администратор).
 

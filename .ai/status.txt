@@ -27,5 +27,6 @@ STATUS (update every step)
        #19 dm: mode_dm (core) frags from zero, frag/time limits, leader status; tdm kit select refactor   done
        #20 city: mode_city endless round, jobs/limits/cooldown/salaries/issued gear/models/rp names   done
        #21 economy: core economy module + city shop of jobs (offers, Buy, nc_buy, net buy)   done
+       #22 doors: core doors module (property, keys, co-owners, titles, map groups, lockpick, ram) + city wiring   done
   docs overhaul        todo (#25)
-  last full run        55 specs, 504 passed, 0 failed (~29 s)
+  last full run        56 specs, 507 passed, 0 failed (~28 s)

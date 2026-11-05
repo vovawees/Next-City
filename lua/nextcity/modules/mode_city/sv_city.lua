@@ -26,6 +26,9 @@
 -- Asks:     mode_city.canJob (ply, id) -> false, mode_city.canBuy (ply, offer, times) -> false,
 --           mode_city.salary (salary, ply) -> salary.
 -- Emits:    mode_city.job (ply, id, old), mode_city.bought (ply, offer, times, price).
+-- Doors (the doors module): property while the city lives, only the police use a battering
+-- ram (doors.property, doors.canRam); every door goes back to the market at the end.
+--
 -- Commands: nc_job [job], nc_buy [offer [times]], nc_rpname <name> (everybody),
 --           nc_setjob <player> <job> (admin).
 
@@ -50,6 +53,7 @@ function M:_InitServer(ctx)
 	self.economy = ctx:Require("economy")
 	self.notices = ctx:Require("notices")
 	self.storage = ctx:Require("storage")
+	self.doors = ctx:Require("doors")
 	self.store = self.storage ~= nil and self.storage:Open("city") or nil
 	self.memory = {}  -- names without storage: key -> { name }
 	self.changed = {} -- ply -> CurTime of his last job change
@@ -117,6 +121,15 @@ function M:Setup(round)
 		local job = self:JobOf(ply)
 		return job ~= nil and self:ModelFor(ply, job) or nil
 	end)
+	-- Doors are property in the city; only the police break them in.
+	round:On("doors.property", function()
+		return true
+	end)
+	round:On("doors.canRam", function(ply)
+		if not self:IsPolice(ply) then
+			return false
+		end
+	end)
 	local inventory = self.inventory
 	if inventory == nil then
 		return
@@ -157,6 +170,9 @@ end
 function M:Cleanup()
 	self.ctx.components.citizen:Clear()
 	self.changed = {}
+	if self.doors ~= nil then
+		self.doors:ReleaseAll()
+	end
 end
 
 function M:OnLeft(ply)

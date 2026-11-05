@@ -89,4 +89,8 @@ return {
 	["zipties.desc"] = "Tie the hands of a player: the use key on him. One per tie.",
 	handcuffs = "Handcuffs",
 	["handcuffs.desc"] = "Cuff the hands of a player: the use key on him. They stay with you.",
+	lockpick = "Lockpick",
+	["lockpick.desc"] = "Open a locked door: the use key on it. It takes a while.",
+	ram = "Battering ram",
+	["ram.desc"] = "Break a locked door in: the use key on it. The police need a warrant.",
 }

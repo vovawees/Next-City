@@ -904,11 +904,12 @@ local EntityMeta = {
 World.EntityMethods = Entity
 World.EntityMeta = EntityMeta
 
--- An entity of the server realm `realm` at `index`. opts: pos, ang, map.
+-- An entity of the server realm `realm` at `index`. opts: pos, ang, map, mapId (the
+-- MapCreationID of a map entity, default its index: a cleanup keeps it).
 function World.NewEntity(realm, index, class, opts)
 	opts = opts or {}
 	return setmetatable({ __entity = true, realm = realm, index = index, class = class or "prop_physics",
-		valid = true, pos = Vector(opts.pos), ang = Angle(opts.ang), map = opts.map == true, skin = 0,
+		valid = true, pos = Vector(opts.pos), ang = Angle(opts.ang), map = opts.map == true, mapId = opts.mapId, skin = 0,
 		bodygroups = {}, color = { r = 255, g = 255, b = 255, a = 255 }, material = "", collisionGroup = 0,
 		noDraw = false, callbacks = {}, boneScales = {}, spawned = false, removing = false, damage = {} }, EntityMeta)
 end
@@ -981,7 +982,7 @@ function Entity:WorldSpaceCenter() return self:GetPos() + self:OBBCenter() end
 function Entity:SetUseType(value) self.useType = value end
 function Entity:GetName() return self.name or "" end
 function Entity:SetName(name) self.name = name end
-function Entity:MapCreationID() return self.map and self.index or -1 end
+function Entity:MapCreationID() return self.map and (self.mapId or self.index) or -1 end
 -- Key values (SetKeyValue) are kept in .keyValues.
 function Entity:SetKeyValue(key, value)
 	self.keyValues = self.keyValues or {}

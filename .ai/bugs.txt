@@ -37,3 +37,6 @@ PITFALLS
 - SpawnPlace returns ent, container (not container) - PlaceOf takes the entity.
 - Client->server net in specs: call hud(server, client) (Env.Flush) after cl:Ask*/Request, server:Advance alone does not deliver.
 - Server console command output (caller nil) goes to server.console: check with server:Lines(fragment).
+- Rounds call game.CleanUpMap at round start: map entities (doors) are NEW objects afterwards - look them up again (by MapCreationID); emulator keeps MapCreationID across cleanup (mapId).
+- Mode Cleanup runs only when the next round starts (after endTime 8 s), not at round:End.
+- Component fields cannot be optional: use uint 0 for 'none' (e.g. player entity index).

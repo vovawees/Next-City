@@ -79,6 +79,10 @@ M.ITEMS = {
 		traits = { restraint = { time = 3, untie = 4, consume = true } } } },
 	{ "handcuffs", { model = "models/items/crossbowrounds.mdl", weight = 0.3, category = "gear",
 		traits = { restraint = { time = 2, untie = 6, consume = false } } } },
+	{ "lockpick", { model = "models/props_c17/tools_pliers01a.mdl", weight = 0.1, category = "gear",
+		traits = { lockpick = { time = 10 } } } },
+	{ "ram", { model = "models/props_canal/mattpipe.mdl", weight = 6, category = "gear",
+		traits = { ram = { time = 3 } } } },
 }
 
 function M:Init(ctx)
