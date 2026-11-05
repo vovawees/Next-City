@@ -18,6 +18,10 @@
 -- client realm to a server realm as a player; sent messages wait in the inbox of the
 -- receiving realm until Pump (or Env.Flush) delivers them, like the next network frame.
 --
+-- SQLite (tests/gmod/sqlite.lua): the sql library over libsqlite3 (LuaJIT FFI) when the
+-- system has it (Env.HasSQL()); the database belongs to the DATA table of the realm, so
+-- servers sharing opts.data share sv.db like one machine across restarts.
+--
 -- Game world (tests/gmod/world.lua): players with engine methods whose actions run the
 -- gamemode hooks, the base gamemode behaviour of player hooks, the player, team, ents
 -- and game libraries, traces and the drawing API of clients. Env.Join spawns the player
@@ -26,6 +30,7 @@
 local Wire = dofile(T.root .. "tests/support/wire.lua")
 local Json = dofile(T.root .. "tests/support/json.lua")
 local World = dofile(T.root .. "tests/gmod/world.lua")
+local Sqlite = dofile(T.root .. "tests/gmod/sqlite.lua")
 
 local Env = {}
 Env.__index = Env
@@ -49,6 +54,15 @@ local HOOK_NAMES = {
 
 Env.World = World
 Env.FakePlayer = World.FakePlayer
+Env.Sqlite = Sqlite
+
+-- The SQLite database (sv.db) of every DATA table: servers given the same opts.data share it.
+local databases = setmetatable({}, { __mode = "k" })
+
+-- Whether the emulated realms have the sql library (libsqlite3 found by the FFI).
+function Env.HasSQL()
+	return Sqlite.Available()
+end
 
 local function pack(...)
 	return { n = select("#", ...), ... }
@@ -702,6 +716,19 @@ function Env:_CreateGlobals()
 		else
 			env:_Print("Unknown command: " .. tostring(name) .. "\n")
 		end
+	end
+
+	if Sqlite.Available() then
+		G.sql = Sqlite.Library(function()
+			local db = databases[env.data]
+			if db == nil then
+				db = Sqlite.Open()
+				databases[env.data] = db
+			end
+			env.db = db
+			return db
+		end)
+		G.SQLStr = G.sql.SQLStr
 	end
 
 	self:_CreateEngineTypes(G)

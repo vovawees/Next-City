@@ -264,10 +264,12 @@ end
 
 -- describe / it ----------------------------------------------------------------------
 
-local stats = { passed = 0, failed = 0 }
+local stats = { passed = 0, failed = 0, skipped = 0 }
 local failures = {}
+local skips = {}
 local scope = {}
 local currentSpec = nil
+local SKIP = {}
 
 function describe(name, fn)
 	scope[#scope + 1] = name
@@ -279,11 +281,26 @@ local function onTestError(err)
 	return debug.traceback(tostring(err), 2)
 end
 
+-- Inside an it block: stops it as skipped (a tool the machine lacks, e.g. libsqlite3).
+function skip(reason)
+	error({ [SKIP] = tostring(reason) }, 0)
+end
+
+local function onTestFailure(err)
+	if type(err) == "table" and err[SKIP] ~= nil then
+		return err
+	end
+	return onTestError(err)
+end
+
 function it(name, fn)
 	local title = table.concat(scope, " > ") .. (scope[1] and " > " or "") .. name
-	local ok, err = xpcall(fn, onTestError)
+	local ok, err = xpcall(fn, onTestFailure)
 	if ok then
 		stats.passed = stats.passed + 1
+	elseif type(err) == "table" and err[SKIP] ~= nil then
+		stats.skipped = stats.skipped + 1
+		skips[#skips + 1] = { spec = currentSpec, title = title, reason = err[SKIP] }
 	else
 		stats.failed = stats.failed + 1
 		failures[#failures + 1] = { spec = currentSpec, title = title, err = err }
@@ -337,7 +354,13 @@ for _, failure in ipairs(failures) do
 	print()
 end
 
-print(string.format("%d specs, %d passed, %d failed (%.2fs)", ran, stats.passed, stats.failed, os.clock() - started))
+for _, skipped in ipairs(skips) do
+	print("SKIP " .. skipped.spec .. ": " .. skipped.title .. " (" .. skipped.reason .. ")")
+end
+
+local skippedText = stats.skipped > 0 and string.format(", %d skipped", stats.skipped) or ""
+print(string.format("%d specs, %d passed, %d failed%s (%.2fs)", ran, stats.passed, stats.failed, skippedText,
+	os.clock() - started))
 
 if ran == 0 then
 	print("no specs matched")

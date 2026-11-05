@@ -1,7 +1,7 @@
 NEXT-CITY / .ai — KNOWLEDGE BASE FOR AGENTS AND MAINTAINERS
 format   dry dense plain text, english identifiers, lines <= 120; no secrets (tokens/keys never here or in git)
 rule     refresh after every logical step, in the same commit as the code it describes
-state    M0-M7 done (issues #1-#24), docs #25 and this base #26 done; next = M8 services (next.txt)
+state    M0-M7 done (issues #1-#24), docs #25 and this base #26 done; M8 services in progress (status.txt, next.txt)
 
 FILES
   architecture.txt  layers L0-L4, boot, packages, module contract (ctx), event bus, bridge, rounds and modes, city,
@@ -21,7 +21,7 @@ FILES
 SESSION START (fresh agent)
   1 read README.txt, status.txt, next.txt, architecture.txt; grep api.txt / modules.txt for the module at hand
   2 git clone https://github.com/vovawees/Next-City.git (or git pull); toolchain per stack.txt
-  3 luajit tests/run.lua -> "57 specs, 512 passed, 0 failed"; glualint lint gamemodes tests lua -> prints nothing
+  3 luajit tests/run.lua -> "N specs, M passed, 0 failed" (status.txt); glualint lint gamemodes tests lua -> nothing
   4 work per next.txt; contracts: module README.md (russian, API section) + header comments of module files
   5 every step: tests + lint, refresh .ai (status, next, generated maps), no secrets in the diff, commit, push
 

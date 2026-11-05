@@ -5,7 +5,8 @@ STACK
               lua/nextcity (modules, lang) in addon layout; server settings lua/nextcity/config/server.lua (optional)
   style       docs/CODESTYLE.md: tabs, double quotes, max line 120, no shadowing, english identifiers and comments;
               docs in russian (README.md, CONTRIBUTING.md, docs/*.md, module README.md)
-  tests       plain LuaJIT 2.1 + own GMod emulator (tests/gmod), zero dependencies, no busted (testing.txt)
+  tests       plain LuaJIT 2.1 + own GMod emulator (tests/gmod), zero dependencies, no busted (testing.txt);
+              SQL specs use the system libsqlite3 through the FFI (skipped when missing)
   lint        glualint 1.30 (config .glualint.json: warnings are errors, line 120, shadowing, unused vars,
               redundant parentheses, scope depth 7)
   ci          none on purpose (GitHub Actions removed in cbc867a; user rule: no Actions); checks are local

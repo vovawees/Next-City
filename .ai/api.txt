@@ -243,8 +243,10 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   asks     spectator.canObserve
   listens  players.stateChanged players.left teams.changed gm.KeyPress gm.HUDPaint i18n.changed
 [core] storage
-  sv       Open(ns) IsOpen(ns) PlayerKey(ply)
-  Store:   Get(key) Set(key,value) Delete(key) Touch() Keys() Count() Each() Flush()
+  sv       Backend() IsOpen(ns) PlayerKey(ply)
+  Store:   Get(key) Set(key,value) Delete(key) Touch(key) Keys() Count() Each() Flush()
+  Collection: Get(key) Has(key) Set(key,record) Delete(key) Touch(key) Release(key) Flush(key) Keys() Count()
+              LoadedKeys()
   emits    storage.flushed
   listens  gm.ShutDown
   commands nc_storage

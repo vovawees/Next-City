@@ -139,7 +139,10 @@ CLIENT (L4)
 DATA FLOW
   client input -> intents (client net messages: ready -> rate bucket -> size -> schema validation -> handler xpcall)
   server state -> components (batched per tick, audience owner|all, deltas by field mask) + server messages
-  persistent -> storage module (DATA/nextcity/<ns>.json, flush on shutdown and nc_storage flush)
+  persistent -> storage module: namespaces (Open, all keys in memory) and collections (Collection, a record per key
+               loaded on Get, Release on leave); backend json (DATA/nextcity/<ns>.json, <ns>/<key>.json) or sqlite
+               (sv.db tables nextcity_<ns>, new table imports the json data); flush after flushDelay, on shutdown,
+               nc_storage flush
 
 KEY DECISIONS
   D1 rewrite from scratch (no Z-City/Homigrad code/assets)  D2 layers L0-L4, deps down  D3 manifests, explicit order

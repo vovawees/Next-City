@@ -62,6 +62,9 @@ PITFALLS (specs and emulator)
     .children); words like 'Locked' may also be notice texts in drawn -> assert hint lines via HintLines.
 
 PITFALLS (tools)
+  LuaJIT FFI: a clib from ffi.load is unloaded when collected; finalizers (ffi.gc sqlite3_close) of older objects
+    then jump into freed code -> segfault of the whole run. Anchor the clib (package.loaded) and anchor buffers a
+    pointer walks (db.buffer).
   glualint 'unnecessary parentheses' on tonumber((s:gsub(...))) is wrong but fatal: assign the gsub result to a
     local first.
   Lua gmatch "[^\n]*" yields an extra empty match after every line -> iterate lines with "([^\n]*)\n".

@@ -1,8 +1,7 @@
-NEXT (ordered; M0-M7, #25-#28 done)
+NEXT (ordered; M0-M7, #25-#29 done)
   1 M8 services (milestone #9, issues #27-#36 in this order; each: code, tests, module README in russian with API
     and "Проверить в реальном GMod", lang en/ru, .ai refresh, commit "Closes #N", check the issue closed):
-    #29 storage: collections (record per key, lazy load, file per record) + SQLite backend selected by storage
-        config (emulator sql via LuaJIT FFI libsqlite3, skip SQL specs when the lib is missing)
+    #29 done: storage:Collection (record per key, lazy Get, Release, file per record) + backend sqlite
     #30 profiles: per SteamID64 first/last seen, playtime, visits, stats kills/deaths/rounds/wins, module sections,
         event profiles.loaded, save on leave + periodic, owner summary component, nc_profile
     #31 UI: F1 player menu (gm_showhelp via gm.PlayerBindPress), tabs API: profile, settings/language, help
