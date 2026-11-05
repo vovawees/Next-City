@@ -15,6 +15,10 @@
 -- not given). `privilege` names a privilege instead, so several commands share one: an
 -- own privilege of the manifest by its name or any privilege by its id. Commands added on
 -- the client run locally and are never checked.
+--
+--   ctx.commands:Execute("nc_job", ply, { "police" }) -> true, lines: runs a command like the
+--   console (the privilege, the caught errors) and gives the reply instead of printing it
+--   (the chat runs commands this way); false for an unknown name.
 
 local Service = {}
 Service.__index = Service
@@ -64,20 +68,48 @@ function Service.New(opts)
 	}, Service)
 end
 
-function Service:_Run(entry, ply, args)
-	-- The engine passes NULL for the server console.
-	local caller = IsValid(ply) and ply or nil
+-- The reply of a command as lines: nil -> {}, a string -> { it }.
+local function linesOf(result)
+	if result == nil then
+		return {}
+	end
+	if type(result) ~= "table" then
+		return { tostring(result) }
+	end
+	local lines = {}
+	for i, line in ipairs(result) do
+		lines[i] = tostring(line)
+	end
+	return lines
+end
+
+-- Runs a command for a caller (nil: the server console); returns the reply as lines.
+function Service:_Call(entry, caller, args)
 	if SERVER and entry.privilege ~= nil and not self.permissions:Can(caller, entry.privilege) then
-		reply(caller, entry.name .. ": no access")
-		return
+		return { entry.name .. ": no access" }
 	end
 	local ok, result = xpcall(entry.handler, onHandlerError, caller, args)
 	if not ok then
 		self.log:Error("command '%s' of module '%s' failed: %s", entry.name, entry.module, tostring(result))
-		reply(caller, entry.name .. ": failed, see the server log")
-		return
+		return { entry.name .. ": failed, see the server log" }
 	end
-	reply(caller, result)
+	return linesOf(result)
+end
+
+function Service:_Run(entry, ply, args)
+	-- The engine passes NULL for the server console.
+	local caller = IsValid(ply) and ply or nil
+	reply(caller, self:_Call(entry, caller, args))
+end
+
+-- Runs a registered command as the console would and returns true and the reply as lines,
+-- or false for an unknown command.
+function Service:Execute(name, ply, args)
+	local entry = self.specs[name]
+	if entry == nil then
+		return false
+	end
+	return true, self:_Call(entry, IsValid(ply) and ply or nil, args or {})
 end
 
 -- Checks the permission keys of a spec; returns the privilege id (nil for everybody)
@@ -210,6 +242,11 @@ function Service:ForModule(ctx)
 	-- Every registered command of every module (copies, see Service:List).
 	function facade:List()
 		return service:List()
+	end
+
+	-- Runs any registered command for a player and returns the reply (see Service:Execute).
+	function facade:Execute(name, ply, args)
+		return service:Execute(name, ply, args)
 	end
 
 	function facade:Dispose()

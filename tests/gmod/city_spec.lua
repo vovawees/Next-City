@@ -1,7 +1,7 @@
 -- City (the official package): an endless round, the jobs with their limits, cooldown and
 -- gear (it stays with its owner and goes with the job), respawns, salaries into the bank
--- accounts, the characters of citizens (identity) instead of nicks and the shop of the
--- jobs, with the real gamemode and package files.
+-- accounts, the characters of citizens (identity) instead of nicks, the local chat and the
+-- shop of the jobs, with the real gamemode and package files.
 
 local Env = dofile(T.root .. "tests/gmod/env.lua")
 
@@ -239,6 +239,21 @@ describe("city", function()
 		expect(client.chatLines):toContain("Gordon теперь: Полицейский")
 		local cl = client:Get("NC").Modules:Instance("mode_city")
 		expect(cl:AddTargetLine({}, gordon)):toEqual({ "Полицейский" })
+
+		-- The chat of the city is local and carries the characters; out of character for all.
+		gordon:SetPos(Vector(0, 0, 0))
+		alyx:SetPos(Vector(2000, 0, 0))
+		local _, seen = Env.Say(server, gordon, "Hello, citizens")
+		expect(seen):toEqual({ gordon })
+		expect(client.chatLines[#client.chatLines]):toBe("John Freeman: Hello, citizens")
+		_, seen = Env.Say(server, gordon, "// afk")
+		expect(seen):toEqual({ gordon, alyx })
+		alyx:SetPos(Vector(200, 0, 0))
+		_, seen = Env.Say(server, alyx, "/me машет рукой")
+		expect(seen):toEqual({ gordon, alyx })
+		expect(client.chatLines[#client.chatLines]):toBe("* Алиса Вэнс машет рукой")
+		Env.Say(server, gordon, "/job medic")
+		expect(client.chatLines[#client.chatLines]):toBe("nc_job: you are medic")
 
 		server:Advance(3)
 		local again, m2 = boot({ data = server.data })

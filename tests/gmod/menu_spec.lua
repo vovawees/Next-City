@@ -1,7 +1,7 @@
 -- Menu (F1): the frame with the tabs in order (the profile of profiles first, the character
 -- of identity, the appearance, then the settings and the help), F1 toggles it, the language
--- from the settings tab, the help with the keys of the modules and the commands of the
--- player (admin ones only with the privilege, asked again when the privileges change), tabs
+-- from the settings tab, the help with the keys and the chat of the modules and the commands
+-- of the player (admin ones only with the privilege, asked again when the privileges change), tabs
 -- and help entries of modules through the API, stamps, entries that keep what was typed, a
 -- failing tab.
 
@@ -173,8 +173,14 @@ describe("menu", function()
 		local keys = rows(client, "ncHelp")
 		expect(keys[1]):toEqual({ "F1", "This menu: the profile, the settings and the help" })
 		expect(keys[2]):toEqual({ "F2", "The menu of the door you look at: buy, sell, keys, sign" })
+		-- The keys, then the chat.
 		expect(texts(keys)):toEqual({ "F1", "F2", "F3", "C", "E", "ALT + E", "E", "MOUSE2", "R", "E + R", "R", "MOUSE2",
-			"SPACE", "not bound", "R", "MOUSE1 + MOUSE2", "SPACE" })
+			"SPACE", "not bound", "R", "MOUSE1 + MOUSE2", "SPACE", "/w", "/y", "/me", "/it", "//", ".//", "/pm", "/r",
+			"/..." })
+		expect(keys[18]):toEqual({ "/w", "whisper: heard only right next to you" })
+		expect(#World.FindPanels(client, function(panel)
+			return panel.class == "DLabel" and panel:GetText() == "Chat — type it in the chat box (Y)"
+		end)):toBe(1)
 		local ids = {}
 		for i, key in ipairs(menu:Keys()) do
 			ids[i] = key.id

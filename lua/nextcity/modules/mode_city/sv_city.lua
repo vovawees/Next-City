@@ -16,7 +16,9 @@
 -- does not fit falls at his feet. Bought things are his own, unlike the gear of the job.
 --
 -- Names: with param names everybody sees the characters of citizens instead of their nicks
--- (the identity module: the city answers identity.enabled; nc_rpname, the tab of F1).
+-- (the identity module: the city answers identity.enabled; nc_rpname, the tab of F1). The
+-- chat: with param localChat what is said in character is heard only around (the chat
+-- module: the city answers chat.proximity).
 --
 --   city:SetJob(ply, id, force) -> true or false, reason[, seconds]   reasons: mode, unknown,
 --                                  same, limit, cooldown, jailed, denied
@@ -74,6 +76,8 @@ function M:_InitServer(ctx)
 				desc = "s a player waits between job changes" },
 			names = { type = "boolean", default = true,
 				desc = "everybody sees the characters of citizens (identity: nc_rpname, F1) instead of nicks" },
+			localChat = { type = "boolean", default = true,
+				desc = "what is said in character is heard only around (chat: whisper, say, yell)" },
 		},
 		Setup = function(round)
 			self:Setup(round)
@@ -140,6 +144,11 @@ function M:Setup(round)
 	end)
 	if round.params.names then
 		round:On("identity.enabled", function()
+			return true
+		end)
+	end
+	if round.params.localChat then
+		round:On("chat.proximity", function()
 			return true
 		end)
 	end

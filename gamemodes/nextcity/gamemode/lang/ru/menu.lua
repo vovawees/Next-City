@@ -10,6 +10,7 @@ return {
 	["settings.forced"] = "Сервер показывает всем один язык: {language}",
 	["settings.console"] = "То же в консоли: nc_language auto, en, ru...",
 	["help.keys"] = "Клавиши",
+	["help.chat"] = "Чат — пишется в строке чата (Y)",
 	["help.commands"] = "Команды — вводятся в консоли (~)",
 	["help.admin"] = "Команды администратора",
 	["help.loading"] = "Запрос к серверу...",

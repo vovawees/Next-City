@@ -850,6 +850,15 @@ function Env:_CreateNet(G)
 	G.util.TableToJSON = Json.Encode
 	G.util.JSONToTable = Json.Decode
 
+	-- The text filter of the game: env.textFilter(text, context, ply) when a test sets one.
+	G.TEXT_FILTER_UNKNOWN, G.TEXT_FILTER_GAME_CONTENT, G.TEXT_FILTER_CHAT, G.TEXT_FILTER_NAME = 0, 1, 2, 3
+	function G.util.FilterText(text, context, ply)
+		if env.textFilter ~= nil then
+			return env.textFilter(text, context, ply)
+		end
+		return text
+	end
+
 	if self.realm == "server" then
 		function G.util.AddNetworkString(name)
 			assert(type(name) == "string", "util.AddNetworkString expects a string")
@@ -1103,9 +1112,36 @@ end
 -- `ply` says `text` in the chat (teamChat: the team chat): GM:PlayerSay decides the text
 -- ("" drops it), then GM:PlayerCanSeePlayersChat every player. Returns the text and the
 -- players that see it, in index order (nil and {} when dropped). Seen messages are
--- recorded in listener.heard ({ speaker, text, team }).
+-- recorded in listener.heard ({ speaker, text, team, channel }). Where a module sends the
+-- lines itself (PlayerSay answers "" and the bus of the server gets chat.said: the module
+-- chat), its line is the one returned and recorded and the messages reach every client.
 function Env.Say(server, ply, text, teamChat)
+	local NC, lines, handle = server:Get("NC"), {}, nil
+	if type(NC) == "table" and NC.Events ~= nil then
+		handle = NC.Events:On("chat.said", function(speaker, channel, said, audience)
+			lines[#lines + 1] = { speaker = speaker, channel = channel, text = said, audience = audience }
+		end)
+	end
 	local said = server:Call("PlayerSay", ply, text, teamChat == true)
+	if handle ~= nil then
+		handle:Off()
+	end
+	if said == "" or lines[1] ~= nil then
+		local clients = {}
+		for _, client in pairs(server.links) do
+			clients[#clients + 1] = client
+		end
+		Env.Flush(server, unpack(clients))
+	end
+	local line = lines[1]
+	if line ~= nil then
+		for _, listener in ipairs(line.audience) do
+			listener.heard = listener.heard or {}
+			listener.heard[#listener.heard + 1] = { speaker = line.speaker, text = line.text,
+				team = line.channel == "team", channel = line.channel }
+		end
+		return line.text, line.audience
+	end
 	if type(said) ~= "string" or said == "" then
 		return nil, {}
 	end

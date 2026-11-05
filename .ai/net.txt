@@ -5,7 +5,7 @@ NAMES AND BUDGET
   component   one string per store "nc.<module>:<component>"
   platform    nc.hello (client info + ready, rate 2/burst 4), nc.info (later info changes, 2/8), nc.grants<s>
               (privileges of the player: on net.ready, then on change only; platform/permissions.lua)
-  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 48 = 26 messages +
+  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 49 = 27 messages +
               19 components + 3 platform (module example is off; it adds 2 messages + 1 component)
 
 CLIENT -> SERVER CHECKS (cheap first)
@@ -28,6 +28,7 @@ COMPONENTS (platform/components.lua)
 
 MESSAGES BY MODULE (s = server -> client; c = client -> server with rate/burst)
   appearance  change<c 1/3> (model <= 128 bytes, skin u8, bodygroups array 16 of u8, color u24)
+  chat        line<s> (channel enum of 11, speaker entity, name <= 96, text <= 800 bytes, dead bool)
   doors       door<c 4/8>                         economy     cash<c 4/8>
   identity    change<c 1/3> (name <= 96 bytes, gender enum)
   inventory   act<c 6/12> close<c 10/20> move<c 12/24> closed<s> contents<s>

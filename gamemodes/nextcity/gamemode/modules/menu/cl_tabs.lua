@@ -1,6 +1,6 @@
 -- Menu, the tabs of the menu itself: the settings (the language of the texts) and the
--- help (the keys modules add with AddHelp and the console commands of the player, the
--- admin ones apart). The key of the menu is the first help entry.
+-- help (the keys and the chat modules add with AddHelp and the console commands of the
+-- player, the admin ones apart). The key of the menu is the first help entry.
 
 local M = NC.Module("menu")
 
@@ -65,22 +65,33 @@ end
 
 function M:_HelpStamp()
 	local parts = { self.commandsVersion }
-	for _, key in ipairs(self:Keys()) do
-		parts[#parts + 1] = key.id .. "=" .. key.key
+	for _, section in ipairs({ "keys", "chat" }) do
+		for _, key in ipairs(self:Keys(section)) do
+			parts[#parts + 1] = key.id .. "=" .. key.key
+		end
 	end
 	return concat(parts, " ")
 end
 
-function M:_BuildHelp(panel)
-	local i18n = self.ctx.i18n
-	self:Heading(panel, i18n:T("menu.help.keys"))
-	for _, key in ipairs(self:Keys()) do
+function M:_HelpRows(panel, keys)
+	for _, key in ipairs(keys) do
 		local row = self:Row(panel)
 		row.ncHelp = key.id
 		local caption = self:Caption(row, key.key)
 		caption:SetTextColor(self.COLORS.gold)
 		caption.ncKey = key.key
 		self:Value(row, key.text).ncText = key.text
+	end
+end
+
+function M:_BuildHelp(panel)
+	local i18n = self.ctx.i18n
+	self:Heading(panel, i18n:T("menu.help.keys"))
+	self:_HelpRows(panel, self:Keys())
+	local chat = self:Keys("chat")
+	if chat[1] ~= nil then
+		self:Heading(panel, i18n:T("menu.help.chat"))
+		self:_HelpRows(panel, chat)
 	end
 	self:Heading(panel, i18n:T("menu.help.commands"))
 	local commands = self:Commands()

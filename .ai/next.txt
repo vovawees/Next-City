@@ -1,4 +1,4 @@
-NEXT (ordered; M0-M7, #25-#33 done)
+NEXT (ordered; M0-M7, #25-#34 done)
   1 M8 services (milestone #9, issues #27-#36 in this order; each: code, tests, module README in russian with API
     and "Проверить в реальном GMod", lang en/ru, .ai refresh, commit "Closes #N", check the issue closed):
     #29 done: storage:Collection (record per key, lazy Get, Release, file per record) + backend sqlite
@@ -10,9 +10,9 @@ NEXT (ordered; M0-M7, #25-#33 done)
         clothes color in the profile section; gm.PlayerSetModel answer at -10 under the modes; Reduce
         appearance.look; F1 tab with DModelPanel preview; clothes color on ragdolls); city: own looks for
         citizens, uniforms by gender; homicide: alias looks
-    #34 chat: global vs proximity by a mode answer; whisper/yell, /me, /it, OOC, LOOC, PM, module chat commands,
-        antispam, unconscious -> OOC only (organism:IsUnconscious), own net lines (answer gm.PlayerSay with ""),
-        respect gm.PlayerCanSeePlayersChat (rounds dead_mute)
+    #34 done: chat (own net line, answer gm.PlayerSay ""; local by chat.proximity: city param localChat;
+        whisper/yell/me/it/ooc/looc/pm/r, /word -> chat.command or nc_word via ctx.commands:Execute, antispam,
+        unconscious OOC only, dead apart where local + gm.PlayerCanSeePlayersChat; F1 help section chat)
     #35 voice: 3D proximity with ranges (whisper/normal/yell), hearing matrix cached by the scheduler, radio item
         with frequency + PTT (permissions.EnableVoiceChat on the client), listen below rounds dead_mute, HUD icon
     #36 docs: README, ARCHITECTURE (M8 decisions D22+, section 6 persistence row, version 0.8), ROADMAP, .ai

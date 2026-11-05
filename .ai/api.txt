@@ -40,6 +40,15 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   sv       Asks() NameOf(id) OfferedCount()
   listens  permissions.can permissions.registered permissions.unregistered gm.InitPostEntity
   commands nc_cami
+[core] chat
+  sh       .Clean(text) .Length(text) .Fold(text) .Cut(text,size) .Parse(text) .Words(text)
+  sv       Say(ply,text,teamChat) Proximity(ply) Range(ply,channel) Audience(ply,channel,text) Send(ply,channel,text)
+           Find(text,ply) Private(ply,target,text) Info(ply,lines)
+  cl       Parts(line)
+  emits    chat.said
+  asks     chat.proximity gm.PlayerCanSeePlayersChat chat.canSpeak chat.command
+  listens  gm.PlayerSay players.left
+  commands nc_chat
 [core] damage
   sv       RegisterAmmo(name,def) Ammo(name) Projectile(name,distance,damage) AddStage(id,order,fn) RemoveStage(id)
            Stages() Apply(ply,hit) KindOf(ply,dmginfo) Inflict(ply,hit) History(count)
@@ -168,10 +177,11 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   commands nc_melee
 [core] menu
   sv       CommandsFor(ply)
-  cl       AddTab(id,spec) RemoveTab(id) Tabs() AddHelp(id,spec) RemoveHelp(id) Keys() Key() Commands() AskCommands()
-           IsOpen() Tab() Open(tab) Close() Toggle() ShowTab(tab) Refresh(force) Label(parent,text,color,font)
-           Heading(parent,text) Row(parent,tall) Caption(row,text,wide) Value(row,text,color)
-           Button(parent,text,fn,wide,dock) Entry(parent,id,default) Text(id) Typing() SetLanguage(code)
+  cl       AddTab(id,spec) RemoveTab(id) Tabs() AddHelp(id,spec) RemoveHelp(id) Keys(section) Key() Commands()
+           AskCommands() IsOpen() Tab() Open(tab) Close() Toggle() ShowTab(tab) Refresh(force)
+           Label(parent,text,color,font) Heading(parent,text) Row(parent,tall) Caption(row,text,wide)
+           Value(row,text,color) Button(parent,text,fn,wide,dock) Entry(parent,id,default) Text(id) Typing()
+           SetLanguage(code)
   listens  gm.PlayerBindPress i18n.changed permissions.changed
 [core] mode_dm
   sv       Leader(round) CheckWin(round) Update(round) GiveLoadout(ply,params) GiveKit(ply,id)
@@ -321,8 +331,8 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   asks     mode_city.canJob mode_city.canBuy mode_city.salary
   reduces  mode_city.salary
   listens  doors.member law.officer law.authority players.left gm.PlayerSetModel doors.property doors.canRam
-           law.enabled identity.enabled inventory.canMove inventory.canAct players.targetLines gm.HUDPaint
-           gm.PlayerBindPress doors.groupName roles.changed i18n.changed
+           law.enabled identity.enabled chat.proximity inventory.canMove inventory.canAct players.targetLines
+           gm.HUDPaint gm.PlayerBindPress doors.groupName roles.changed i18n.changed
   commands nc_job nc_buy nc_setjob
 [addons] mode_coop
   sv       Setup(round) Begin(round) Loadout(round,ply) Feed(round) Left(round) Update(round) Fell(round,ply)
@@ -355,6 +365,9 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
 QUESTIONS AND REDUCTIONS (name  askers -> answerers)
   appearance.canChange         appearance -> -
   appearance.look              appearance -> mode_homicide
+  chat.canSpeak                chat -> -
+  chat.command                 chat -> -
+  chat.proximity               chat -> mode_city
   damage.kind                  damage -> explosions
   doors.canBuy                 doors -> law
   doors.canPick                doors -> law
@@ -363,6 +376,7 @@ QUESTIONS AND REDUCTIONS (name  askers -> answerers)
   doors.member                 doors -> mode_city
   doors.price                  doors -> -
   doors.property               doors -> mode_city
+  gm.PlayerCanSeePlayersChat   chat -> rounds
   gm.PlayerSetModel            appearance -> appearance,mode_city
   gm.PlayerShouldTakeDamage    damage -> players,rounds
   hands.grab                   hands -> -
@@ -402,6 +416,7 @@ EVENTS (name  emitters -> listeners)
   armor.changed                armor -> hud
   armor.hit                    armor -> equipment
   ballistics.impact            ballistics -> -
+  chat.said                    chat -> -
   damage.hit                   damage -> actions,ragdoll
   doors.bought                 doors -> -
   doors.locked                 doors -> -
@@ -448,8 +463,8 @@ EVENTS (name  emitters -> listeners)
   organism.vitals              organism -> hud
   organism.wounded             organism -> -
   players.died                 players -> actions,armor,inventory,movement,organism,profiles,restraints,rounds
-  players.left                 players -> actions,armor,damage,doors,economy,equipment,inventory,law,medical,movement,
-                                          organism,ragdoll,restraints,roles,rounds,spectator,mode_city
+  players.left                 players -> actions,armor,chat,damage,doors,economy,equipment,inventory,law,medical,
+                                          movement,organism,ragdoll,restraints,roles,rounds,spectator,mode_city
   players.loadout              players -> armor,hands,inventory,rounds
   players.ready                players -> appearance,economy,identity,rounds
   players.spawned              players -> appearance,inventory,law,movement,organism,ragdoll,restraints,rounds
@@ -475,4 +490,4 @@ EVENTS (name  emitters -> listeners)
   throwables.thrown            throwables -> equipment
   weapons.fired                weapons -> -
 
-49 modules, 686 public methods
+50 modules, 701 public methods

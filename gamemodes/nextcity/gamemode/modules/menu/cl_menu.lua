@@ -12,8 +12,11 @@
 --   menu:AddHelp(id, spec)  a key on the help tab; spec: text (lang key), params (table or
 --                           function -> table), bind (a bind or a list of them: "+walk",
 --                           "+use"), fallback (the key or keys when the player has no such
---                           bind), order (default 100), visible (function -> bool)
---   menu:RemoveHelp(id), menu:Keys() -> { { id, key, text } } of the help tab, in order
+--                           bind), label (the text of the key as it is: "/w"), section
+--                           ("keys" by default, "chat": the chat of the help), order
+--                           (default 100), visible (function -> bool)
+--   menu:RemoveHelp(id), menu:Keys(section) -> { { id, key, text } } of a section of the help
+--                           tab (default "keys"), in order
 --   menu:Open(tab) -> the frame, menu:Close(), menu:Toggle(), menu:IsOpen(), menu:Tab()
 --   menu:ShowTab(tab), menu:Refresh(force) (builds the open tab again when it changed)
 --   menu:Key()              -> the key of the menu as the player has it ("F1")
@@ -78,7 +81,9 @@ surface.CreateFont(FONTS.title, { font = "Roboto", size = 24, weight = 700, exte
 surface.CreateFont(FONTS.heading, { font = "Roboto", size = 20, weight = 700, extended = true })
 
 local TAB_KEYS = { title = true, build = true, order = true, visible = true, stamp = true }
-local HELP_KEYS = { text = true, params = true, bind = true, fallback = true, order = true, visible = true }
+local HELP_KEYS = { text = true, params = true, bind = true, fallback = true, label = true, section = true,
+	order = true, visible = true }
+local SECTIONS = { keys = true, chat = true }
 
 function M:Init(ctx)
 	self.tabs = {}      -- id -> { id, title, build, order, visible, stamp }
@@ -199,8 +204,15 @@ function M:AddHelp(id, spec)
 	if type(spec.text) ~= "string" then
 		error(format("menu: help entry '%s' needs a text (a lang key)", id), 2)
 	end
+	if spec.section ~= nil and not SECTIONS[spec.section] then
+		error(format("menu: help entry '%s': section must be \"keys\" or \"chat\"", id), 2)
+	end
+	if spec.label ~= nil and type(spec.label) ~= "string" then
+		error(format("menu: help entry '%s': label must be a string", id), 2)
+	end
 	self.help[id] = { id = id, text = spec.text, params = spec.params, binds = listOf(spec.bind),
-		fallbacks = listOf(spec.fallback), order = spec.order or 100, visible = spec.visible }
+		fallbacks = listOf(spec.fallback), label = spec.label, section = spec.section or "keys",
+		order = spec.order or 100, visible = spec.visible }
 end
 
 function M:RemoveHelp(id)
@@ -209,6 +221,9 @@ end
 
 -- The key of an entry as the player has it: "F2", "ALT + E"; unbound without a fallback.
 function M:_KeyText(entry)
+	if entry.label ~= nil then
+		return entry.label
+	end
 	local parts = {}
 	for i, bind in ipairs(entry.binds) do
 		local key = input.LookupBinding(bind) or entry.fallbacks[i]
@@ -223,10 +238,11 @@ function M:_KeyText(entry)
 	return concat(parts, " + ")
 end
 
-function M:Keys()
+function M:Keys(section)
+	section = section or "keys"
 	local list = {}
 	for id, entry in pairs(self.help) do
-		if entry.visible == nil or self:_Run(id, "visible", entry.visible) then
+		if entry.section == section and (entry.visible == nil or self:_Run(id, "visible", entry.visible)) then
 			list[#list + 1] = entry
 		end
 	end
