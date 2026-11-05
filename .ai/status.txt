@@ -17,6 +17,7 @@ STATUS (update every step)
        #10 loot                            done 43825d9
        #11 content package lua/nextcity  done (this commit)
        #12 mode_tdm kits via inventory     done (this commit)
-  M7 modes             NEXT: roles #13 -> homicide #14 -> ... (#13-#24)
+  M7 modes             in progress (#13-#24)
+       #13 roles + platform (death notices, chat lines, silent_deaths, dead_mute, team names, loot.allow, stun melee)  done
   docs overhaul        todo (#25)
-  last full run        44 specs, 457 passed, 0 failed; lint clean (glualint lint gamemodes tests lua)
+  last full run        45 specs, 466 passed, 0 failed; lint clean (glualint lint gamemodes tests lua)

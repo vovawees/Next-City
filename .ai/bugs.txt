@@ -14,3 +14,6 @@ PITFALLS
   emulator: server:Advance(s) is ONE tick (scheduler jobs fire once); step in small chunks for periodic jobs.
   kits/Give in boots without equipment: pockets take only size 1 -> sacks/rifles drop (count as missed).
   ctx:Require(id) errors for ids not in requires/optional: a package using weapons:Register must list 'weapons'.
+  specs: teams scores (and roles known) go out in ctx:After(0) batches -> server:Advance(0.1) before Env.Flush.
+  rounds: round.mode is the mode id (string), not a table.
+  bridge: gm.PlayerDeathNotice false skips base PlayerDeath (no kill feed); bridge still sets NextSpawnTime/DeathTime.
