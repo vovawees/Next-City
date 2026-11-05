@@ -22,6 +22,20 @@ return {
 		-- force = "ru",
 	},
 
+	-- Who may do what (platform/permissions.lua). An admin mod (through CAMI) or an admin
+	-- panel decides when it answers; these settings apply when nobody answers.
+	permissions = {
+		-- The level of a privilege instead of the one its module declares: [id] = "user",
+		-- "admin", "superadmin" or "nobody". Ids: nc_privileges. Example: nc_round = "admin".
+		levels = {},
+		-- The rank of a user group: [group] = "user", "admin" or "superadmin".
+		-- Example: moderator = "admin".
+		groups = {},
+		-- Every player's privileges are checked again once in this many seconds and the
+		-- client learns the changes (0 turns it off; Refresh still works).
+		refresh = 10,
+	},
+
 	modules = {
 		-- Modules to turn off: [id] = true.
 		disabled = {

@@ -296,7 +296,7 @@ describe("i18n service", function()
 
 		local guest = Env.FakePlayer()
 		server:Command("nc_lang", guest)
-		expect(guest.printed):toEqual({ "nc_lang: superadmin only" })
+		expect(guest.printed):toEqual({ "nc_lang: no access" })
 
 		local client = Env.Client(server):Boot()
 		client:Command("nc_lang_cl")

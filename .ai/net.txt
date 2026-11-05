@@ -3,9 +3,10 @@ NET (platform/net.lua messages, platform/components.lua replication, core/schema
 NAMES AND BUDGET
   message     own net string "nc.<module>.<name>" (pooled by util.AddNetworkString at define time)
   component   one string per store "nc.<module>:<component>"
-  platform    nc.hello (client info + ready, rate 2/burst 4), nc.info (later info changes, 2/8)
-  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 40 = 23 messages +
-              15 components + 2 platform (module example is off; it adds 2 messages + 1 component)
+  platform    nc.hello (client info + ready, rate 2/burst 4), nc.info (later info changes, 2/8), nc.grants<s>
+              (privileges of the player: on net.ready, then on change only; platform/permissions.lua)
+  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 41 = 23 messages +
+              15 components + 3 platform (module example is off; it adds 2 messages + 1 component)
 
 CLIENT -> SERVER CHECKS (cheap first)
   ready (nc.hello received, else drop notReady) -> token bucket per player and message (rate/s, burst; default

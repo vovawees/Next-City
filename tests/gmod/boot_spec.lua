@@ -200,7 +200,7 @@ describe("boot", function()
 
 		local guest = Env.FakePlayer()
 		server:Command("nc_perf", guest)
-		expect(guest.printed):toEqual({ "nc_perf: superadmin only" })
+		expect(guest.printed):toEqual({ "nc_perf: no access" })
 
 		local admin = Env.FakePlayer({ superadmin = true })
 		server:Command("nc_perf", admin)
@@ -254,6 +254,16 @@ describe("boot", function()
 		-- The wave is counted in the profile, which every client mirrors.
 		expect(client:Get("NC").Components:Store("example.profile"):Get(gordon)):toEqual({ waves = 1, mood = "happy" })
 
+		-- The reset command needs the privilege example.reset (level admin).
+		server:Command("nc_example_reset", gordon)
+		expect(gordon.printed[#gordon.printed]):toBe("nc_example_reset: no access")
+		gordon:SetUserGroup("admin")
+		server:Command("nc_example_reset", gordon)
+		expect(gordon.printed[#gordon.printed]):toBe("heartbeat counter reset by Gordon")
+		Env.Flush(server, client)
+		expect(clientExample.beats):toBe(0)
+		expect(client:Get("NC").Permissions:Get("example.reset").level):toBe("admin")
+
 		client:SetConVar("nc_language", "en")
 		Env.Flush(server, client)
 		expect(clientExample.language):toBe("en")
@@ -263,7 +273,7 @@ describe("boot", function()
 		expect(client:Errors()):toEqual({})
 
 		server:Call("ShutDown")
-		expect(#server:Lines("[example] stopped after 3 heartbeats")):toBe(1)
+		expect(#server:Lines("[example] stopped after 0 heartbeats")):toBe(1)
 		expect(server:Get("NC").Scheduler:Has("example:heartbeat")):toBe(false)
 	end)
 

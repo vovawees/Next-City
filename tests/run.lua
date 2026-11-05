@@ -27,6 +27,7 @@ local SPECS = {
 	"tests/gmod/net_spec.lua",
 	"tests/gmod/components_spec.lua",
 	"tests/gmod/commands_spec.lua",
+	"tests/gmod/permissions_spec.lua",
 	"tests/gmod/bridge_spec.lua",
 	"tests/gmod/world_spec.lua",
 	"tests/gmod/players_spec.lua",

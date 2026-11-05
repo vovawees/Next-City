@@ -561,7 +561,7 @@ describe("rounds", function()
 			"    roundTime        number 0..86400 = 45  -- round length, s (0 = no limit)",
 		})
 		server:Command("nc_round", guest, {})
-		expect(guest.printed[#guest.printed]):toBe("nc_round: superadmin only")
+		expect(guest.printed[#guest.printed]):toBe("nc_round: no access")
 	end)
 
 	it("rejects broken definitions and skips modes that cannot be played", function()

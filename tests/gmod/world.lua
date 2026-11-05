@@ -233,8 +233,9 @@ World.PlayerMethods = Player
 
 local playerIndex = 0
 
--- A player (index 1..128). opts: name, superadmin, index, bot, server (the realm whose
--- gamemode hooks its actions call; Env.Join and Env.Bot set it).
+-- A player (index 1..128). opts: name, superadmin, group (user group, default "user" or
+-- "superadmin"), index, bot, server (the realm whose gamemode hooks its actions call;
+-- Env.Join and Env.Bot set it).
 -- Recorded: .printed (PrintMessage), .chat (ChatPrint), .spawns (number of spawns).
 function World.FakePlayer(opts)
 	opts = opts or {}
@@ -244,6 +245,7 @@ function World.FakePlayer(opts)
 		index = opts.index or playerIndex,
 		name = opts.name or "Player",
 		admin = opts.superadmin == true,
+		group = opts.group,
 		bot = opts.bot == true,
 		server = opts.server,
 		valid = true,
@@ -294,8 +296,17 @@ function Player:UserID() return self.index end
 function Player:SteamID64() return string.format("765611980%08d", self.index) end
 function Player:SteamID() return string.format("STEAM_0:%d:%d", self.index % 2, self.index) end
 function Player:GetClass() return "player" end
-function Player:IsSuperAdmin() return self.admin end
-function Player:IsAdmin() return self.admin end
+-- The user group as in the engine: "user" unless set (superadmin = true: "superadmin").
+function Player:GetUserGroup()
+	if self.group ~= nil then
+		return self.group
+	end
+	return self.admin and "superadmin" or "user"
+end
+function Player:SetUserGroup(group) self.group = group end
+function Player:IsUserGroup(group) return self:GetUserGroup() == group end
+function Player:IsSuperAdmin() return self:IsUserGroup("superadmin") end
+function Player:IsAdmin() return self:IsSuperAdmin() or self:IsUserGroup("admin") end
 function Player:Nick() return self.name end
 Player.Name = Player.Nick
 function Player:PrintMessage(_, text) self.printed[#self.printed + 1] = text end

@@ -11,7 +11,7 @@ GITHUB
 
 MILESTONES (GitHub numbers)
   M0-M5 (#1-#6) closed (work before GitHub issues)   M6 Inventory and medicine (#7) closed, 12 issues
-  M7 Modes (#8) closed, 12 issues   M8 Services (#9) open, no issues yet   M9 Polish (#10) open, no issues yet
+  M7 Modes (#8) closed, 12 issues   M8 Services (#9) open, issues #27-#36   M9 Polish (#10) open, no issues yet
   ROADMAP: docs/ROADMAP.md (M0-M5 before GitHub issues; M6-M9 with issues)
 
 ISSUES -> COMMITS (all closed)
@@ -27,5 +27,7 @@ ISSUES -> COMMITS (all closed)
   #22 doors                                            97ba56b   #23 law                              b0422a1
   #24 city UI (F4 menu, HUD, door hints)               9dd14df   #25 docs: README showcase            349e87d
   #26 .ai knowledge base (first a0fe18b)               696eae3
+  #27 permissions (platform service)             see git log
   no issue: notices 5780ce0, CI removal cbc867a
-  M8/M9 issues: not created yet (next.txt step 1)
+  M8 open: #28 cami #29 storage collections + SQLite #30 profiles #31 F1 menu #32 identity #33 appearance
+  #34 chat #35 voice #36 docs (plan: next.txt); M9 issues: not created yet

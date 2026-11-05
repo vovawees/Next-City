@@ -945,11 +945,12 @@ end
 
 -- A player joins: PlayerInitialSpawn and the first spawn on the server, a client booted
 -- from the sent files and linked to it, InitPostEntity on the client, then the messages
--- are flushed. opts: name, superadmin, index, language, convars, patch.
+-- are flushed. opts: name, superadmin, group, index, language, convars, patch.
 -- Returns the client realm and the player.
 function Env.Join(server, opts)
 	opts = opts or {}
-	local ply = Env.FakePlayer({ name = opts.name, superadmin = opts.superadmin, index = opts.index, server = server })
+	local ply = Env.FakePlayer({ name = opts.name, superadmin = opts.superadmin, group = opts.group, index = opts.index,
+		server = server })
 	server.entities[ply:EntIndex()] = ply
 	for _, other in pairs(server.links) do
 		other.entities[ply:EntIndex()] = ply

@@ -65,6 +65,14 @@ local function components(manifest)
 	return join(parts)
 end
 
+local function privileges(manifest)
+	local parts = {}
+	for _, name in ipairs(sortedKeys(manifest.permissions)) do
+		parts[#parts + 1] = name .. "<" .. tostring(manifest.permissions[name].level or "superadmin") .. ">"
+	end
+	return join(parts)
+end
+
 -- Prints `text` after `prefix`; a list wider than WIDTH goes on after a comma on the next
 -- line, under the start of the list.
 local function printList(prefix, text)
@@ -95,6 +103,9 @@ for _, root in ipairs(ROOTS) do
 				printList("  files=", files(manifest))
 				printList("  net=", nets(manifest))
 				printList("  components=", components(manifest))
+				if manifest.permissions ~= nil then
+					printList("  permissions=", privileges(manifest))
+				end
 			end
 		end
 	end

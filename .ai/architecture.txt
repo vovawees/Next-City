@@ -1,14 +1,15 @@
-ARCHITECTURE (full text: docs/ARCHITECTURE.md v0.7, russian; this file = dense digest, current after M7)
+ARCHITECTURE (full text: docs/ARCHITECTURE.md v0.7, russian; this file = dense digest, current after M7 + M8 #27)
 
 LAYERS (dependencies point down only, D2)
   L0 core      gamemode/core/*.lua (10 files): pure Lua, no GMod API, unit tested. modules (registry, resolve
                order, ctx), events (bus Emit/Query/Reduce, priority desc), scheduler (jobs with rates, profile), fsm,
                scope (undo everything a module/round registered), schema (bit codecs), components (stores, dirty
                masks), params (typed mode params), i18n (tables, plurals), log
-  L1 platform  gamemode/platform/*.lua (9 files): boot, packages (lookup + config merge), loader (discover/resolve/
-               include/AddCSLuaFile, isolate failures), bridge (ONLY file with GM:*), net (schemas -> net strings,
-               readiness, rate buckets, validation, stats), components (replication), i18n (lang files, client
-               language), commands (nc_*), devtools (nc_modules, nc_perf, nc_net, nc_components, nc_lang, autorefresh)
+  L1 platform  gamemode/platform/*.lua (10 files): boot, packages (lookup + config merge), loader (discover/
+               resolve/include/AddCSLuaFile, isolate failures), bridge (ONLY file with GM:*), net (schemas -> net
+               strings, readiness, rate buckets, validation, stats), components (replication), i18n (lang files,
+               client language), permissions (privileges, D21), commands (nc_*), devtools (nc_modules, nc_perf,
+               nc_net, nc_components, nc_lang, nc_privileges, autorefresh)
   L2 systems   gamemode/modules/<id>/: players teams roles spectator | storage notices actions hud | organism damage
                armor movement ragdoll ragdoll_control medical | ammo ballistics weapons melee hands throwables
                explosions | inventory equipment loot | economy doors law restraints npcs
@@ -16,7 +17,7 @@ LAYERS (dependencies point down only, D2)
                mode_homicide mode_hideseek mode_riot mode_defense mode_coop + content modules weaponry supplies
                hostiles
   L4 client    cl_* files of modules: HUD, screens (Derma), camera pipeline, effects; sends intents only
-  counts       34 core modules (example disabled by default) + 9 package modules; ~40k lines Lua in 251 files
+  counts       34 core modules (example disabled by default) + 9 package modules; ~41k lines Lua in 252 files
 
 BOOT
   init.lua / cl_init.lua -> platform/boot.lua: kernel (core objects) -> packages.List (core, derived gamemode, addons)
@@ -30,13 +31,15 @@ PACKAGES (D15: core has no content)
   -> addons and garrysmod/lua (lua/nextcity/{modules,lang,config}); first package owning a module id keeps it.
   config: core config.lua, then package config/*.lua by name, server.lua last; tables merge key by key, lists and
   values replace; config files are sent to clients (no secrets). Server settings: lua/nextcity/config/server.lua.
-  config keys: logLevel, net.checkOutgoing, i18n.default/force, modules.disabled/providers/settings[id].
+  config keys: logLevel, net.checkOutgoing, i18n.default/force, permissions.levels/groups/refresh,
+  modules.disabled/providers/settings[id].
 
 MODULE CONTRACT
   modules/<id>/module.lua returns manifest: id, description, provides (iface, default id), requires, optional,
     files {sh, sv, cl} (explicit order), config {defaults} (merged with modules.settings[id]),
     net {name = {from "server"|"client", rate, burst, unreliable, fields}},
-    components {name = {replicate "all"|"owner"|nil, rate, fields, defaults, desc}}
+    components {name = {replicate "all"|"owner"|nil, rate, fields, defaults, desc}},
+    permissions {name = {level "user"|"admin"|"superadmin"(default)|"nobody", desc}} -> privilege "<id>.<name>"
   file: local M = NC.Module("<id>"); M:Init(ctx), M:Start(ctx), M:Stop(); shared files may branch on SERVER/CLIENT
     (pattern: sh Init calls self:_InitClient(ctx) on the client).
   ctx: id, config (defaults + modules.settings[id]), log (Trace/Debug/Info/Warn/Error), Require(iface) (only
@@ -45,7 +48,9 @@ MODULE CONTRACT
        services: events (On/Off/Emit/Query/Reduce), scheduler, net (Receive/Send/Broadcast/SendOmit/SendPVS/SendPAS/
        SendToServer), components.<name> = store (Add/Set(key, field, value)/Patch/Touch/Remove/Clear/Get/Has/Each/
        Count; client mirror OnChange(fn(index, data, mask)) + Changed(mask, field)), commands (Add(name, {help,
-       admin}, h)/Remove), i18n (T/TFor/Has/Language). persistence: the storage module (Require "storage").
+       admin = false | privilege = own name or id | level}, h)/Remove), permissions (Can(ply, name|id, target),
+       Id/Get/Level(name), List, Granted(ply), Rank(ply), Refresh(ply), Register(name, {level, desc})/
+       Unregister(name)), i18n (T/TFor/Has/Language). persistence: the storage module (Require "storage").
        round scope (On/Every/After/Defer) belongs to the round object, not ctx (see ROUNDS AND MODES).
   API = public methods of the module object (ctx:Require returns it); see api.txt (generated) and module READMEs.
   everything registered through ctx is undone on Stop (scope) -> no leaks on autorefresh or disable.
@@ -55,7 +60,8 @@ EVENT BUS (core/events.lua)
   Query(name, ...) -> first non-nil answer (questions: canX -> false denies; property -> true allows).
   Reduce(name, value, ...) -> value passed through every listener (prices, speeds, names, camera).
   naming: <module>.<event>; engine hooks gm.<Hook>; platform: nc.ready, nc.shutdown, net.ready(ply),
-    net.violation(ply, message, reason, detail), i18n.changed(code); full cross refs in api.txt.
+    net.violation(ply, message, reason, detail), i18n.changed(code), permissions.can (question, see PERMISSIONS),
+    permissions.registered/unregistered(privilege copy), permissions.changed(ply, ids); full refs in api.txt.
   inversion of control: systems ask, modes answer inside round scope (round:On); no system checks "which mode".
 
 BRIDGE (platform/bridge.lua; engine hooks -> gm.<Hook>)
@@ -69,6 +75,20 @@ BRIDGE (platform/bridge.lua; engine hooks -> gm.<Hook>)
   replacements (base not called): PlayerLoadout, PlayerRequestTeam, ScalePlayerDamage, ShowHelp/ShowTeam/ShowSpare1/
     ShowSpare2 (F1-F4 server side; F3 = medical examine).
   camera: GM:CalcView takes base view, then Reduce gm.CalcView by priority (body camera 100, then sway/recoil/pain).
+
+PERMISSIONS (platform/permissions.lua, service "permissions", D21: no admin mod is hard-wired)
+  privilege ids: "<module>.<name>" (manifest or ctx.permissions:Register), admin commands = their name (nc_round,
+    level spec.level or superadmin; spec.privilege shares one), dev tools = module "platform"; id <= 64 chars.
+  Can(ply, id, target) server: nil ply = console -> true; invalid -> false; unknown id -> false + one warning;
+    Query "permissions.can"(ply, id, target, privilege record read-only) first non-nil (false denies) -> else
+    RANK[Rank(ply)] >= RANK[level]; Rank = config groups[GetUserGroup()] or superadmin/admin/user by
+    IsSuperAdmin/IsAdmin; RANK user1 admin2 superadmin3 nobody4 (nobody = console + sources only); level in
+    effect = config levels[id] or declared (Get: level, declared). Target only matters to sources (immunity).
+  client: mirror of the local player's ids (net "nc.grants" {ids array<=512 of string<=64}); Can(nil|LocalPlayer,
+    id) only, IsKnown(); UI use only, the server always checks. Sent on net.ready (priority 100, always), then only
+    on change: Refresh(ply|nil) now, poll job permissions:poll every 1 s (all when privileges came/went, else
+    ceil(n/refresh) players in turn; refresh 0 = no poll). Commands reply "<name>: no access"; console caller = nil
+    (NULL converted). Sources: optional module cami (#28), the future own admin panel (answers the question).
 
 ROUNDS AND MODES (D9; module rounds, docs section 11)
   FSM phases waiting -> preparing -> active -> ended -> preparing; restart: preparing|active -> preparing;
@@ -119,3 +139,5 @@ KEY DECISIONS
   instances {uid,id,count,state} only in server containers, clients see snapshots of containers they view
   D19 roles module: visible self|side|all, revealed at the end, clients learn only what they may know
   D20 city life = core modules (economy, doors, law, restraints) switched on by answers of a mode
+  D21 permissions = platform abstraction: modules declare privileges, sources answer permissions.can (CAMI adapter,
+  own admin panel), else levels vs ranks from the config; clients know their own privileges for the UI only

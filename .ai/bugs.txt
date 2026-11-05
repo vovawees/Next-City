@@ -13,7 +13,10 @@ PITFALLS (code)
     string first; round.mode is the mode id (string), not a table.
   ctx:Require(id) errors for ids not in requires/optional: a package using weapons:Register must list 'weapons'.
   command names are global: a second ctx.commands:Add of a name owned by another module fails the module Start
-    (nc_give is weapons'; economy uses nc_givemoney).
+    (nc_give is weapons'; economy uses nc_givemoney). Re-adding an own name replaces the command (and its
+    privilege). Handlers get nil for the server console (the engine's NULL is converted).
+  permissions: never check IsSuperAdmin/IsAdmin in modules: declare a privilege and ask ctx.permissions:Can (the
+    fallback ranks live in the service); a client Can is for the UI only; Refresh(ply) after changing a group.
   component fields cannot be optional: use uint 0 for 'none' (e.g. a player entity index); the Lua keyword
     'until' cannot be a field accessed as data.until -> time fields are named 'ends'.
   movement.speed factors: modules that change theirs must call movement:Refresh(ply) (speeds are set, not polled).

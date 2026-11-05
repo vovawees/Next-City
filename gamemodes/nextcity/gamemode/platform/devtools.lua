@@ -7,8 +7,9 @@
 --   nc_net           network messages: sent and received (count, bytes), drops by reason
 --   nc_net_reset     reset the network statistics
 --   nc_components    component stores: audience, rate, entries, traffic
--- Server commands are available to the server console and superadmins; the same
--- commands with the _cl suffix inspect the client realm.
+--   nc_privileges [player]  privileges and their levels; with a player: what it has
+-- Server commands are privileges of the platform (level superadmin, platform/permissions.lua);
+-- the same commands with the _cl suffix inspect the client realm.
 
 local format = string.format
 
@@ -202,6 +203,97 @@ local function langLines(args)
 	return lines
 end
 
+-- A player by the text of an argument: "^" is the caller, "#n" or n the entity index,
+-- else the only player whose name contains the text (any case).
+local function findPlayer(text, caller)
+	if text == "^" then
+		return caller, caller == nil and "the console is not a player" or nil
+	end
+	local index = tonumber(text:match("^#?(%d+)$") or "")
+	if index ~= nil then
+		local ply = Entity(index)
+		if IsValid(ply) and ply:IsPlayer() then
+			return ply
+		end
+		return nil, "no player #" .. index
+	end
+	local lower, found, count = text:lower(), nil, 0
+	for _, ply in ipairs(player.GetAll()) do
+		if ply:Nick() == text then
+			return ply
+		end
+		if ply:Nick():lower():find(lower, 1, true) ~= nil then
+			found, count = ply, count + 1
+		end
+	end
+	if count == 1 then
+		return found
+	end
+	return nil, count == 0 and "no player matches '" .. text .. "'" or count .. " players match '" .. text .. "'"
+end
+
+local function privilegeLines(args, caller)
+	local permissions = NC.Permissions
+	local ply
+	if CLIENT then
+		ply = LocalPlayer()
+	elseif args and args[1] ~= nil and args[1] ~= "" then
+		local problem
+		ply, problem = findPlayer(args[1], caller)
+		if ply == nil then
+			return { problem }
+		end
+	end
+	local list = permissions:List()
+	if CLIENT then
+		-- Server-only privileges (admin commands) are known by their ids only.
+		local known = {}
+		for _, privilege in ipairs(list) do
+			known[privilege.id] = true
+		end
+		for _, id in ipairs(permissions:Granted()) do
+			if not known[id] then
+				list[#list + 1] = { id = id, level = "-", declared = "-", module = "-" }
+			end
+		end
+		table.sort(list, function(a, b)
+			return a.id < b.id
+		end)
+	end
+	local lines
+	if ply == nil then
+		lines = { format("Privileges (%s): %d", SERVER and "server" or "client", #list) }
+	else
+		local granted = permissions:Granted(ply)
+		local rank = SERVER and format(", rank %s, group %s", permissions:Rank(ply), ply:GetUserGroup()) or ""
+		lines = { format("Privileges of %s (%s%s): %d of %d", ply:Nick(), SERVER and "server" or "client", rank,
+			#granted, #list) }
+		if CLIENT and not permissions:IsKnown() then
+			lines[#lines + 1] = "  the server has not sent them yet"
+		end
+	end
+	lines[#lines + 1] = format("  %s%-32s %-11s %-16s %s", ply ~= nil and "  " or "", "privilege", "level", "module",
+		"description")
+	local changed = false
+	for _, privilege in ipairs(list) do
+		local level = privilege.level
+		if level ~= privilege.declared then
+			level, changed = level .. "*", true
+		end
+		local mark = ""
+		if ply ~= nil then
+			mark = permissions:Can(ply, privilege.id) and "+ " or "- "
+		end
+		local line = format("  %s%-32s %-11s %-16s %s", mark, privilege.id, level, tostring(privilege.module),
+			privilege.desc or "")
+		lines[#lines + 1] = line:match("^(.-)%s*$")
+	end
+	if changed then
+		lines[#lines + 1] = "  * the level is set in config permissions.levels"
+	end
+	return lines
+end
+
 local function reply(ply, lines)
 	for _, line in ipairs(lines) do
 		if IsValid(ply) then
@@ -212,14 +304,18 @@ local function reply(ply, lines)
 	end
 end
 
-local function register(name, build)
+local function register(name, desc, build)
 	if SERVER then
+		local permissions = NC.Permissions
+		permissions:Register(name, { module = "platform", name = name, level = "superadmin", desc = desc,
+			command = name })
 		concommand.Add(name, function(ply, _, args)
-			if IsValid(ply) and not ply:IsSuperAdmin() then
-				reply(ply, { name .. ": superadmin only" })
+			local caller = IsValid(ply) and ply or nil
+			if not permissions:Can(caller, name) then
+				reply(caller, { name .. ": no access" })
 				return
 			end
-			reply(ply, build(args))
+			reply(caller, build(args, caller))
 		end)
 	else
 		concommand.Add(name .. "_cl", function(_, _, args)
@@ -228,10 +324,11 @@ local function register(name, build)
 	end
 end
 
-register("nc_modules", moduleLines)
-register("nc_perf", perfLines)
-register("nc_perf_reset", perfReset)
-register("nc_lang", langLines)
-register("nc_net", netLines)
-register("nc_net_reset", netReset)
-register("nc_components", componentLines)
+register("nc_modules", "module states, failures and packages", moduleLines)
+register("nc_perf", "scheduler profile", perfLines)
+register("nc_perf_reset", "reset the scheduler profile", perfReset)
+register("nc_lang", "languages and translation problems", langLines)
+register("nc_net", "network statistics", netLines)
+register("nc_net_reset", "reset the network statistics", netReset)
+register("nc_components", "component stores and their traffic", componentLines)
+register("nc_privileges", "privileges and what a player has", privilegeLines)

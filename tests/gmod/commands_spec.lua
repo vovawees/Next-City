@@ -47,7 +47,7 @@ describe("command service", function()
 
 		local guest = Env.FakePlayer({ name = "Guest" })
 		server:Command("nc_probe", guest, { "y" })
-		expect(guest.printed):toEqual({ "nc_probe: superadmin only" })
+		expect(guest.printed):toEqual({ "nc_probe: no access" })
 		expect(probe.calls):toEqual({ "x" })
 
 		local admin = Env.FakePlayer({ name = "Admin", superadmin = true })
@@ -82,7 +82,7 @@ describe("command service", function()
 		local NC = server:Get("NC")
 		local list = NC.Commands:List()
 		expect(#list):toBe(3)
-		expect(list[1]):toEqual({ name = "nc_boom", module = "probe", admin = true })
+		expect(list[1]):toEqual({ name = "nc_boom", module = "probe", admin = true, privilege = "nc_boom" })
 		expect(list[2].admin):toBe(false)
 		expect(list[3].help):toBe("probe: echo")
 

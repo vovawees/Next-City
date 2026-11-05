@@ -146,7 +146,7 @@ describe("economy", function()
 		expect(run("nc_bank", "deposit", "all")[1]):toBe("Gordon: account ₽910, cash ₽0")
 		expect(run("nc_bank", "withdraw", "all")[1]):toBe("Gordon: account ₽0, cash ₽910")
 		expect(run("nc_bank", "steal", "1")[1]):toBe("nc_bank [deposit | withdraw <amount | all>]")
-		expect(run("nc_money")[1]):toBe("nc_money: superadmin only")
+		expect(run("nc_money")[1]):toBe("nc_money: no access")
 
 		-- The admin sets accounts.
 		local _, admin = Env.Join(server, { name = "Admin", superadmin = true })

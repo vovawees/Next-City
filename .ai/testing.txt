@@ -2,11 +2,12 @@ TESTING
   runner     tests/run.lua: zero deps; globals describe/it/expect (matchers with colon: toBe, notToBe, toEqual,
              toBeTruthy, toBeFalsy, toBeNil, toBeCloseTo, toContain, notToContain, toFail) + T (root, gamemode,
              load(path)); SPECS list in run.lua (add every new spec file there!); `luajit tests/run.lua [filter]`
-  counts     57 specs = 11 unit + 46 gmod; 512 checks (it blocks); full run ~30 s local x86_64, ~34 s VPS aarch64
+  counts     58 specs = 11 unit + 47 gmod; 522 checks (it blocks); full run ~23-30 s local x86_64, ~34 s VPS
   unit       tests/unit/*_spec.lua: pure core (runner, log, events, scheduler, fsm, modules, schema, i18n,
              components, params, scope)
   gmod       tests/gmod/*_spec.lua: real gamemode + package files in emulated realms (boot, packages, bridge,
-             commands, net, components, i18n, services, hud, world, every system and mode, content, soak)
+             commands, permissions, net, components, i18n, services, hud, world, every system and mode, content,
+             soak)
   support    tests/support/json.lua (util.TableToJSON/JSONToTable clone), tests/support/wire.lua (net bit transport)
   bench      tests/bench.lua [nojit]: hot paths in the emulator (compare changes; real cost = nc_perf in GMod)
 
@@ -16,7 +17,7 @@ EMULATOR (tests/gmod)
              opts.data shares the DATA folder between servers. Instance: Boot, Advance(s) (= ONE tick), Get(global),
              Call, As, Command(name, ply, args), Run(path), Errors, Lines(fragment), Sent(name), Inject, Pump,
              SetConVar. server.time = CurTime of the realm, server.console = console output.
-  players    Env.Join(server, opts{index, superadmin...}), Env.Bot, Env.Leave, Env.Connect(server, client, ply),
+  players    Env.Join(server, opts{index, superadmin, group...}), Env.Bot, Env.Leave, Env.Connect(server, client, ply),
              Env.Kill(victim, attacker, inflictor), Env.Hurt, Env.Shoot, Env.Fall, Env.Press(server, ply, key),
              Env.Use, Env.RunCommand, Env.UseEntity(server, ply, ent), Env.Say(server, ply, text, team) -> text,
              Env.BindPress(client, bind, pressed), Env.Flush(...) (deliver net between envs), Env.Sync
@@ -25,6 +26,8 @@ EMULATOR (tests/gmod)
              ragdolls (bones, physics), weapons (sweps.lua), NPCs (.schedule .enemyMemory .relationships ...), doors
              (Fire inputs, m_bLocked, m_eDoorState, MapCreationID kept across cleanup), DATA files, vgui fakes
              (World.FindPanels(env, fn, all)), chat/notification/surface fakes, input helpers
+  user groups FakePlayer/Env.Join opts.group; ply:GetUserGroup() (default "user", superadmin = true ->
+             "superadmin"), SetUserGroup, IsUserGroup; IsAdmin = admin group or superadmin (like the engine)
   spec idioms  local hud(server, client) = Advance + Env.Flush; settle() = hud twice (client sees replicated state);
              stub M.Random of modules (roles, loot, npcs, mode_homicide) for deterministic deals and rolls
 

@@ -30,5 +30,10 @@ return {
 			{ "mood", "enum", values = { "happy", "calm" } },
 		}, defaults = { mood = "calm" } },
 	},
+	-- Privileges "example.<name>" (platform/permissions.lua): an admin mod or an admin panel
+	-- decides who has them, else the level does (user < admin < superadmin < nobody).
+	permissions = {
+		reset = { level = "admin", desc = "Reset the heartbeat counter" },
+	},
 	-- Interface strings are not kept here: they live in lang/<code>/example.lua.
 }

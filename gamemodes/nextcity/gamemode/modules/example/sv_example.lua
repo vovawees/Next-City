@@ -5,6 +5,7 @@
 -- Components: profile of every player (the platform replicates it and removes it when
 --             the player leaves).
 -- Jobs:       example:heartbeat, every config.interval seconds.
+-- Commands:   nc_example_reset (privilege example.reset, level admin).
 
 local M = NC.Module("example")
 
@@ -13,6 +14,8 @@ local M = NC.Module("example")
 function M:Init(ctx)
 	self.beats = 0
 	ctx.net:Receive("wave", "OnWave")
+	-- An admin command: the caller needs the privilege example.reset of the manifest.
+	ctx.commands:Add("nc_example_reset", { help = "reset the heartbeat counter", privilege = "reset" }, "OnReset")
 	ctx.log:Debug("initialized")
 end
 
@@ -45,6 +48,12 @@ function M:OnWave(data, ply)
 		profiles:Set(ply, "mood", data.mood)
 	end
 	self.ctx.log:Info("%s waves (%s)", ply:Nick(), data.mood)
+end
+
+function M:OnReset(ply)
+	self.beats = 0
+	self.ctx.net:Broadcast("state", { beats = self.beats })
+	return "heartbeat counter reset by " .. (IsValid(ply) and ply:Nick() or "the console")
 end
 
 function M:Heartbeat(now)

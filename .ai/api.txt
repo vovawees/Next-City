@@ -61,6 +61,7 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
 [core] example
   sh       Greeting(ply)
   listens  net.ready i18n.changed
+  commands nc_example_reset
 [core] explosions
   sv       .Overpressure(z) .FragmentSpeed(charge,casing) .Chunk(mass) Explode(pos,opts)
   emits    explosions.exploded

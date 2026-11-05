@@ -28,6 +28,7 @@ local Loader = NC.IncludeShared("platform/loader.lua")
 local NetService = NC.IncludeShared("platform/net.lua")
 local I18nService = NC.IncludeShared("platform/i18n.lua")
 local ComponentService = NC.IncludeShared("platform/components.lua")
+local PermissionService = NC.IncludeShared("platform/permissions.lua")
 local CommandService = NC.IncludeShared("platform/commands.lua")
 
 -- Console output -----------------------------------------------------------------------
@@ -126,19 +127,30 @@ NC.Components = ComponentService.New({
 	previous = previous.components,
 })
 
+NC.Permissions = PermissionService.New({
+	config = NC.Config.permissions,
+	log = log:Child("permissions"),
+	events = NC.Events,
+	scheduler = NC.Scheduler,
+	net = NC.Net,
+	previous = previous.permissions,
+})
+
 NC.Commands = CommandService.New({
 	log = log:Child("commands"),
+	permissions = NC.Permissions,
 	previous = previous.commands,
 })
 
--- Shared by every module context: ctx.events, ctx.scheduler, ctx.net, ctx.components
--- and ctx.commands (facades per module), ctx.i18n.
+-- Shared by every module context: ctx.events, ctx.scheduler, ctx.net, ctx.components,
+-- ctx.permissions and ctx.commands (facades per module), ctx.i18n.
 NC.Services = {
 	events = NC.Events,
 	scheduler = NC.Scheduler,
 	net = NC.Net,
 	i18n = NC.I18n,
 	components = NC.Components,
+	permissions = NC.Permissions,
 	commands = NC.Commands,
 }
 
