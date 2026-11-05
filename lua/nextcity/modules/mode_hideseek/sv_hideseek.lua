@@ -34,8 +34,8 @@ M.WEAPONS = {
 	tag = { seeker = {}, hider = {} },
 }
 
--- Weapon slots in the order the best one goes into the hands.
-M.HANDS = { primary = 1, secondary = 2, melee = 3 }
+-- Weapon slots in the order the best one of a kit goes into the hands.
+M.HANDS = { "primary", "secondary", "melee" }
 
 M.Random = math.random -- (n) -> 1..n; specs replace it
 
@@ -148,10 +148,8 @@ end
 function M:_Equip(ply, kit, weapons)
 	local inventory = self.inventory
 	if inventory ~= nil and kit ~= "" then
-		local entries = inventory:Kit(kit)
-		if entries ~= nil then
-			inventory:GiveKit(ply, kit, { drop = true })
-			self:_SelectBest(ply, entries)
+		if inventory:Kit(kit) ~= nil then
+			inventory:GiveKit(ply, kit, { drop = true, select = M.HANDS })
 			return
 		end
 		if not self.warned[kit] then
@@ -167,20 +165,6 @@ function M:_Equip(ply, kit, weapons)
 				ply:GiveAmmo(clip * 2, ammo, true)
 			end
 		end
-	end
-end
-
-function M:_SelectBest(ply, entries)
-	local best, bestRank
-	for _, entry in ipairs(entries) do
-		local weapon = self.inventory:Trait(entry.item, "weapon")
-		local rank = weapon ~= nil and M.HANDS[weapon.slot or "primary"] or nil
-		if rank ~= nil and (bestRank == nil or rank < bestRank) then
-			best, bestRank = weapon.class, rank
-		end
-	end
-	if best ~= nil and ply:HasWeapon(best) then
-		ply:SelectWeapon(best)
 	end
 end
 

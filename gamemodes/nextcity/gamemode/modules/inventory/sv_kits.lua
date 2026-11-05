@@ -5,6 +5,7 @@
 --   	{ item = "ammo_9x19", count = 45 },            -- or by name
 --   })
 --   inventory:GiveKit(ply, "tdm", { drop = true })  -> how many things he got, how many did not fit
+--   inventory:GiveKit(ply, "riot", { select = { "melee", "secondary" } })  -- this weapon in the hands
 --   inventory:Kit(id) -> { { item, count, state } } (do not modify) or nil; inventory:Kits() -> ids
 --
 -- Things are given in the order of the kit: what goes into the equipment (inventory.place)
@@ -13,6 +14,7 @@
 
 local M = NC.Module("inventory")
 
+local IsValid = IsValid
 local ipairs = ipairs
 local pairs = pairs
 local type = type
@@ -59,8 +61,10 @@ function M:Kits()
 	return out
 end
 
--- Gives a player (or a container) the things of kit `id`; opts as in Give. Returns how many
--- things were given and how many were not (unknown kit: nil).
+-- Gives a player (or a container) the things of kit `id`; opts as in Give, and select:
+-- weapon slots in the order of preference — the weapon of the kit in the first of them the
+-- player got goes into his hands. Returns how many things were given and how many were not
+-- (unknown kit: nil).
 function M:GiveKit(target, id, opts)
 	local kit = self.kits[id]
 	if kit == nil then
@@ -80,7 +84,30 @@ function M:GiveKit(target, id, opts)
 			given, missed = given + got, missed + entry.count - got
 		end
 	end
+	if type(opts) == "table" and type(opts.select) == "table" and IsValid(target) and target:IsPlayer() then
+		self:_SelectKitWeapon(target, kit, opts.select)
+	end
 	return given, missed
+end
+
+-- The weapon of `kit` in the first slot of `order` that `ply` has goes into his hands.
+function M:_SelectKitWeapon(ply, kit, order)
+	local best, bestRank
+	for _, entry in ipairs(kit) do
+		local weapon = self:Trait(entry.item, "weapon")
+		if weapon ~= nil and ply:HasWeapon(weapon.class) then
+			local slot = weapon.slot or "primary"
+			for rank, name in ipairs(order) do
+				if name == slot and (bestRank == nil or rank < bestRank) then
+					best, bestRank = weapon.class, rank
+				end
+			end
+		end
+	end
+	if best ~= nil then
+		ply:SelectWeapon(best)
+	end
+	return best
 end
 
 function M:KitCommand(caller, args)

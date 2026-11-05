@@ -5,7 +5,8 @@
 --   civilian, military                          mixed: what flats, shops and depots hold
 --   crate_wood (civilian), crate_military (military), crate_medical (medical_large)
 --
--- Kits (inventory:GiveKit) for modes: tdm — an SMG, a pistol, armor and first aid.
+-- Kits (inventory:GiveKit) for modes: tdm — an SMG, a pistol, armor and first aid; the kits
+-- of the modes of the package (homicide_*, hideseek_*, riot_*).
 
 local M = NC.Module("supplies")
 
@@ -104,4 +105,11 @@ function M:_Kits(inventory)
 	inventory:RegisterKit("homicide_wildwest", { { "python" }, { "ammo_357", 12 } })
 	-- Hide and Seek: the seekers when they catch by a kill (lua/nextcity/modules/mode_hideseek).
 	inventory:RegisterKit("hideseek_seeker", { { "usp" }, { "ammo_9x19", 45 }, { "crowbar" } })
+	-- Riot: the police (armed when the round has firearms) and the rioters
+	-- (lua/nextcity/modules/mode_riot).
+	inventory:RegisterKit("riot_police", { { "helmet" }, { "vest" }, { "stunstick" }, { "zipties", 6 } })
+	inventory:RegisterKit("riot_police_armed", {
+		{ "helmet" }, { "vest" }, { "stunstick" }, { "zipties", 6 }, { "usp" }, { "ammo_9x19", 30 },
+	})
+	inventory:RegisterKit("riot_rioter", { { "crowbar" }, { "bottle", 2 } })
 end
