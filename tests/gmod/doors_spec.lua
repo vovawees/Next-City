@@ -286,4 +286,117 @@ describe("doors", function()
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
 	end)
+
+	it("hints at the door in front: the sign, owner, price, lock and keys; F2 opens its menu", function()
+		local server, m = boot()
+		local client, gordon = Env.Join(server, { name = "Gordon", language = "en", superadmin = true })
+		local client2, alyx = Env.Join(server, { name = "Alyx", language = "ru" })
+		aim(client, m.aims)
+		aim(client2, m.aims)
+		run(server, 5.3)
+		local doors = m.doors
+		local cl = client:Get("NC").Modules:Instance("doors")
+		local cl2 = client2:Get("NC").Modules:Instance("doors")
+		local front = door(m, 1)
+		local function hint(module, ent)
+			local out = {}
+			for i, line in ipairs(module:HintLines(ent)) do
+				out[i] = line.text
+			end
+			return out
+		end
+		local function options(menu)
+			local out = {}
+			for i, option in ipairs(menu.children) do
+				out[i] = option.text
+			end
+			return out
+		end
+		-- The server answers, both clients learn it.
+		local function settle()
+			for _ = 1, 2 do
+				hud(server, client)
+				Env.Flush(server, client2)
+			end
+			return hud(server, client)
+		end
+		-- F2, then the option `i` of the menu (in a submenu: `sub`).
+		local function choose(i, sub)
+			expect(Env.BindPress(client, "gm_showteam")):toBe(true)
+			local option = cl.menu.children[i]
+			if sub ~= nil then
+				option = option.children[sub]
+			end
+			option.func()
+			return settle()
+		end
+
+		-- Nothing in front: no hint, F2 is not taken.
+		expect(Env.BindPress(client, "gm_showteam")):toBe(nil)
+
+		-- A door for sale: its price and the key of its menu; buying from the menu.
+		face(m, gordon, front)
+		expect(hint(cl, front)):toEqual({ "For sale: $100 · F2" })
+		expect(hud(server, client)):toContain("For sale: $100 · F2")
+		expect(Env.BindPress(client, "gm_showteam")):toBe(true)
+		expect(options(cl.menu)):toEqual({ "Buy for $100" })
+		choose(1)
+		expect(doors:Owner(front)):toBe(gordon)
+		expect(hint(cl, front)):toEqual({ "Your door", "ALT + E: lock" })
+
+		-- The owner locks it, gives the keys, puts up a sign; the co-owner sees it all.
+		expect(Env.BindPress(client, "gm_showteam")):toBe(true)
+		expect(options(cl.menu)):toEqual({ "Lock", "Give the keys", "Take the keys back", "The sign...", "Sell" })
+		expect({ options(cl.menu.children[2]), options(cl.menu.children[3]) }):toEqual({ { "Alyx" }, {} })
+		choose(1)
+		expect(front.locked):toBe(true)
+		expect(hint(cl, front)):toEqual({ "Your door", "Locked", "ALT + E: unlock" })
+		choose(2, 1)
+		expect(doors:IsCoowner(alyx, front)):toBe(true)
+		choose(4)
+		local entry = World.FindPanels(client, function(panel) return rawget(panel, "ncTitle") ~= nil end)[1]
+		expect(entry:GetValue()):toBe("")
+		entry:SetValue("Gordon's flat")
+		local save = World.FindPanels(client, function(panel) return rawget(panel, "ncSave") ~= nil end)[1]
+		save.DoClick(save)
+		local drawn = settle()
+		expect(doors:Title(front)):toBe("Gordon's flat")
+		expect(drawn):toContain("Gordon's flat")
+		expect(#World.FindPanels(client, function(panel) return rawget(panel, "ncSave") ~= nil end)):toBe(0)
+		expect(hint(cl2, front)):toEqual({ "Gordon's flat", "Владелец: Gordon", "У вас есть ключи", "Заперто",
+			"ALT + E: отпереть" })
+		m.aims[alyx] = front
+		expect(Env.BindPress(client2, "gm_showteam")):toBe(true)
+		expect(options(cl2.menu)):toEqual({ "Отпереть", "Вернуть ключи" })
+
+		-- The keys taken back, the door sold: on the market again, unlocked, without the sign.
+		choose(3, 1)
+		expect(doors:IsCoowner(alyx, front)):toBe(false)
+		expect(hint(cl2, front)):toEqual({ "Gordon's flat", "Владелец: Gordon", "Заперто" })
+		choose(5)
+		expect(doors:Owner(front)):toBe(nil)
+		expect(hint(cl, front)):toEqual({ "For sale: $100 · F2" })
+		expect(hint(cl2, front)):toEqual({ "Продаётся: $100 · F2" })
+
+		-- A door of a group shows the group by the name of its job, a door off the market says so.
+		local station, hall = door(m, 3), door(m, 4)
+		face(m, gordon, station)
+		server:Command("nc_doormap", gordon, { "group", "police" })
+		settle()
+		expect(hint(cl, station)):toEqual({ "Police officer" })
+		expect(Env.BindPress(client, "gm_showteam")):toBe(true)
+		expect(options(cl.menu)):toEqual({ "Nothing to do here" })
+		face(m, gordon, hall)
+		server:Command("nc_doormap", gordon, { "closed", "yes" })
+		settle()
+		expect(hint(cl, hall)):toEqual({ "Not for sale" })
+
+		-- While doors are nobody's property (out of the city) there are no prices.
+		local shut = client:Get("NC").Events:On("doors.property", function() return false end, { priority = 100 })
+		expect({ hint(cl, door(m, 2)), hint(cl, hall) }):toEqual({ {}, {} })
+		shut:Off()
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
+		expect(client2:Errors()):toEqual({})
+	end)
 end)

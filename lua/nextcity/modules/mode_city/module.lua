@@ -10,7 +10,7 @@ return {
 	files = {
 		sh = { "sh_city.lua" },
 		sv = { "sv_city.lua" },
-		cl = { "cl_city.lua" },
+		cl = { "cl_city.lua", "cl_menu.lua" },
 	},
 	config = {},
 	components = {

@@ -111,6 +111,8 @@ function M:Init(ctx)
 	end
 	if SERVER then
 		self:_InitServer(ctx)
+	else
+		self:_InitClient(ctx)
 	end
 end
 

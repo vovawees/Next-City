@@ -8,8 +8,8 @@
 | Зависимости | `players`; необязательно `economy`, `storage`, `inventory`, `actions`, `notices` |
 | Компоненты | `door` (видят все; только у дверей, на которых что-то есть): владелец, совладельцы, табличка, группа, заперта, снята с продажи |
 | Сеть | `door` (клиент → сервер): меню двери — `buy`, `sell`, `lock`, `unlock`, `add`, `remove`, `title` |
-| Спрашивает | `doors.property (ply, door) -> true` — двери продаются (режим); `doors.canBuy (ply, door) -> false`; `doors.price (price, ply, door) -> price` (свёртка); `doors.canPick (ply, door) -> false`; `doors.canRam (ply, door) -> false`; `doors.member (ply, group) -> true` — игрок из группы двери (обе стороны) |
-| Слушает | `gm.InitPostEntity`, `gm.PostCleanupMap` (настройки карты), `gm.KeyPress`, `players.left` |
+| Спрашивает | `doors.property (ply, door) -> true` — двери продаются (режим; на клиенте без аргументов — для подсказки); `doors.canBuy (ply, door) -> false`; `doors.price (price, ply, door) -> price` (свёртка); `doors.canPick (ply, door) -> false`; `doors.canRam (ply, door) -> false`; `doors.member (ply, group) -> true` — игрок из группы двери (обе стороны); `doors.groupName (group) -> текст` — как назвать группу в подсказке (клиент) |
+| Слушает | `gm.InitPostEntity`, `gm.PostCleanupMap` (настройки карты), `gm.KeyPress`, `players.left`; клиент: `gm.HUDPaint` (подсказка), `gm.PlayerBindPress` (`gm_showteam`, F2 — меню), `i18n.changed` |
 | Испускает | `doors.bought (ply, door, price)`, `doors.sold (ply, door, refund)`, `doors.locked (ply, door, locked)`, `doors.picked (ply, door)`, `doors.rammed (ply, door)` |
 | Хранит | `storage`, пространство `doors`: ключ — карта, в нём двери по `MapCreationID` → `{ group, title, closed }` |
 | Переводы | `lang/<код>/doors.lua` |
@@ -51,6 +51,20 @@ flowchart LR
 inventory:RegisterItem("lockpick", { weight = 0.1, traits = { lockpick = { time = 10 } } })
 inventory:RegisterItem("ram", { weight = 6, traits = { ram = { time = 3 } } })
 ```
+
+## Подсказка и меню (F2)
+
+Игрок смотрит на дверь в пределах `range` — под прицелом появляется подсказка, а F2 (`gm_showteam`) открывает меню двери. Клавиши в подсказке — те, что назначены у игрока (`input.LookupBinding`).
+
+| Дверь | Подсказка | Меню F2 |
+|---|---|---|
+| свободная, пока двери продаются | «Продаётся: $100 · F2» | купить за цену |
+| снятая с продажи | «Не продаётся» | — |
+| группы карты | имя группы (город: название профессии, «Полицейский») | запереть / отпереть — у членов группы |
+| своя | «Ваша дверь», «Заперто», «ALT + E: отпереть» | запереть / отпереть, дать ключи (подменю игроков), забрать ключи, табличка…, продать |
+| чужая | «Владелец: Gordon», «У вас есть ключи» у совладельца | совладельцу: запереть / отпереть, вернуть ключи |
+
+Табличка двери — первая крупная строка подсказки. Пункт «Табличка…» открывает окно с полем ввода; всё меню — запросы `door` на сервер, который всё проверяет сам и отвечает уведомлением. Без двери перед глазами F2 свободна для других модулей.
 
 ## Двери карты
 
@@ -94,6 +108,9 @@ doors:HasKeys(ply, ent), doors:ForSale(ent), doors:Title(ent), doors:Group(ent)
 -- клиент
 doors:Aimed()                        -- дверь перед глазами
 doors:Ask("buy", door)               -- меню двери: buy, sell, lock, unlock, add/remove (игрок), title (текст)
+doors:HintLines(door)                -- { { text, color, title } } — строки подсказки
+doors:OpenMenu(door), doors:OpenTitle(door)
+doors:IsLocked(door), doors:IsProperty(), doors:GroupName(group)
 ```
 
 Причины отказа: `door` (не дверь), `closed` (двери сейчас не продаются), `yours`, `owned`, `sale` (не продаётся), `limit`, `denied`, `funds`, `owner` (только владелец), `keys`, `target`, `already`, `full`, `long`, `chars`, `tool` (нечем), `unlocked`, `map` (дверь не из карты). Игрок видит уведомление `doors.fail.<причина>`.

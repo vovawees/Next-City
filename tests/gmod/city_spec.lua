@@ -22,7 +22,7 @@ local function boot(opts)
 	server:Call("InitPostEntity")
 	local NC = server:Get("NC")
 	local m = { NC = NC }
-	for _, id in ipairs({ "rounds", "roles", "players", "inventory", "economy", "mode_city" }) do
+	for _, id in ipairs({ "rounds", "roles", "players", "inventory", "economy", "law", "mode_city" }) do
 		m[id] = NC.Modules:Instance(id)
 	end
 	return server, m
@@ -41,6 +41,42 @@ local function hud(server, client)
 	client.drawn = {}
 	client:Call("HUDPaint")
 	return client.drawn
+end
+
+-- The panels of a client with `field` (equal to `value` when given).
+local function panels(client, field, value)
+	return World.FindPanels(client, function(panel)
+		return rawget(panel, field) ~= nil and (value == nil or rawget(panel, field) == value)
+	end)
+end
+
+-- Clicks the first panel of a client with `field` (= `value`), then lets the server answer
+-- and the client learn what changed.
+local function click(server, client, field, value)
+	local button = panels(client, field, value)[1]
+	assert(button ~= nil, "no panel with " .. field .. " = " .. tostring(value))
+	button.DoClick(button)
+	hud(server, client)
+	return hud(server, client)
+end
+
+-- The values of `field` of the panels of a client that have it.
+local function fields(client, field)
+	local out = {}
+	for i, panel in ipairs(panels(client, field)) do
+		out[i] = rawget(panel, field)
+	end
+	return out
+end
+
+-- The text of the child of a panel with `field`.
+local function childText(panel, field)
+	for _, child in ipairs(panel.children) do
+		if rawget(child, field) ~= nil then
+			return child:GetText()
+		end
+	end
+	return nil
 end
 
 -- The item `id` a player carries.
@@ -284,6 +320,145 @@ describe("city", function()
 		Env.Kill(gordon)
 		server:Advance(0.1)
 		expect({ city:Buy(gordon, "bandage") }):toEqual({ false, "dead" })
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
+	end)
+
+	it("opens the menu on F4: jobs and the name, the shop, the bank, the police; the money on the HUD", function()
+		local server, m = boot()
+		local client, gordon = Env.Join(server, { name = "Gordon", language = "en" })
+		local alyx = Env.Bot(server, { name = "Alyx" })
+		local barney = Env.Bot(server, { name = "Barney" })
+		run(server, 5.3)
+		local city, economy, law, roles = m.mode_city, m.economy, m.law, m.roles
+		local cl = client:Get("NC").Modules:Instance("mode_city")
+		-- The server answers, the client learns it, the open menu looks again.
+		local function settle()
+			hud(server, client)
+			hud(server, client)
+			cl:RefreshMenu(false)
+		end
+
+		-- The HUD: the money, the salary of the job, the key of the menu.
+		local drawn = hud(server, client)
+		expect(drawn):toContain("$500 in the bank · $0 cash")
+		expect(drawn):toContain("Salary: $45")
+		expect(drawn):toContain("F4: the menu of the city")
+
+		-- F4 opens the menu on the jobs, F4 in the menu closes it.
+		expect(Env.BindPress(client, "gm_showspare2")):toBe(true)
+		expect({ cl:IsMenuOpen(), cl:MenuTab() }):toEqual({ true, "jobs" })
+		local frame = panels(client, "ncCityMenu")[1]
+		expect(frame.popup):toBe(true)
+		expect(fields(client, "ncTab")):toEqual({ "jobs", "shop", "bank" })
+		expect(fields(client, "ncJob")):toEqual({ "citizen", "police", "medic", "gundealer", "mayor", "bandit" })
+		local citizen = panels(client, "ncJob", "citizen")[1]
+		expect(citizen:GetText()):toBe("Citizen — your job")
+		expect(childText(citizen, "ncInfo")):toBe("Salary $45 · places 3/∞")
+		expect(childText(panels(client, "ncJob", "police")[1], "ncInfo")):toBe("Salary $85 · places 0/4")
+		client.keyBinds = { [95] = "gm_showspare2" }
+		frame.OnKeyCodePressed(frame, 95)
+		expect({ cl:IsMenuOpen(), frame.removed }):toEqual({ false, true })
+
+		-- A job and a name from the menu; the menu follows the change of the job.
+		cl:OpenMenu()
+		click(server, client, "ncJob", "police")
+		expect(roles:Of(gordon)):toBe("police")
+		expect(fields(client, "ncTab")):toEqual({ "jobs", "shop", "bank", "police" })
+		expect(panels(client, "ncJob", "police")[1]:GetText()):toBe("Police officer — your job")
+		local entry = panels(client, "ncEntry", "name")[1]
+		expect(entry:GetValue()):toBe("Gordon")
+		entry:SetValue("Gordon Freeman")
+		click(server, client, "ncAction", "name")
+		expect(m.players:Name(gordon)):toBe("Gordon Freeman")
+		city:SetJob(alyx, "mayor", true)
+		settle()
+		local mayor = panels(client, "ncJob", "mayor")[1]
+		expect({ mayor.ncFull, childText(mayor, "ncInfo") }):toEqual({ true, "Salary $130 · places 1/1" })
+		expect(panels(client, "ncEntry", "name")[1]:GetValue()):toBe("Gordon Freeman")
+
+		-- The shop of the job: once or five times at once; the money above follows.
+		click(server, client, "ncTab", "shop")
+		expect(cl:MenuTab()):toBe("shop")
+		expect(fields(client, "ncPrice")[1]):toBe(true)
+		local offers = {}
+		for _, button in ipairs(panels(client, "ncTimes", 1)) do
+			offers[#offers + 1] = button.ncOffer
+		end
+		expect(offers):toEqual({ "bandage", "pouch", "backpack", "ammo_9x19", "helmet", "vest_light", "vest",
+			"zipties" })
+		local five
+		for _, button in ipairs(panels(client, "ncTimes", 5)) do
+			if button.ncOffer == "bandage" then
+				five = button
+			end
+		end
+		expect(five:GetText()):toBe("×5")
+		five.DoClick(five)
+		drawn = hud(server, client)
+		expect(drawn):toContain("Bought: Bandage ×5 for $75")
+		expect(economy:Balance(gordon)):toBe(425)
+		settle()
+		expect(panels(client, "ncMoney")[1]:GetText()):toBe("$425 in the bank · $0 cash")
+
+		-- The bank: the amount as typed, what was typed stays when the tab is built again.
+		click(server, client, "ncTab", "bank")
+		panels(client, "ncEntry", "amount")[1]:SetValue("$1 00")
+		click(server, client, "ncBank", "withdraw")
+		expect({ economy:Balance(gordon), economy:Cash(gordon) }):toEqual({ 325, 100 })
+		cl:RefreshMenu(false)
+		expect(panels(client, "ncBalance")[1]:GetText()):toBe("Account: $325")
+		expect(panels(client, "ncCash")[1]:GetText()):toBe("Cash: $100")
+		expect(panels(client, "ncEntry", "amount")[1]:GetValue()):toBe("$1 00")
+		panels(client, "ncEntry", "amount")[1]:SetValue("40")
+		click(server, client, "ncBank", "deposit")
+		expect({ economy:Balance(gordon), economy:Cash(gordon) }):toEqual({ 365, 60 })
+		expect(fields(client, "ncBank")):toEqual({ "deposit", "withdraw", "give", "drop" })
+
+		-- The police: the others, the wanted first; warrants are the mayor's while there is one.
+		click(server, client, "ncTab", "police")
+		local function suspects()
+			local out = {}
+			for _, row in ipairs(panels(client, "ncSuspect")) do
+				local ops = {}
+				for _, child in ipairs(row.children) do
+					if rawget(child, "ncLaw") ~= nil then
+						ops[#ops + 1] = child.ncLaw
+					end
+				end
+				out[#out + 1] = { childText(row, "ncName"), childText(row, "ncRecord"), ops }
+			end
+			return out
+		end
+		expect(suspects()):toEqual({ { "Alyx · Mayor", nil, { "want" } }, { "Barney · Citizen", nil, { "want" } } })
+		panels(client, "ncEntry", "reason")[1]:SetValue("Robbery")
+		for _, button in ipairs(panels(client, "ncLaw", "want")) do
+			if button.ncTarget == barney then
+				button.DoClick(button)
+			end
+		end
+		settle()
+		expect(law:Wanted(barney).reason):toBe("Robbery")
+		expect(suspects()[1]):toEqual({ "Barney · Citizen", "wanted: Robbery", { "unwant" } })
+		city:SetJob(alyx, "citizen", true)
+		settle()
+		expect(suspects()[1]):toEqual({ "Barney · Citizen", "wanted: Robbery", { "warrant", "unwant" } })
+		click(server, client, "ncLaw", "warrant")
+		expect(law:WarrantOf(barney).reason):toBe("Robbery")
+		law:Jail(nil, barney, 60)
+		settle()
+		expect(suspects()[1]):toEqual({ "Barney · Citizen", "in jail · 1:00", { "release" } })
+		click(server, client, "ncLaw", "release")
+		expect(law:IsJailed(barney)):toBe(false)
+
+		-- A citizen has no police tab; the menu closes when the city ends.
+		city:SetJob(gordon, "citizen", true)
+		hud(server, client)
+		expect({ cl:MenuTab(), fields(client, "ncTab") }):toEqual({ "jobs", { "jobs", "shop", "bank" } })
+		m.rounds:Round():End({ reason = "test" })
+		settle()
+		expect(cl:IsMenuOpen()):toBe(false)
+		expect(Env.BindPress(client, "gm_showspare2")):toBe(nil)
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
 	end)

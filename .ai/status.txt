@@ -17,7 +17,7 @@ STATUS (update every step)
        #10 loot                            done 43825d9
        #11 content package lua/nextcity  done (this commit)
        #12 mode_tdm kits via inventory     done (this commit)
-  M7 modes             in progress (#13-#24)
+  M7 modes             done (#13-#24), ROADMAP M7 closed
        #13 roles + platform (death notices, chat lines, silent_deaths, dead_mute, team names, loot.allow, stun melee)  done
        #14 homicide: names, target ID, chat lines, mode_homicide (package), kits   done
        #15 hideseek: hide phase (frozen, blindfold), kill/tag, late hiders, alive scores   done
@@ -29,5 +29,6 @@ STATUS (update every step)
        #21 economy: core economy module + city shop of jobs (offers, Buy, nc_buy, net buy)   done
        #22 doors: core doors module (property, keys, co-owners, titles, map groups, lockpick, ram) + city wiring   done
        #23 law: core law module (wanted, warrants, arrest by cuffs, jail points/timer/rejoin, search, ram needs warrant) + city wiring   done
+       #24 ui: city F4 menu (jobs/name, shop x1/x5, bank, police tab), city HUD (money, salary, F4 key), door hints + F2 door menu   done
   docs overhaul        todo (#25)
-  last full run        57 specs, 510 passed, 0 failed (~29 s)
+  last full run        57 specs, 512 passed, 0 failed (~30 s)

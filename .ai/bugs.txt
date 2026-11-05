@@ -43,3 +43,8 @@ PITFALLS
 - Lua keyword 'until' cannot be a component field accessed as data.until: name time fields 'ends'.
 - Two modules answering doors.canRam: Query takes the first non-nil; answer nil to allow, false to deny, so order does not matter.
 - law Jail inside restraints.tied handler: restraints:Tie emits after its state is set, so untying inside the listener is safe.
+- Emulator round trips: a client request + one hud() reaches the server, but replicated components/roles reach the client
+  only on the next Advance+Flush: settle() = hud twice before checking client state (menus, hints).
+- glualint 'unnecessary parentheses' on tonumber((s:gsub(...))) is wrong but fatal: assign the gsub result to a local first.
+- Derma in the emulator: Paint/Think never run; DButton.DoClick(button) by hand; DMenu children are options (.text, .func) and
+  submenus (.text, .children); 'Locked' etc. may also be notice texts in drawn - assert hint lines via HintLines, not drawn.

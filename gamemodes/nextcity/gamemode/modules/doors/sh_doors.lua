@@ -23,12 +23,16 @@ function M:Init(ctx)
 	end
 	if SERVER then
 		self:_InitServer(ctx)
+	else
+		self:_InitClient(ctx)
 	end
 end
 
 function M:Start(ctx)
 	if SERVER then
 		self:_StartServer(ctx)
+	else
+		self:_StartClient(ctx)
 	end
 end
 

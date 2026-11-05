@@ -12,7 +12,7 @@
 | [`mode_riot`](modules/mode_riot/README.md) | режим «Бунт»: полиция связывает бунтовщиков, бунтовщики отбиваются и освобождают своих | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `restraints` |
 | [`mode_defense`](modules/mode_defense/README.md) | режим «Оборона»: волны существ с передышками, павшие возвращаются после волны | `rounds`, `players`, `npcs`; необязательно `inventory`, `loot`, `notices` |
 | [`mode_coop`](modules/mode_coop/README.md) | режим «Кооператив»: зачистка карты от NPC с общими жизнями команды | `rounds`, `players`, `npcs`; необязательно `inventory`, `loot`, `notices` |
-| [`mode_city`](modules/mode_city/README.md) | режим «Город»: бесконечный раунд, профессии с лимитами, снаряжением и зарплатами, магазин профессий, ролевые имена, двери как собственность, полиция и тюрьма | `rounds`, `roles`, `players`; необязательно `inventory`, `economy`, `notices`, `storage`, `doors`, `law` |
+| [`mode_city`](modules/mode_city/README.md) | режим «Город»: бесконечный раунд, профессии с лимитами, снаряжением и зарплатами, магазин профессий, ролевые имена, двери как собственность, полиция и тюрьма, меню F4 и HUD денег | `rounds`, `roles`, `players`; необязательно `inventory`, `economy`, `notices`, `storage`, `doors`, `law` |
 
 ```text
 lua/nextcity/
@@ -25,7 +25,7 @@ lua/nextcity/
 │   ├── mode_riot/     # module.lua, sh_riot.lua (команды), sv_riot.lua (режим)
 │   ├── mode_defense/  # module.lua, sv_defense.lua (режим)
 │   ├── mode_coop/     # module.lua, sv_coop.lua (режим)
-│   └── mode_city/     # module.lua, sh_city.lua (профессии), sv_city.lua (режим), cl_city.lua (строка над игроком)
+│   └── mode_city/     # module.lua, sh_city.lua (профессии), sv_city.lua (режим), cl_city.lua (HUD), cl_menu.lua (F4)
 └── lang/<код>/        # ammo, weapons, melee, throwables, items, loot, mode_homicide, mode_hideseek, mode_riot,
                        # mode_defense, mode_coop, mode_city
 ```
