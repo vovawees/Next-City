@@ -102,4 +102,6 @@ function M:_Kits(inventory)
 	inventory:RegisterKit("homicide_sheriff", { { "python" }, { "ammo_357", 12 } })
 	inventory:RegisterKit("homicide_sheriff_gunfree", { { "stunstick" } })
 	inventory:RegisterKit("homicide_wildwest", { { "python" }, { "ammo_357", 12 } })
+	-- Hide and Seek: the seekers when they catch by a kill (lua/nextcity/modules/mode_hideseek).
+	inventory:RegisterKit("hideseek_seeker", { { "usp" }, { "ammo_9x19", 45 }, { "crowbar" } })
 end

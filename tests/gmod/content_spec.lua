@@ -54,8 +54,8 @@ describe("official package", function()
 		expect(m.throwables:All()):toEqual({ "nc_frag", "nc_bottle" })
 		expect(#items(m)):toBe(42)
 		expect(m.loot:Crates()):toEqual({ "crate_medical", "crate_military", "crate_wood" })
-		expect(m.inventory:Kits()):toEqual({ "homicide_murderer", "homicide_murderer_wildwest", "homicide_sheriff",
-			"homicide_sheriff_gunfree", "homicide_wildwest", "tdm" })
+		expect(m.inventory:Kits()):toEqual({ "hideseek_seeker", "homicide_murderer", "homicide_murderer_wildwest",
+			"homicide_sheriff", "homicide_sheriff_gunfree", "homicide_wildwest", "tdm" })
 	end)
 
 	it("refers only to registered rounds, weapons, kinds of armor, treatments, items and tables", function()

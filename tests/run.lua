@@ -55,6 +55,7 @@ local SPECS = {
 	"tests/gmod/content_spec.lua",
 	"tests/gmod/roles_spec.lua",
 	"tests/gmod/homicide_spec.lua",
+	"tests/gmod/hideseek_spec.lua",
 	"tests/gmod/soak_spec.lua",
 }
 

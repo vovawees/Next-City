@@ -5,16 +5,18 @@
 | Модуль | Что даёт | Зависимости |
 |---|---|---|
 | [`weaponry`](modules/weaponry/) | 6 видов патронов, 5 стволов, 3 вида холодного и 2 метательного оружия, их 16 предметов, таблицы лута оружия и патронов | `ammo`, `weapons`, `melee`, `throwables`; необязательно `inventory`, `loot`, `explosions` |
-| [`supplies`](modules/supplies/) | 26 предметов: медицина, броня, сумки; таблицы лута, 3 вида ящиков, наборы режимов `tdm` и `homicide` | `inventory`; необязательно `loot`, `weaponry` |
+| [`supplies`](modules/supplies/) | 26 предметов: медицина, броня, сумки; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `homicide`, `hideseek` | `inventory`; необязательно `loot`, `weaponry` |
 | [`mode_homicide`](modules/mode_homicide/README.md) | режим «Хомисайд»: скрытые роли убийцы, шерифа и мирных, псевдонимы, варианты `standard`, `gunfree`, `wildwest` | `rounds`, `roles`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
+| [`mode_hideseek`](modules/mode_hideseek/README.md) | режим «Прятки»: фаза пряток с ослеплёнными ищущими, охота с убийством или осаливанием | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 
 ```text
 lua/nextcity/
 ├── modules/
 │   ├── weaponry/      # module.lua, sh_weaponry.lua (данные), sv_weaponry.lua (взрывы, лут)
 │   ├── supplies/      # module.lua, sh_supplies.lua (предметы), sv_supplies.lua (лут, ящики, наборы)
-│   └── mode_homicide/ # module.lua, sh_homicide.lua (роли, псевдонимы), sv_homicide.lua (режим)
-└── lang/<код>/        # ammo, weapons, melee, throwables, items, loot, mode_homicide
+│   ├── mode_homicide/ # module.lua, sh_homicide.lua (роли, псевдонимы), sv_homicide.lua (режим)
+│   └── mode_hideseek/ # module.lua, sh_hideseek.lua (команды), sv_hideseek.lua (режим), cl_hideseek.lua (повязка)
+└── lang/<код>/        # ammo, weapons, melee, throwables, items, loot, mode_homicide, mode_hideseek
 ```
 
 ```mermaid
@@ -30,6 +32,7 @@ flowchart LR
 	end
 	R["Режимы: tdm, …"] -- "kit = tdm" --> S
 	H[mode_homicide] -- "homicide_*" --> S
+	HS[mode_hideseek] -- "hideseek_*" --> S
 ```
 
 Сплошные стрелки — обязательные зависимости, пунктир — необязательные: без `loot` нет таблиц и ящиков, без `weaponry` в таблицах `supplies` нет оружия и не регистрируется набор `tdm`.
@@ -154,6 +157,7 @@ flowchart LR
 | `homicide_sheriff` | Кольт Питон, 12 патронов .357 | Хомисайд: шериф |
 | `homicide_sheriff_gunfree` | дубинка | Хомисайд, «Зона без оружия»: шериф |
 | `homicide_wildwest` | Кольт Питон, 12 патронов .357 | Хомисайд, «Дикий Запад»: шериф и мирные |
+| `hideseek_seeker` | USP, 45 патронов 9×19, монтировка | [Прятки](modules/mode_hideseek/README.md#наборы): ищущие при `catch = kill` |
 
 `nc_kits` — все наборы, `nc_kit <игрок> <набор>` — выдать набор (администратор).
 

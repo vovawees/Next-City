@@ -20,6 +20,7 @@ STATUS (update every step)
   M7 modes             in progress (#13-#24)
        #13 roles + platform (death notices, chat lines, silent_deaths, dead_mute, team names, loot.allow, stun melee)  done
        #14 homicide: names, target ID, chat lines, mode_homicide (package), kits   done
-       #15 hideseek                        next
+       #15 hideseek: hide phase (frozen, blindfold), kill/tag, late hiders, alive scores   done
+       #16 riot                            next
   docs overhaul        todo (#25)
-  last full run        46 specs, 472 passed, 0 failed; lint clean (glualint lint gamemodes tests lua)
+  last full run        47 specs, 477 passed, 0 failed; lint clean (glualint lint gamemodes tests lua)
