@@ -12,6 +12,17 @@ M.STATES = { "connecting", "spectator", "alive", "dead" }
 
 local EMPTY = {}
 
+-- The name other players see: the nickname unless a module answers the reduce
+-- players.name (name, ply) -> name (an alias in Homicide, a character in the city).
+function M:Name(ply)
+	if ply == nil or not IsValid(ply) then
+		return ""
+	end
+	local nick = ply:Nick()
+	local name = self.ctx.events:Reduce("players.name", nick, ply)
+	return type(name) == "string" and name or nick
+end
+
 -- Life state of a player, or nil for an unknown player.
 function M:State(ply)
 	local life = self.ctx.components.life:Get(ply)

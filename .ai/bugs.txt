@@ -17,3 +17,5 @@ PITFALLS
   specs: teams scores (and roles known) go out in ctx:After(0) batches -> server:Advance(0.1) before Env.Flush.
   rounds: round.mode is the mode id (string), not a table.
   bridge: gm.PlayerDeathNotice false skips base PlayerDeath (no kill feed); bridge still sets NextSpawnTime/DeathTime.
+  emulator: BASE.HUDPaint calls gm:HUDDrawTargetID() (like real base); players client always answers true.
+  names: player-facing names go through players:Name(ply) (reduce players.name); admin/console output keeps Nick.

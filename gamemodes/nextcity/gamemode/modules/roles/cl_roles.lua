@@ -29,6 +29,7 @@ surface.CreateFont(FONT_TEXT, { font = "Roboto", size = 19, weight = 500, extend
 surface.CreateFont(FONT_BANNER, { font = "Roboto", size = 44, weight = 800, extended = true })
 
 function M:_InitClient(ctx)
+	self.players = ctx:Require("players")
 	self.known = {}      -- ply -> role id
 	self.mine = nil
 	self.revealed = false
@@ -112,7 +113,7 @@ function M:Rebuild()
 	if def.visible == "side" then
 		local names = {}
 		for _, ply in ipairs(self:Allies()) do
-			names[#names + 1] = ply:Nick()
+			names[#names + 1] = self.players:Name(ply)
 		end
 		if names[1] ~= nil then
 			text.allies = i18n:T("roles.allies", { names = concat(names, ", ") })

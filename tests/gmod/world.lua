@@ -1477,6 +1477,10 @@ World.BASE = {
 	CanPlayerSuicide = function() return true end,
 	GetFallDamage = function() return 10 end,
 	HUDShouldDraw = function() return true end,
+	-- The base HUD draws the name under the crosshair through the hook HUDDrawTargetID.
+	HUDPaint = function(_, gm)
+		gm:HUDDrawTargetID()
+	end,
 	-- The chat line of a player (env.chatLines of the client).
 	OnPlayerChat = function(env, _, ply, text)
 		env.G.chat.AddText(ply:Nick(), ": ", text)

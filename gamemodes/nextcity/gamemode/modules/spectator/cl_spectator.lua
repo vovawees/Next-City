@@ -46,7 +46,7 @@ function M:_Refresh(state, mode, target, left)
 	text.label, text.name, text.respawn, text.hint = nil, nil, nil, nil
 	if target ~= nil and (mode == OBS_MODE_IN_EYE or mode == OBS_MODE_CHASE) then
 		text.label = i18n:T("spectator.following")
-		text.name = target:Nick()
+		text.name = self.players:Name(target)
 		text.color = team.GetColor(target:Team())
 	elseif mode == OBS_MODE_ROAMING then
 		text.label = i18n:T("spectator.roaming")

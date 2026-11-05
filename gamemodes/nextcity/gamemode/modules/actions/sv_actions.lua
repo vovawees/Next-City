@@ -70,11 +70,11 @@ local function targetName(self, target)
 		return ""
 	end
 	if target:IsPlayer() then
-		return target:Nick()
+		return self.players:Name(target)
 	end
 	local owner = self.organism ~= nil and self.organism:PlayerOf(target) or nil
 	if owner ~= nil and IsValid(owner) then
-		return owner:Nick()
+		return self.players:Name(owner)
 	end
 	return ""
 end

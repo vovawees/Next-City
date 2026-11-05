@@ -351,6 +351,57 @@ describe("players", function()
 		expect(client:Errors()):toEqual({})
 	end)
 
+	it("shows the names modules give players: under the crosshair and in chat lines", function()
+		local server, players = boot({ spawns = { { class = "info_player_start", map = true } } })
+		local client, gordon = Env.Join(server, { name = "Gordon" })
+		local alyx = bot(server, "Alyx")
+		players:Deploy(gordon)
+		players:Deploy(alyx)
+		server:Advance(0.1)
+		client.time = server.time
+		Env.Flush(server, client)
+		expect(players:Name(alyx)):toBe("Alyx")
+		for _, realm in ipairs({ server, client }) do
+			realm:Get("NC").Events:On("players.name", function(name, ply)
+				if ply == alyx then
+					return "Bravo"
+				end
+				return name
+			end)
+		end
+		expect(players:Name(alyx)):toBe("Bravo")
+		expect(players:Name(gordon)):toBe("Gordon")
+
+		-- Under the crosshair, within targetRange: the name instead of the base target ID.
+		local range
+		local function paint(ent)
+			client.traceLine = function(trace)
+				range = (trace.endpos - trace.start):Length()
+				return { Hit = ent ~= nil, HitPos = trace.endpos, Entity = ent or World.NULL, Fraction = 0.5 }
+			end
+			client.drawn, client.baseCalls = {}, {}
+			client:Call("HUDPaint")
+			expect(client.baseCalls):notToContain("HUDDrawTargetID")
+			return client.drawn
+		end
+		expect(paint(alyx)):toContain("Bravo")
+		expect(range):toBeCloseTo(800, 1e-6)
+		expect(paint(nil)):notToContain("Bravo")
+		Env.Kill(alyx)
+		server:Advance(0.1)
+		client.time = server.time
+		Env.Flush(server, client)
+		expect(paint(alyx)):notToContain("Bravo")
+
+		-- Chat lines of renamed players carry the name; the others are the base ones.
+		Env.Say(server, alyx, "it was not me")
+		expect(client.chatLines[#client.chatLines]):toBe("*DEAD* Bravo: it was not me")
+		Env.Say(server, gordon, "sure")
+		expect(client.chatLines[#client.chatLines]):toBe("Gordon: sure")
+		expect(client:Errors()):toEqual({})
+		expect(server:Errors()):toEqual({})
+	end)
+
 	it("keeps states across autorefresh", function()
 		local server, players = boot()
 		local alyx, barney = bot(server, "Alyx"), bot(server, "Barney")

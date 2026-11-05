@@ -381,8 +381,10 @@ describe("bridge", function()
 		local client = Env.Client(server):Boot()
 		local probe = client:Get("NC").Modules:Instance("probe")
 		client:Call("HUDPaint")
-		expect(probe:Names()):toEqual({ "gm.HUDPaint" })
-		expect(client.baseCalls[#client.baseCalls]):toBe("HUDPaint")
+		-- The base HUD asks about the target ID first.
+		expect(probe:Names()):toEqual({ "gm.HUDDrawTargetID", "gm.HUDPaint" })
+		expect({ client.baseCalls[#client.baseCalls - 1], client.baseCalls[#client.baseCalls] }):toEqual({
+			"HUDPaint", "HUDDrawTargetID" })
 		expect(client:Errors()):toEqual({})
 	end)
 end)

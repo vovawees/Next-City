@@ -19,5 +19,6 @@ STATUS (update every step)
        #12 mode_tdm kits via inventory     done (this commit)
   M7 modes             in progress (#13-#24)
        #13 roles + platform (death notices, chat lines, silent_deaths, dead_mute, team names, loot.allow, stun melee)  done
+       #14 homicide: players:Name + target ID + chat lines done; mode next
   docs overhaul        todo (#25)
-  last full run        45 specs, 466 passed, 0 failed; lint clean (glualint lint gamemodes tests lua)
+  last full run        45 specs, 467 passed, 0 failed; lint clean (glualint lint gamemodes tests lua)

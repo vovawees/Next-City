@@ -272,7 +272,7 @@ function M:Bury(ply, ent, spec)
 	end
 	spec = spec or {}
 	local c = self:AttachPlace(ent, { kind = "corpse", size = max(8, min(M.MAX_SLOTS, #items)),
-		title = spec.title or "inventory.kind.corpse", name = ply:Nick(), data = spec.data })
+		title = spec.title or "inventory.kind.corpse", name = self.players:Name(ply), data = spec.data })
 	for i, item in ipairs(items) do
 		if i > c.size then
 			self:Destroy(item)

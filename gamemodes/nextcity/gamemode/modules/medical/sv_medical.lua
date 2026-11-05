@@ -297,9 +297,9 @@ function M:_Treated(ply, patient, kind, itemId)
 	if patient == ply then
 		self.notices:Send(ply, "medical.done.self", { what = what }, "good")
 	else
-		self.notices:Send(ply, "medical.done.other", { what = what, patient = patient:Nick() }, "good")
+		self.notices:Send(ply, "medical.done.other", { what = what, patient = self.players:Name(patient) }, "good")
 		if not self.organism:IsUnconscious(patient) then
-			self.notices:Send(patient, "medical.done.patient", { what = what, medic = ply:Nick() }, "good")
+			self.notices:Send(patient, "medical.done.patient", { what = what, medic = self.players:Name(ply) }, "good")
 		end
 	end
 	self.ctx.events:Emit("medical.treated", ply, patient, kind, itemId)
@@ -358,9 +358,9 @@ function M:UseHands(ply, patient, id, part)
 			if spec.every ~= nil then
 				local exam = organism:Examine(patient)
 				if id == "cpr" and exam ~= nil and exam.pulse > 0 then
-					self.notices:Send(ply, "medical.done.pulse", { patient = patient:Nick() }, "good")
+					self.notices:Send(ply, "medical.done.pulse", { patient = self.players:Name(patient) }, "good")
 				elseif id == "cpr" then
-					self.notices:Send(ply, "medical.done.nopulse", { patient = patient:Nick() }, "warn")
+					self.notices:Send(ply, "medical.done.nopulse", { patient = self.players:Name(patient) }, "warn")
 				end
 				self.ctx.events:Emit("medical.treated", ply, patient, kind, nil)
 				return
@@ -642,7 +642,7 @@ function M:SendReport(ply, patient)
 		return
 	end
 	self.reports[ply] = { patient = patient, at = CurTime() }
-	self.ctx.net:Send("report", ply, { patient = patient:Nick():sub(1, 32), self = patient == ply,
+	self.ctx.net:Send("report", ply, { patient = self.players:Name(patient):sub(1, 32), self = patient == ply,
 		findings = findings, options = options })
 end
 

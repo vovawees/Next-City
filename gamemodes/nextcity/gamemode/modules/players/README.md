@@ -7,12 +7,13 @@
 | Интерфейс | `players` |
 | Зависимости | нет |
 | Слушает | `gm.PlayerInitialSpawn`, `net.ready`, `gm.PlayerSpawned`, `gm.PlayerLoadout`, `gm.PlayerDeath`, `gm.PlayerSilentDeath`, `gm.PlayerDisconnected`, `gm.InitPostEntity`, `gm.PostCleanupMap` |
-| Отвечает | `gm.PlayerSpawn`, `gm.PlayerSelectSpawn`, `gm.PlayerDeathThink`, `gm.PlayerShouldTakeDamage` (только во время `Kill`) |
+| Отвечает | `gm.PlayerSpawn`, `gm.PlayerSelectSpawn`, `gm.PlayerDeathThink`, `gm.PlayerShouldTakeDamage` (только во время `Kill`); на клиенте `gm.HUDDrawTargetID` (всегда `true`: свой показ имени), `gm.OnPlayerChat` (строки переименованных игроков) |
 | Испускает | `players.ready`, `players.stateChanged`, `players.loadout`, `players.spawned`, `players.died`, `players.left` |
-| Спрашивает | `players.spawnPoint (ply)` → сущность, `{ pos, ang }`, группа (`"a"`, `"b"`, `"any"`) или `nil` |
+| Спрашивает | `players.spawnPoint (ply)` → сущность, `{ pos, ang }`, группа (`"a"`, `"b"`, `"any"`) или `nil`; свёртка `players.name (name, ply)` → имя, которое видят другие |
 | Компоненты | `life` игрока (`state`, `respawnAt`), реплицируется всем 10 раз в секунду |
 | Команды | `nc_players` — игроки и их состояния |
-| Настройки | `clearance` = 40 — точка занята, пока ближе стоит живой игрок |
+| Настройки | `clearance` = 40 — точка занята, пока ближе стоит живой игрок; `targetNames` = `true` — имя игрока под прицелом, `targetRange` = 800 юнитов — дальше имени не видно (клиент) |
+| Переводы | `lang/<код>/players.lua` — пометки строк чата (`*МЁРТВ*`, `(КОМАНДА)`) |
 
 ## Состояния
 
@@ -33,4 +34,10 @@
 - `M:State(ply)`, `M:IsAlive(ply)`, `M:IsReady(ply)`, `M:RespawnAt(ply)` — то же доступно на клиенте.
 - `M:Find(текст, caller)` — игрок по аргументу консоли (и на клиенте): пусто или `^` — сам `caller`, `#n` или число — индекс сущности, иначе точное имя или единственное имя, содержащее текст (без учёта регистра); `nil` и причина, если не найден.
 - `M:List(state)`, `M:Count(state)`, `M:ReadyPlayers()`.
+- `M:Name(ply)` — имя, которое видят другие (и на клиенте): ник, если модуль не ответил на свёртку `players.name` — псевдоним в Homicide, имя персонажа в городе. Им пользуются показ под прицелом, чат, наблюдение, итоги раунда, роли, действия, медицина и тела.
 - `M:SpawnPoints(group)`, `M:PickSpawn(ply, кандидаты)` — свободная точка подальше от противников, при равенстве по кругу; если все заняты — свободное место рядом с точкой.
+
+## Имена (клиент)
+
+- **Под прицелом** — имя живого игрока, на которого смотрит локальный игрок, в пределах `targetRange`, цветом его команды; заменяет показ базового режима с процентами здоровья движка (D6). Имя перечитывается при смене цели и раз в полсекунды, а не каждый кадр.
+- **Чат** — строка игрока с другим именем выводится как у базового режима, но с этим именем: «*МЁРТВ* (КОМАНДА) Браво: текст»; остальные строки — базовые.
