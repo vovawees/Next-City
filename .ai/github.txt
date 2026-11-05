@@ -27,7 +27,7 @@ ISSUES -> COMMITS (all closed)
   #22 doors                                            97ba56b   #23 law                              b0422a1
   #24 city UI (F4 menu, HUD, door hints)               9dd14df   #25 docs: README showcase            349e87d
   #26 .ai knowledge base (first a0fe18b)               696eae3
-  #27 permissions (platform service)             see git log
+  #27 permissions (platform service)             69bea44   #28 cami adapter module          see git log
   no issue: notices 5780ce0, CI removal cbc867a
-  M8 open: #28 cami #29 storage collections + SQLite #30 profiles #31 F1 menu #32 identity #33 appearance
-  #34 chat #35 voice #36 docs (plan: next.txt); M9 issues: not created yet
+  M8 open: #29 storage collections + SQLite #30 profiles #31 F1 menu #32 identity #33 appearance #34 chat
+  #35 voice #36 docs (plan: next.txt); M9 issues: not created yet

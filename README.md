@@ -13,7 +13,7 @@
 
 [![Tests](https://img.shields.io/badge/tests-512%20passed-brightgreen)](#разработка)
 [![glualint](https://img.shields.io/badge/glualint-clean-brightgreen)](https://github.com/FPtje/GLuaFixer)
-[![Modules](https://img.shields.io/badge/modules-34%20core%20%2B%209%20package-blueviolet)](#модули)
+[![Modules](https://img.shields.io/badge/modules-35%20core%20%2B%209%20package-blueviolet)](#модули)
 [![i18n](https://img.shields.io/badge/i18n-en%20%7C%20ru-informational)](#языки)
 
 [![Last commit](https://img.shields.io/github/last-commit/vovawees/Next-City)](https://github.com/vovawees/Next-City/commits/main)
@@ -79,7 +79,7 @@ Z-City и Homigrad задали жанр реалистичного GMod, но �
 | Медицина | повязки, жгуты, шины, дренажи, препараты, реанимация — себе и другим, осмотр раненого | `medical`, `actions` |
 | Город | наличные-предмет и банковский счёт, двери как собственность с ключами, отмычки и тараны, розыск, ордера, арест наручниками, тюрьма, обыск | `economy`, `doors`, `law`, `restraints` |
 | Раунды | автомат состояний, режимы из блоков правил с типизированными параметрами, команды, скрытые роли, наблюдение, существа для режимов против NPC | `rounds`, `teams`, `roles`, `spectator`, `npcs` |
-| Платформа | загрузчик модулей и пакетов, мост движка, сеть по схемам, компоненты с репликацией, переводы, хранилище, уведомления, профайлер | ядро, платформа, `storage`, `notices` |
+| Платформа | загрузчик модулей и пакетов, мост движка, сеть по схемам, компоненты с репликацией, переводы, права без привязки к админке (ULX и SAM через CAMI), хранилище, уведомления, профайлер | ядро, платформа, `storage`, `notices`, `cami` |
 
 ## Режимы
 
@@ -183,7 +183,7 @@ return {
 | `rounds.prepareTime`, `rounds.endTime` | `5`, `8` | секунды подготовки и показа итога |
 | `rounds.warmup` | `true` | пока игроков не хватает — свободная разминка |
 
-Права не привязаны к админ-моду: модули объявляют привилегии, а решает тот, кто отвечает на вопрос шины `permissions.can`, — адаптер CAMI для ULX и SAM или своя админ-панель. Если никто не ответил, уровень привилегии сравнивается с рангом игрока: `user` < `admin` < `superadmin`, а `nobody` — только консоль сервера. Ранг берётся из `permissions.groups` по группе игрока, иначе из `IsSuperAdmin` и `IsAdmin`. Список привилегий и права игрока показывает `nc_privileges`.
+Права не привязаны к админ-моду: модули объявляют привилегии, а решает тот, кто отвечает на вопрос шины `permissions.can`, — [адаптер CAMI](gamemodes/nextcity/gamemode/modules/cami/README.md) для ULX и SAM или своя админ-панель. Если никто не ответил, уровень привилегии сравнивается с рангом игрока: `user` < `admin` < `superadmin`, а `nobody` — только консоль сервера. Ранг берётся из `permissions.groups` по группе игрока, иначе из `IsSuperAdmin` и `IsAdmin`. Список привилегий и права игрока показывает `nc_privileges`.
 
 Ключи `rounds.*` лежат в `modules.settings`. Настройки каждого модуля описаны в его README, параметры режимов показывает `nc_modes`, а `nc_round param` меняет их на ходу. Файлы настроек уходят клиентам вместе с кодом, поэтому секретов в них не держат.
 
@@ -283,6 +283,7 @@ stateDiagram-v2
 | | [`rounds`](gamemodes/nextcity/gamemode/modules/rounds/README.md) | автомат раунда, реестр режимов и блоков правил с типизированными параметрами | `players` |
 | Сервисы | [`storage`](gamemodes/nextcity/gamemode/modules/storage/README.md) | постоянные данные модулей в JSON-файлах папки DATA | — |
 | | [`notices`](gamemodes/nextcity/gamemode/modules/notices/README.md) | переведённые сообщения игрокам: всплывающие и в чат | — |
+| | [`cami`](gamemodes/nextcity/gamemode/modules/cami/README.md) | права из админок (ULX, SAM) через CAMI: привилегии в админке, решает она; без админки ничего не делает | — |
 | | [`actions`](gamemodes/nextcity/gamemode/modules/actions/README.md) | действия со временем: полоса прогресса, отмена движением, уроном, смертью или потерей цели | `players` |
 | | [`hud`](gamemodes/nextcity/gamemode/modules/hud/README.md) | минимальный HUD: эффекты тела, состояния, броня, потеря сознания | `organism` |
 | | [`example`](gamemodes/nextcity/gamemode/modules/example/README.md) | шаблон нового модуля (по умолчанию выключен) | `organism` |
@@ -339,6 +340,7 @@ stateDiagram-v2
 | `nc_components` / `nc_components_cl` | компоненты: аудитория, частота, число записей, трафик |
 | `nc_lang [код]` / `nc_lang_cl [код]` | языки и полнота переводов; с кодом — пропуски и ошибки перевода |
 | `nc_privileges [игрок]` / `nc_privileges_cl` | привилегии: уровень, модуль, описание; с игроком — его ранг и что ему доступно |
+| `nc_cami` | адаптер CAMI: найдена ли CAMI, кто решает (админка или уровни), сколько привилегий отдано |
 | `nc_language <код \| auto>` | язык интерфейса (клиент); `auto` — язык игры |
 | `nc_storage [flush \| <пространство> [ключ]]` | сохранённые данные модулей |
 
@@ -438,7 +440,7 @@ Next-City/
 │       ├── core/                     # L0: чистый Lua, тестируется вне игры
 │       ├── platform/                 # L1: загрузчик, пакеты, мост GM:*, сеть, компоненты, переводы, команды
 │       ├── lang/<код>/               # переводы ядра: _language.lua + файл на модуль
-│       └── modules/<id>/             # 34 модуля ядра: module.lua, sh_/sv_/cl_*.lua, README.md
+│       └── modules/<id>/             # 35 модулей ядра: module.lua, sh_/sv_/cl_*.lua, README.md
 ├── lua/nextcity/                     # официальный пакет (D15)
 │   ├── modules/<id>/                 # weaponry, supplies, hostiles и шесть режимов
 │   └── lang/<код>/                   # их переводы

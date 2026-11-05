@@ -2,11 +2,11 @@ TESTING
   runner     tests/run.lua: zero deps; globals describe/it/expect (matchers with colon: toBe, notToBe, toEqual,
              toBeTruthy, toBeFalsy, toBeNil, toBeCloseTo, toContain, notToContain, toFail) + T (root, gamemode,
              load(path)); SPECS list in run.lua (add every new spec file there!); `luajit tests/run.lua [filter]`
-  counts     58 specs = 11 unit + 47 gmod; 522 checks (it blocks); full run ~23-30 s local x86_64, ~34 s VPS
+  counts     59 specs = 11 unit + 48 gmod; 531 checks (it blocks); full run ~23-30 s local x86_64, ~34 s VPS
   unit       tests/unit/*_spec.lua: pure core (runner, log, events, scheduler, fsm, modules, schema, i18n,
              components, params, scope)
   gmod       tests/gmod/*_spec.lua: real gamemode + package files in emulated realms (boot, packages, bridge,
-             commands, permissions, net, components, i18n, services, hud, world, every system and mode, content,
+             commands, permissions, cami, net, components, i18n, services, hud, world, every system and mode, content,
              soak)
   support    tests/support/json.lua (util.TableToJSON/JSONToTable clone), tests/support/wire.lua (net bit transport)
   bench      tests/bench.lua [nojit]: hot paths in the emulator (compare changes; real cost = nc_perf in GMod)
@@ -28,6 +28,13 @@ EMULATOR (tests/gmod)
              (World.FindPanels(env, fn, all)), chat/notification/surface fakes, input helpers
   user groups FakePlayer/Env.Join opts.group; ply:GetUserGroup() (default "user", superadmin = true ->
              "superadmin"), SetUserGroup, IsUserGroup; IsAdmin = admin group or superadmin (like the engine)
+  globals    hook library (Add/Remove/GetTable/Call(name, gm, ...)/Run; first non-nil return wins, then gm[name];
+             insertion order), _G = the realm's globals (rawget(_G, name) reads without an undefined read),
+             IsValid like the engine (false for strings and tables without IsValid), player.GetBySteamID(64)
+  CAMI fake  tests/gmod/cami.lua: Cami.Install(env) before Boot (rawset CAMI: RegisterPrivilege/Unregister with
+             CAMI.OnPrivilege* hooks, PlayerHasAccess with the default handler, errors without an immediate answer,
+             Signal*); Cami.AdminMod(env, cami) ULX-like: groups user<admin<superadmin + Group(name, inherits),
+             Allow(group, name, v), SetGroup(ply, g) signals; grants MinAccess group once; .asked, .last, .known
   spec idioms  local hud(server, client) = Advance + Env.Flush; settle() = hud twice (client sees replicated state);
              stub M.Random of modules (roles, loot, npcs, mode_homicide) for deterministic deals and rolls
 

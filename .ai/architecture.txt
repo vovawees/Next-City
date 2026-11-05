@@ -17,7 +17,7 @@ LAYERS (dependencies point down only, D2)
                mode_homicide mode_hideseek mode_riot mode_defense mode_coop + content modules weaponry supplies
                hostiles
   L4 client    cl_* files of modules: HUD, screens (Derma), camera pipeline, effects; sends intents only
-  counts       34 core modules (example disabled by default) + 9 package modules; ~41k lines Lua in 252 files
+  counts       35 core modules (example disabled by default) + 9 package modules; ~41k lines Lua in 254 files
 
 BOOT
   init.lua / cl_init.lua -> platform/boot.lua: kernel (core objects) -> packages.List (core, derived gamemode, addons)
@@ -88,7 +88,20 @@ PERMISSIONS (platform/permissions.lua, service "permissions", D21: no admin mod 
     id) only, IsKnown(); UI use only, the server always checks. Sent on net.ready (priority 100, always), then only
     on change: Refresh(ply|nil) now, poll job permissions:poll every 1 s (all when privileges came/went, else
     ceil(n/refresh) players in turn; refresh 0 = no poll). Commands reply "<name>: no access"; console caller = nil
-    (NULL converted). Sources: optional module cami (#28), the future own admin panel (answers the question).
+    (NULL converted). Sources: module cami (below), the future own admin panel (answers the question).
+
+CAMI ADAPTER (modules/cami, server only, #28; off: modules.disabled.cami; inert without the CAMI global)
+  CAMI read by rawget(_G, "CAMI") in Start and on gm.InitPostEntity (late admin mods); no CAMI -> no hooks, no log.
+  offers every privilege of level user/admin/superadmin (never nobody) as CAMI.RegisterPrivilege{Name = prefix
+    .. id (setting prefix "nextcity."), MinAccess = level in effect, Description = desc | command help}; follows
+    permissions.registered/unregistered, UnregisterPrivilege all on Stop (autorefresh re-offers, no duplicates).
+  answers permissions.can (listener priority = setting priority, 0) by CAMI.PlayerHasAccess(ply, name, nil,
+    target if a player, {Fallback = level}) when ask = "auto" (some hook on CAMI.PlayerHasAccess = an admin mod)
+    or "always"; "never" = offer only. The admin mod's answer is final (can deny). pcall: error (no immediate
+    answer) -> warn (first 5) + nil (levels); a question asked while answering (re-entrant) -> nil.
+  hooks CAMI.PlayerUsergroupChanged / CAMI.SteamIDUsergroupChanged (id "nextcity.cami") -> ctx:After(0)
+    permissions:Refresh(ply) (group may be set after the signal); group right changes (ulx groupallow) are not
+    signalled -> the poll. nc_cami = state. Own admin panel = a module answering permissions.can, priority > 0.
 
 ROUNDS AND MODES (D9; module rounds, docs section 11)
   FSM phases waiting -> preparing -> active -> ended -> preparing; restart: preparing|active -> preparing;

@@ -6,6 +6,9 @@ KNOWN GAPS (emulator vs real GMod; check in GMod)
   emulator base DoPlayerDeath: AddDeaths(1), attacker frags +1 (suicide -1) before players.died.
   BASE.HUDPaint calls gm:HUDDrawTargetID() (like the real base); the players client module always answers true.
   real GMod measurements pending for every milestone: nc_perf, nc_net budgets with 32-128 players.
+  CAMI and the admin mod are fakes (tests/gmod/cami.lua, CAMI 20211019 behaviour): ULX/SAM menus, ulx groupallow,
+    adduser signals, ULib lower-casing -> checklist in modules/cami/README.md. hook order = insertion (engine:
+    unspecified).
 
 PITFALLS (code)
   module tables: methods and fields share one namespace (M:Container(id) overwrote M.Container = class).

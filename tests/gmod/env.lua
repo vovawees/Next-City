@@ -428,6 +428,7 @@ function Env:_CreateGlobals()
 	end
 	G.RealTime = G.SysTime
 
+	-- Like the engine: only what has an IsValid method can be valid (not strings or plain tables).
 	function G.IsValid(value)
 		if value == nil or value == false then
 			return false
@@ -435,7 +436,7 @@ function Env:_CreateGlobals()
 		if type(value) == "table" and type(value.IsValid) == "function" then
 			return value:IsValid() == true
 		end
-		return true
+		return false
 	end
 
 	function G.include(path)
@@ -585,6 +586,67 @@ function Env:_CreateGlobals()
 		end
 	end
 
+	-- The hook library, for the hooks of other addons (CAMI.*): like the engine, the first
+	-- hook that returns a value wins, else gm[name] runs. Hooks run in the order they were
+	-- added (the engine's order is unspecified).
+	local hooks, hookOrder = {}, {}
+	G.hook = {}
+
+	function G.hook.Add(name, id, fn)
+		if hooks[name] == nil then
+			hooks[name], hookOrder[name] = {}, {}
+		end
+		if hooks[name][id] == nil then
+			local order = hookOrder[name]
+			order[#order + 1] = id
+		end
+		hooks[name][id] = fn
+	end
+
+	function G.hook.Remove(name, id)
+		local list = hooks[name]
+		if list == nil or list[id] == nil then
+			return
+		end
+		list[id] = nil
+		local order = hookOrder[name]
+		for i = #order, 1, -1 do
+			if order[i] == id then
+				table.remove(order, i)
+			end
+		end
+	end
+
+	function G.hook.GetTable()
+		return hooks
+	end
+
+	function G.hook.Call(name, gm, ...)
+		local list = hooks[name]
+		if list ~= nil then
+			local order = {}
+			for i, id in ipairs(hookOrder[name]) do
+				order[i] = id
+			end
+			for _, id in ipairs(order) do
+				local fn = list[id]
+				if fn ~= nil then
+					local a, b, c, d, e, f = fn(...)
+					if a ~= nil then
+						return a, b, c, d, e, f
+					end
+				end
+			end
+		end
+		if gm ~= nil and gm[name] ~= nil then
+			return gm[name](gm, ...)
+		end
+	end
+
+	function G.hook.Run(name, ...)
+		return G.hook.Call(name, G.GM, ...)
+	end
+
 	G.concommand = {}
 
 	function G.concommand.Add(name, fn)
@@ -646,6 +708,7 @@ function Env:_CreateGlobals()
 	self:_CreateNet(G)
 	World.Install(self, G)
 	self:_CreateGame(G)
+	G._G = G
 
 	return setmetatable(G, {
 		__index = function(_, key)

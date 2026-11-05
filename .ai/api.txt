@@ -23,6 +23,10 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
            SetMaterial(mat,def)
   emits    ballistics.impact
   commands nc_ballistics
+[core] cami
+  sv       Asks() NameOf(id) OfferedCount()
+  listens  permissions.can permissions.registered permissions.unregistered gm.InitPostEntity
+  commands nc_cami
 [core] damage
   sv       RegisterAmmo(name,def) Ammo(name) Projectile(name,distance,damage) AddStage(id,order,fn) RemoveStage(id)
            Stages() Apply(ply,hit) KindOf(ply,dmginfo) Inflict(ply,hit) History(count)
@@ -419,4 +423,4 @@ EVENTS (name  emitters -> listeners)
   throwables.thrown            throwables -> equipment
   weapons.fired                weapons -> -
 
-43 modules, 595 public methods
+44 modules, 598 public methods

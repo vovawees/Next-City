@@ -1585,6 +1585,23 @@ function World.Install(env, G)
 	function G.player.GetBots()
 		return sortedEntities(env, function(ent) return ent:IsPlayer() and ent:IsBot() end)
 	end
+	-- Like the engine: false when nobody has the id.
+	function G.player.GetBySteamID(id)
+		for _, ply in ipairs(G.player.GetAll()) do
+			if ply:SteamID() == id then
+				return ply
+			end
+		end
+		return false
+	end
+	function G.player.GetBySteamID64(id)
+		for _, ply in ipairs(G.player.GetAll()) do
+			if ply:SteamID64() == id then
+				return ply
+			end
+		end
+		return false
+	end
 
 	local teams = {
 		[World.TEAM_CONNECTING] = { name = "Joining/Connecting", color = G.Color(255, 255, 100), joinable = false },
