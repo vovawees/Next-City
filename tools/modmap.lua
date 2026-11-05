@@ -7,6 +7,8 @@ local ROOTS = {
 	{ "addons", "lua/nextcity/modules/" },
 }
 
+local WIDTH = 120
+
 local format = string.format
 local concat = table.concat
 
@@ -63,6 +65,21 @@ local function components(manifest)
 	return join(parts)
 end
 
+-- Prints `text` after `prefix`; a list wider than WIDTH goes on after a comma on the next
+-- line, under the start of the list.
+local function printList(prefix, text)
+	local indent = string.rep(" ", #prefix)
+	local line = prefix
+	for item, comma in text:gmatch("([^,]+)(,?)") do
+		if #line + #item + #comma > WIDTH and line ~= prefix and line ~= indent then
+			print(line)
+			line = indent
+		end
+		line = line .. item .. comma
+	end
+	print(line)
+end
+
 local count = 0
 for _, root in ipairs(ROOTS) do
 	for _, id in ipairs(folders(root[2])) do
@@ -75,9 +92,9 @@ for _, root in ipairs(ROOTS) do
 				print(format("[%s] %s: %s", root[1], id, tostring(manifest.description or "")))
 				print(format("  provides=%s requires=%s optional=%s", join(manifest.provides),
 					join(manifest.requires), join(manifest.optional)))
-				print(format("  files=%s", files(manifest)))
-				print(format("  net=%s", nets(manifest)))
-				print(format("  components=%s", components(manifest)))
+				printList("  files=", files(manifest))
+				printList("  net=", nets(manifest))
+				printList("  components=", components(manifest))
 			end
 		end
 	end

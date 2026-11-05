@@ -1,55 +1,121 @@
-ARCHITECTURE (full text: docs/ARCHITECTURE.md, russian)
+ARCHITECTURE (full text: docs/ARCHITECTURE.md v0.7, russian; this file = dense digest, current after M7)
 
 LAYERS (dependencies point down only, D2)
-  L0 core      gamemode/core/*.lua      pure Lua, no GMod API: modules (registry/resolve), events (bus: Emit/Query/Reduce),
-                                        scheduler (timers on CurTime), fsm, log, schema (bit-packed messages), components
-                                        (stores), params (typed mode params), scope (per-module ownership), i18n (tables)
-  L1 platform  gamemode/platform/*.lua  GMod glue: boot, packages, loader (discover/resolve/include/AddCSLuaFile), bridge
-                                        (only file defining GM:*), net (schemas -> net strings, rate limits, readiness),
-                                        components (replication), i18n (lang files, client language), commands (nc_*),
-                                        devtools (nc_perf, nc_net, autorefresh)
-  L2 systems   gamemode/modules/<id>/    players, teams, spectator, rounds, organism, damage, armor, movement, hud, ragdoll,
-                                        ragdoll_control, ammo, ballistics, weapons, melee, hands, explosions, throwables,
-                                        (M6) notices, storage, actions, inventory, equipment, medical, loot, roles
-  L3 modes     modules mode_*           mode_tdm in core (reference); other modes in package lua/nextcity
-  L4 client    cl_* files of modules    HUD, menus, camera pipeline
+  L0 core      gamemode/core/*.lua (10 files): pure Lua, no GMod API, unit tested. modules (registry, resolve
+               order, ctx), events (bus Emit/Query/Reduce, priority desc), scheduler (jobs with rates, profile), fsm,
+               scope (undo everything a module/round registered), schema (bit codecs), components (stores, dirty
+               masks), params (typed mode params), i18n (tables, plurals), log
+  L1 platform  gamemode/platform/*.lua (9 files): boot, packages (lookup + config merge), loader (discover/resolve/
+               include/AddCSLuaFile, isolate failures), bridge (ONLY file with GM:*), net (schemas -> net strings,
+               readiness, rate buckets, validation, stats), components (replication), i18n (lang files, client
+               language), commands (nc_*), devtools (nc_modules, nc_perf, nc_net, nc_components, nc_lang, autorefresh)
+  L2 systems   gamemode/modules/<id>/: players teams roles spectator | storage notices actions hud | organism damage
+               armor movement ragdoll ragdoll_control medical | ammo ballistics weapons melee hands throwables
+               explosions | inventory equipment loot | economy doors law restraints npcs
+  L3 modes     core: rounds (FSM, registry), mode_tdm (reference, default), mode_dm; package lua/nextcity: mode_city
+               mode_homicide mode_hideseek mode_riot mode_defense mode_coop + content modules weaponry supplies
+               hostiles
+  L4 client    cl_* files of modules: HUD, screens (Derma), camera pipeline, effects; sends intents only
+  counts       34 core modules (example disabled by default) + 9 package modules; ~40k lines Lua in 251 files
+
+BOOT
+  init.lua / cl_init.lua -> platform/boot.lua: kernel (core objects) -> packages.List (core, derived gamemode, addons)
+  -> config merge -> loader: manifests of all packages, drop disabled, pick providers, resolve requires/optional
+  (optional loads earlier when present) -> include files per realm in manifest order (server AddCSLuaFile sh+cl)
+  -> Init(ctx) of all in order -> Start(ctx) of all. A module failing (missing dep, error) is marked failed with a
+  reason (nc_modules), dependents fail, the rest runs. NC is the only global. Autorefresh rebuilds the kernel.
 
 PACKAGES (D15: core has no content)
-  lookup order: core (gamemodes/nextcity/gamemode) -> derived gamemode (gamemodes/<active>/gamemode) -> addons
-  (lua/nextcity/{modules,lang,config}); first package owning a module id keeps it; duplicate id later = error.
-  config: core config.lua, then package config/*.lua by name, server.lua last; tables merge, lists replace; sent to clients.
+  lookup order: core (gamemodes/nextcity/gamemode) -> derived gamemode (gamemodes/<active>/gamemode, DeriveGamemode)
+  -> addons and garrysmod/lua (lua/nextcity/{modules,lang,config}); first package owning a module id keeps it.
+  config: core config.lua, then package config/*.lua by name, server.lua last; tables merge key by key, lists and
+  values replace; config files are sent to clients (no secrets). Server settings: lua/nextcity/config/server.lua.
+  config keys: logLevel, net.checkOutgoing, i18n.default/force, modules.disabled/providers/settings[id].
 
 MODULE CONTRACT
-  modules/<id>/module.lua returns manifest:
-    id, description, provides{iface}, requires{id|iface}, optional{id|iface}, files{sh={},sv={},cl={}},
-    config{defaults}, net{name={from="server"|"client", rate, burst, unreliable, fields}},
-    components{name={replicate="all"|"owner"|nil, rate, fields, defaults, desc}}
-  files: local M = NC.Module("<id>"); function M:Init(ctx) ... end; M:Start(ctx); M:Stop()
-  ctx: On(event, "Method"|fn, {priority, once, id}), Every(id, sec, h), After(sec, h), Require(iface), Has(id),
-       net (Receive/Send/Broadcast/SendOmit/SendPVS/SendToServer), components.<name>, commands:Add, i18n:T/TFor/Has,
-       log:Info/Warn/Error/Debug, events:Emit/Query/Reduce, config (merged)
-  other modules: ctx:Require("<id>") returns the module object (public methods = API); only declared deps allowed.
-  stop: everything registered via ctx is undone automatically (scope); autorefresh rebuilds kernel.
+  modules/<id>/module.lua returns manifest: id, description, provides (iface, default id), requires, optional,
+    files {sh, sv, cl} (explicit order), config {defaults} (merged with modules.settings[id]),
+    net {name = {from "server"|"client", rate, burst, unreliable, fields}},
+    components {name = {replicate "all"|"owner"|nil, rate, fields, defaults, desc}}
+  file: local M = NC.Module("<id>"); M:Init(ctx), M:Start(ctx), M:Stop(); shared files may branch on SERVER/CLIENT
+    (pattern: sh Init calls self:_InitClient(ctx) on the client).
+  ctx: id, config (defaults + modules.settings[id]), log (Trace/Debug/Info/Warn/Error), Require(iface) (only
+       declared requires/optional; optional absent -> nil), On(event, "Method"|fn, {priority, once, id}),
+       Every(id, sec, h, opts), After(sec, h), Handler("Method", what) (late-bound method), IsAlive().
+       services: events (On/Off/Emit/Query/Reduce), scheduler, net (Receive/Send/Broadcast/SendOmit/SendPVS/SendPAS/
+       SendToServer), components.<name> = store (Add/Set(key, field, value)/Patch/Touch/Remove/Clear/Get/Has/Each/
+       Count; client mirror OnChange(fn(index, data, mask)) + Changed(mask, field)), commands (Add(name, {help,
+       admin}, h)/Remove), i18n (T/TFor/Has/Language). persistence: the storage module (Require "storage").
+       round scope (On/Every/After/Defer) belongs to the round object, not ctx (see ROUNDS AND MODES).
+  API = public methods of the module object (ctx:Require returns it); see api.txt (generated) and module READMEs.
+  everything registered through ctx is undone on Stop (scope) -> no leaks on autorefresh or disable.
 
-BRIDGE (platform/bridge.lua)
-  engine hooks -> bus events "gm.<Hook>"; kinds: notifications (base first, then emit), questions (Query; first non-nil
-  wins, else base), replacements (emit, base skipped). Camera = Reduce pipeline on gm.CalcView.
-  D6: engine HP unused; damage goes through damage module -> organism; EntityTakeDamage question (true blocks).
-  D17 interaction: PlayerUse / PlayerCanPickupWeapon questions (false blocks); WeaponEquip, OnNPCKilled notifications;
-  PlayerSay question (answer replaces text, "" drops); PlayerCanSeePlayersChat question; PlayerCanHearPlayersVoice
-  question true|false|"3d"; client HUDDrawTargetID question (true hides). Binds: gm.PlayerBindPress question.
+EVENT BUS (core/events.lua)
+  Emit(name, ...) notifies every listener (priority desc, then subscription order), errors isolated and logged.
+  Query(name, ...) -> first non-nil answer (questions: canX -> false denies; property -> true allows).
+  Reduce(name, value, ...) -> value passed through every listener (prices, speeds, names, camera).
+  naming: <module>.<event>; engine hooks gm.<Hook>; platform: nc.ready, nc.shutdown, net.ready(ply),
+    net.violation(ply, message, reason, detail), i18n.changed(code); full cross refs in api.txt.
+  inversion of control: systems ask, modes answer inside round scope (round:On); no system checks "which mode".
+
+BRIDGE (platform/bridge.lua; engine hooks -> gm.<Hook>)
+  notifications (base first, then emit): most hooks (PlayerInitialSpawn, PlayerDisconnected, KeyPress, Think, Tick
+    drives the scheduler, InitPostEntity, PostCleanupMap, EntityRemoved, WeaponEquip, OnNPCKilled, HUDPaint, ...).
+  questions (first non-nil, else base): EntityTakeDamage (true blocks, D6), PlayerShouldTakeDamage, PlayerUse /
+    PlayerCanPickupWeapon (false blocks), PlayerSwitchWeapon (shared, true keeps old), PlayerSay (answer replaces,
+    "" drops), PlayerCanSeePlayersChat, PlayerCanHearPlayersVoice (true|false|"3d"), PlayerDeathNotice (false = no
+    kill feed), PlayerSetModel (model path), PlayerSpawn/PlayerDeathThink ("handled" true skips base), client:
+    HUDDrawTargetID (true hides base), OnPlayerChat (true = module prints own line), PlayerBindPress (true eats bind).
+  replacements (base not called): PlayerLoadout, PlayerRequestTeam, ScalePlayerDamage, ShowHelp/ShowTeam/ShowSpare1/
+    ShowSpare2 (F1-F4 server side; F3 = medical examine).
+  camera: GM:CalcView takes base view, then Reduce gm.CalcView by priority (body camera 100, then sway/recoil/pain).
+
+ROUNDS AND MODES (D9; module rounds, docs section 11)
+  FSM phases waiting -> preparing -> active -> ended -> preparing; restart: preparing|active -> preparing;
+  any -> waiting when ready players < minPlayers (warmup: free play, warmupRespawn, warmupLoadout).
+  settings (modules.settings.rounds): mode "tdm", rotation {}, roundsPerMode 3, prepareTime 5, endTime 8, freeze,
+    shuffle, cleanupMap (game.CleanUpMap: map entities are NEW objects after it), params {mode = {name = value}}.
+  RegisterMode{id, name, description, minPlayers, thinkRate, params {typed}, rules {ids}, callbacks}; unknown key =
+    error. RegisterRule{id, description, params, callbacks}. rules: time_limit respawn last_standing silent_deaths
+    dead_mute (rounds), teams team_score team_elimination (teams), roles (roles), loot (loot).
+  callbacks: notifications (rules in order, then mode): Setup PlayerAdded Start Think PlayerSpawned Loadout PlayerDied
+    PlayerLeft End Cleanup (Cleanup runs when the next round starts); questions (mode first, then rules): Participants
+    LateJoin SpawnPoint CheckWin Timeout ShouldTakeDamage.
+  round object: params, data, RuleData(id), On/Every(id,...)/After/Defer (round scope), Participants/AddParticipant,
+    Alive, Respawn(ply, delay), SetTimeLimit, TimeLeft, SetStatus(key, params, endsAt) (status line for all clients),
+    CheckWin, End(result {reason, key, team, winner, params}). round.mode = id string. Never name a mode method
+    Start/Stop/Init (module lifecycle) -> Begin.
+  console: nc_round [restart [mode] | end | next <mode> | param <mode> <name> [value]], nc_modes.
+
+CITY (D20; package mode_city + core economy, doors, law, restraints)
+  city = endless round (rules respawn, roles); jobs = public roles with limit, salary (round:Every payday -> Reduce
+  mode_city.salary -> economy:Pay), kit city_<job> with state.issued (inventory.canMove/canAct block dropping),
+  model (gm.PlayerSetModel), rp name (players.name, storage). Shop offers (RegisterOffer both realms same order).
+  doors: answers doors.property true, doors.member (job groups, police group), doors.canRam (police), doors.groupName
+  (client); Cleanup -> doors:ReleaseAll. law: answers law.enabled, law.officer (police), law.authority (mayor);
+  jailed: no salary/job change/buying; Cleanup -> law:Amnesty. UI: F4 menu (cl_menu.lua), HUD money (cl_city.lua).
+  without a mode answering: doors are not for sale, the law sleeps; another mode/package can build its own city.
+
+CLIENT (L4)
+  keys: C inventory (+menu_context via gm.PlayerBindPress), F2 door menu (gm_showteam, doors), F3 examine (server
+  ShowSpare1, medical), F4 city menu (gm_showspare2, mode_city), E use (pick up, search, open crates, tie, lockpick,
+  ram), Alt+E lock/unlock, bind g nc_fall. Screens are Derma, rebuilt by a fingerprint of their data at a bounded
+  rate (never per frame, never while an entry has focus); hints show the player's binding (input.LookupBinding).
+  HUD: view-model updated by events/rates; one RenderScreenspaceEffects; materials/fonts created at load only.
 
 DATA FLOW
-  client input -> intents (client net messages, validated: ready, rate bucket, size, schema, handler xpcall)
-  server state -> components (batched replication, owner/all) + server messages (snapshots, events)
-  persistent state -> storage module (DATA/nextcity/<ns>.json)
+  client input -> intents (client net messages: ready -> rate bucket -> size -> schema validation -> handler xpcall)
+  server state -> components (batched per tick, audience owner|all, deltas by field mask) + server messages
+  persistent -> storage module (DATA/nextcity/<ns>.json, flush on shutdown and nc_storage flush)
 
 KEY DECISIONS
-  D1 rewrite from scratch (no Z-City/Homigrad code/assets)  D2 layers  D3 manifests  D4 pure-Lua core tested outside GMod
-  D5 schemas, batched replication, no net.WriteTable/SetNW*  D6 no engine HP  D7 derive from base, not sandbox
-  D8 no Z-City content compat  D9 modes = modules with typed params + rule blocks  D10 32-128 players budgets
-  D11 full-realism organism  D12 Next-City License 1.0  D13 i18n keys only, lang/<code>/  D14 fake ragdoll (server
-  prop_ragdoll, player hidden inside)  D15 content in packages  D16 ballistics manager (arrays, one loop per tick)
-  D17 interaction/chat/voice hooks as questions (see BRIDGE)
-  D18 (M6) items are data: definitions registered by packages, instances {uid,id,count,state} live in server containers;
-      clients get per-container snapshots only for containers they view; every client action is an intent.
+  D1 rewrite from scratch (no Z-City/Homigrad code/assets)  D2 layers L0-L4, deps down  D3 manifests, explicit order
+  D4 pure-Lua core tested outside GMod  D5 schemas, batched replication, no net.WriteTable/SetNW*  D6 no engine HP
+  D7 derive from base, not sandbox  D8 no Z-City content compat  D9 modes = modules with typed params + rule blocks
+  D10 budgets for 32-128 players  D11 full-realism organism  D12 Next-City License 1.0 (no selling the core)
+  D13 i18n keys only, lang/<code>/, auto language  D14 fallen body = server prop_ragdoll, player hidden inside
+  D15 content in packages  D16 one ballistics manager (arrays, one loop per tick, lag compensation), predicted weapons
+  D17 interaction/chat/voice hooks are bus questions (see BRIDGE)  D18 items are data: definitions from packages,
+  instances {uid,id,count,state} only in server containers, clients see snapshots of containers they view
+  D19 roles module: visible self|side|all, revealed at the end, clients learn only what they may know
+  D20 city life = core modules (economy, doors, law, restraints) switched on by answers of a mode

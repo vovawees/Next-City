@@ -1,17 +1,48 @@
-NET
-  names     each message = own net string "nc.<module>.<name>" (pooled by platform/net.lua); budget 256 strings total
-            (engine limit is 4096, our self-limit for headroom); components use platform strings.
-  client->server checks (cheap first): ready (nc.hello received) -> token bucket per player+message (rate/s, burst)
-            -> size within schema minBits/maxBits -> parse with validation (NaN/inf, ranges, lengths, enums, entities)
-            -> handler in xpcall. Violations counted (nc_net), logged <=1/s per player, event net.violation.
-  defaults  client rate 10/s, burst 20.
-  schema types (core/schema.lua): bool; uint/int (bits or min/max); float; double; quant(min,max,bits); string(max bytes);
-            enum(values); array(of,max); struct(fields); entity; player; vector; angle; normal; color; optional=true.
-  components (platform/components.lua): fields schema syntax, <=31 fields, no optional; replicate nil (local per realm),
-            "all" (every ready player), "owner" (only the owner player; key = player); rate = flushes/s; changes are
-            batched per tick into one message per store; client OnChange(index, data, mask).
-  stats     nc_net (sent/received/dropped by reason: notReady, rate, size, invalid, noHandler, unpooled), nc_net_reset.
+NET (platform/net.lua messages, platform/components.lua replication, core/schema.lua codecs; D5: no WriteTable/NW)
 
-MESSAGES BY MODULE (from manifests; regenerate with luajit tools/modmap.lua)
-  rounds: state<server>, status<server>, result<server>      teams: scores<server>
-  (M6/M7 additions are listed in modules.txt)
+NAMES AND BUDGET
+  message     own net string "nc.<module>.<name>" (pooled by util.AddNetworkString at define time)
+  component   one string per store "nc.<module>:<component>"
+  platform    nc.hello (client info + ready, rate 2/burst 4), nc.info (later info changes, 2/8)
+  budget      self-limit 256 strings (STRING_BUDGET; engine limit 4096); default boot uses 40 = 23 messages +
+              15 components + 2 platform (module example is off; it adds 2 messages + 1 component)
+
+CLIENT -> SERVER CHECKS (cheap first)
+  ready (nc.hello received, else drop notReady) -> token bucket per player and message (rate/s, burst; default
+  10/20) -> size within schema minBits..maxBits -> parse with validation (NaN/inf, ranges, lengths, enums, valid
+  entities) -> handler in xpcall. rate/size/invalid = violations: counted, logged <= 1/s per player, event
+  net.violation(ply, message, reason, detail). Drops without a violation: notReady, noHandler, unpooled.
+  outgoing checks: config net.checkOutgoing = true validates server sends too (debug).
+
+SCHEMA TYPES (core/schema.lua; fields = list of {name, type, opts})
+  bool; uint/int (bits or min/max); float; double; quant(min, max, bits); string(max bytes); enum(values);
+  array(of, max); struct(fields); entity; player; vector; angle; normal; color; optional = true (messages only)
+
+COMPONENTS (platform/components.lua)
+  fields in schema syntax, <= 31 per component (split if more), no optional fields (use uint 0 = none);
+  replicate nil = local store per realm, "all" = every ready player, "owner" = only the owner (key = player);
+  rate = flushes per second; changes batched per tick into one message per store, deltas by field mask;
+  a player becoming ready (net.ready) gets the full state; client mirror: store:OnChange(fn(index, data, mask)),
+  store:Changed(mask, field); keys = entities or entity indexes.
+
+MESSAGES BY MODULE (s = server -> client; c = client -> server with rate/burst)
+  doors       door<c 4/8>                         economy     cash<c 4/8>
+  inventory   act<c 6/12> close<c 10/20> move<c 12/24> closed<s> contents<s>
+  law         law<c 4/8>                          medical     examine<c 2/4> treat<c 4/8> report<s>
+  notices     notice<s>                           organism    succumb<c 1/2>
+  ragdoll     fall<c 2/3>                         roles       known<s>
+  rounds      state<s> status<s> result<s>        teams       scores<s>
+  mode_city   buy<c 4/8> job<c 2/4> name<c 1/2>   mode_hideseek phase<s>
+  example     state<s> wave<c 1/3> (template, off by default)
+
+COMPONENTS BY MODULE (audience, flushes/s, field count)
+  actions action{owner 10 f4}     armor armor{owner 4 f1}         doors door{all 4 f6}
+  economy account{owner 4 f1}     inventory ground{all 4 f2} place{all 2 f3}
+  law jailed{all 4 f1} wanted{all 4 f2} warrant{all 4 f2}         organism vitals{owner 10 f17}
+  players life{all 10 f2}         ragdoll body{owner 20 f4}       restraints tied{all 4 f1}
+  mode_city citizen{all 4 f1}     mode_homicide alias{all 4 f1}   example profile{all 4 f2}
+
+STATS AND TOOLS
+  nc_net         sent/received/dropped per message by reason (notReady, rate, size, invalid, noHandler, unpooled)
+  nc_net_reset   reset the counters;  nc_components: stores with audience, rate, entries, traffic
+  real-GMod budgets still to measure with 32-128 players (bugs.txt, next.txt)

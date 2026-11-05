@@ -1,50 +1,62 @@
-KNOWN ISSUES / GAPS
-  emulator: weapons are stripped BEFORE gm.DoPlayerDeath (real GMod: weapons still exist in DoPlayerDeath) ->
-            code that reads weapon state at death must also sync periodically.
-  emulator: vgui panels are fakes (no layout/paint); UI tested by structure only. Check visuals in real GMod.
-  emulator: doors only model lock/unlock/open/close/toggle inputs + m_bLocked/m_eDoorState.
+KNOWN GAPS (emulator vs real GMod; check in GMod)
+  weapons are stripped BEFORE gm.DoPlayerDeath in the emulator (real GMod: they still exist in DoPlayerDeath)
+    -> code that reads weapon state at death must also sync it periodically.
+  vgui panels are fakes (no layout, Paint/Think never run): UI is tested by structure only; visuals need GMod.
+  doors model only Lock/Unlock/Open/Close/Toggle inputs + m_bLocked/m_eDoorState.
+  emulator base DoPlayerDeath: AddDeaths(1), attacker frags +1 (suicide -1) before players.died.
+  BASE.HUDPaint calls gm:HUDDrawTargetID() (like the real base); the players client module always answers true.
   real GMod measurements pending for every milestone: nc_perf, nc_net budgets with 32-128 players.
-PITFALLS
+
+PITFALLS (code)
   module tables: methods and fields share one namespace (M:Container(id) overwrote M.Container = class).
-  inventory Give(player) reasons come from _Store (size/weight beat "full").
-  specs: IsValid is not a global in spec files (use ent:IsValid()).
-  movement.speed factors: modules that change theirs must call movement:Refresh(ply) (speeds are set, not polled).
-  specs: test traces must compare masks with server:Get("MASK_SHOT") (spec globals are not the realm's).
-  pockets take size 1 only: test items of size 2 need a bag or they are never given.
-  emulator: server:Advance(s) is ONE tick (scheduler jobs fire once); step in small chunks for periodic jobs.
-  kits/Give in boots without equipment: pockets take only size 1 -> sacks/rifles drop (count as missed).
+  modes: never name a round handler M:Start/M:Stop/M:Init (module lifecycle) -> Begin; round:Every needs an id
+    string first; round.mode is the mode id (string), not a table.
   ctx:Require(id) errors for ids not in requires/optional: a package using weapons:Register must list 'weapons'.
-  specs: teams scores (and roles known) go out in ctx:After(0) batches -> server:Advance(0.1) before Env.Flush.
-  rounds: round.mode is the mode id (string), not a table.
-  bridge: gm.PlayerDeathNotice false skips base PlayerDeath (no kill feed); bridge still sets NextSpawnTime/DeathTime.
-  emulator: BASE.HUDPaint calls gm:HUDDrawTargetID() (like real base); players client always answers true.
-  names: player-facing names go through players:Name(ply) (reduce players.name); admin/console output keeps Nick.
-  loot rule spawns one tick after Setup (round:After(0)): specs Advance once more before counting loot.
-  specs: stub roles.Random / mode_homicide.Random = function(n) return n end for deterministic deals.
-  rounds start preparing as soon as minPlayers are ready (same tick): with minPlayers 2 only the first two
-    ready are in Participants; the rest are late joiners of preparing (Deal tests: call M:Deal on a fake round).
+  command names are global: a second ctx.commands:Add of a name owned by another module fails the module Start
+    (nc_give is weapons'; economy uses nc_givemoney).
+  component fields cannot be optional: use uint 0 for 'none' (e.g. a player entity index); the Lua keyword
+    'until' cannot be a field accessed as data.until -> time fields are named 'ends'.
+  movement.speed factors: modules that change theirs must call movement:Refresh(ply) (speeds are set, not polled).
+  inventory: Give(player) reasons come from _Store (size/weight beat "full"); pockets take size 1 only (kits in
+    boots without equipment drop sacks/rifles -> missed); Move into a place needs inventory:Open(ply, place)
+    first (CanReach: watching set + InReach of the eyes), else 'reach' before any canMove question;
+    SpawnPlace returns ent, container - PlaceOf takes the entity.
+  names: player-facing names go through players:Name(ply) (Reduce players.name); admin/console output uses Nick.
+  bridge: gm.PlayerDeathNotice false skips base PlayerDeath (no kill feed); the bridge still sets
+    NextSpawnTime/DeathTime.
+  rounds call game.CleanUpMap at round start: map entities (doors) are NEW objects -> look them up again by
+    MapCreationID (the emulator keeps MapCreationID across cleanup); mode Cleanup runs only when the next round
+    starts (after endTime 8 s), not at round:End; loot rule spawns one tick after Setup (round:After(0)).
+  questions: two modules answering doors.canRam -> Query takes the first non-nil; answer nil to allow and false
+    to deny, then the order does not matter.
+  law Jail inside a restraints.tied handler is safe: restraints:Tie emits after its state is set.
+  rounds start preparing as soon as minPlayers are ready (same tick): with minPlayers 2 only the first two ready
+    are Participants, the rest are late joiners of preparing (Deal tests: call M:Deal on a fake round).
+
+PITFALLS (specs and emulator)
+  IsValid is not a global in spec files (use ent:IsValid()); test traces compare masks with
+    server:Get("MASK_SHOT") (spec globals are not the realm's); mode callbacks defined in a spec have no CurTime
+    (use server.time; declare `local server` before boot).
+  server:Advance(s) is ONE tick (scheduler jobs fire once): step in small chunks for periodic jobs.
+  teams scores and roles known go out in ctx:After(0) batches -> server:Advance(0.1) before Env.Flush; component
+    replication needs Advance before Flush (rate batches).
+  client -> server net: call hud(server, client) (Advance + Env.Flush) after cl:Ask*/Request; replicated
+    components/roles reach the client only on the next Advance + Flush -> settle() = hud twice before checking
+    client state (menus, hints).
+  player index (=> SteamID64) is a global counter across Env servers: a player re-joining or joining a second
+    server gets a new SteamID unless Env.Join(..., {index = old:EntIndex()}). Env.Bot ignores superadmin (use
+    Env.Join). Bots are not ready in the tick they are made: server:Advance(0.1) before players:Deploy(bot).
+  ply:SelectWeapon asks GM:PlayerSwitchWeapon of World.realm or ply.server (players have .server, not .realm).
+  server console output (caller nil) goes to server.console: check with server:Lines(fragment).
+  suicide (Env.Kill(ply) without attacker) costs a frag: kill with an NPC attacker when frags matter.
+  stub roles.Random / mode_homicide.Random = function(n) return n end for deterministic deals; loot and npcs
+    M.Random are stub-able too (dice helpers in loot_spec, npcs_spec).
   spec WeaponClasses() keeps the give order (hands first, then the kit order).
-  emulator: ply:SelectWeapon asks GM:PlayerSwitchWeapon of World.realm or ply.server (players have .server,
-    not .realm); component replication needs server:Advance before Env.Flush (rate batches).
-  modes: never name a round handler M:Start/M:Stop/M:Init (module lifecycle) -> use Begin; round:Every needs an id
-         string first; mode callbacks defined in a spec cannot call CurTime (use server.time).
-- Emulator player index (=> SteamID64) is a global counter across Env servers: a player re-joining or joining a second
-  server gets a new SteamID unless Env.Join(..., { index = old:EntIndex() }). Env.Bot ignores superadmin (use Env.Join).
-  Bots are not ready in the tick they are made: server:Advance(0.1) before players:Deploy(bot).
-- Command names are global: a second ctx.commands:Add of a name owned by another module fails the module Start
-  (nc_give is weapons'; economy uses nc_givemoney).
-- inventory:Move into a place needs inventory:Open(ply, place) first (CanReach checks watching set + InReach of eyes), else 'reach' before any canMove question.
-- SpawnPlace returns ent, container (not container) - PlaceOf takes the entity.
-- Client->server net in specs: call hud(server, client) (Env.Flush) after cl:Ask*/Request, server:Advance alone does not deliver.
-- Server console command output (caller nil) goes to server.console: check with server:Lines(fragment).
-- Rounds call game.CleanUpMap at round start: map entities (doors) are NEW objects afterwards - look them up again (by MapCreationID); emulator keeps MapCreationID across cleanup (mapId).
-- Mode Cleanup runs only when the next round starts (after endTime 8 s), not at round:End.
-- Component fields cannot be optional: use uint 0 for 'none' (e.g. player entity index).
-- Lua keyword 'until' cannot be a component field accessed as data.until: name time fields 'ends'.
-- Two modules answering doors.canRam: Query takes the first non-nil; answer nil to allow, false to deny, so order does not matter.
-- law Jail inside restraints.tied handler: restraints:Tie emits after its state is set, so untying inside the listener is safe.
-- Emulator round trips: a client request + one hud() reaches the server, but replicated components/roles reach the client
-  only on the next Advance+Flush: settle() = hud twice before checking client state (menus, hints).
-- glualint 'unnecessary parentheses' on tonumber((s:gsub(...))) is wrong but fatal: assign the gsub result to a local first.
-- Derma in the emulator: Paint/Think never run; DButton.DoClick(button) by hand; DMenu children are options (.text, .func) and
-  submenus (.text, .children); 'Locked' etc. may also be notice texts in drawn - assert hint lines via HintLines, not drawn.
+  Derma: DButton.DoClick(button) by hand; DMenu children are options (.text, .func) and submenus (.text,
+    .children); words like 'Locked' may also be notice texts in drawn -> assert hint lines via HintLines.
+
+PITFALLS (tools)
+  glualint 'unnecessary parentheses' on tonumber((s:gsub(...))) is wrong but fatal: assign the gsub result to a
+    local first.
+  Lua gmatch "[^\n]*" yields an extra empty match after every line -> iterate lines with "([^\n]*)\n".
+  awk length counts bytes: check line width of russian text with python len().

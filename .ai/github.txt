@@ -1,32 +1,31 @@
 GITHUB
-  repo        https://github.com/vovawees/Next-City (public, default branch main)
-  auth        token only from the environment of the agent machine; never committed, never written to files in repo
+  repo        https://github.com/vovawees/Next-City (public, default branch main; topics: gamemode garrys-mod
+              garrysmod glua gmod gmod-gamemode gmod-lua lua luajit realism roleplay)
+  auth        token only from the environment of the agent machine; never committed, never written to repo files
   push        git push https://x-access-token:<token>@github.com/vovawees/Next-City.git main
-  commits     Conventional Commits: feat(<module>): ..., fix(...), test(gmod): ..., docs: ..., chore: ...
-              reference issues (#N), "Closes #N" in the commit that finishes an issue; push after every logical step
-  ci          none (no .github/workflows)
+  commits     Conventional Commits: feat(<module>): ..., fix(...), test(gmod): ..., docs: ..., docs(ai): ...,
+              chore: ...; "Refs #N" for a step, "Closes #N" in the commit that finishes an issue; push after every
+              logical step; ~8 s after the push check the issue is closed (API), close it by PATCH if not
+  ci          none (no .github/workflows; rule: no GitHub Actions)
+  before push tests + lint, .ai refreshed, `git diff --cached | grep -iE "ghp_|github_pat|x-access-token"` empty
 
-MILESTONES
-  M6 Inventory and medicine  (#7)   issues #1-#12
-  M7 Modes                   (#8)   issues #13-#24
-  M8 Services                (#9)
-  M9 Polish                  (#10)
+MILESTONES (GitHub numbers)
+  M0-M5 (#1-#6) closed (work before GitHub issues)   M6 Inventory and medicine (#7) closed, 12 issues
+  M7 Modes (#8) closed, 12 issues   M8 Services (#9) open, no issues yet   M9 Polish (#10) open, no issues yet
+  ROADMAP: docs/ROADMAP.md (M0-M5 before GitHub issues; M6-M9 with issues)
 
-ISSUES
-  #1  platform: engine hooks (use, pickups, chat, voice, NPC, target id) + emulator   [closed fe782d2]
-  #2  storage: persistent JSON data in DATA   [closed 5c6213c]
-  #3  actions: timed actions with progress and cancel rules   [closed 7b17e4f]
-  #4  inventory: item registry, instances, containers   [closed d229dd6]
-  #5  inventory: replication of containers and client intents   [closed d229dd6]
-  #6  inventory: world items, crates, corpse loot   [closed d229dd6]
-  #7  inventory: UI   [closed d229dd6]
-  #8  equipment: body and weapon slots, armor, bags, weight, weapons as items   [closed be82edd]
-  #9  medical: treatment items on organism   [closed 0f17c90]
-  #10 loot: tables, crates, spawn points, round rule   [closed 43825d9]
-  #11 content package lua/nextcity (weaponry, supplies)   [closed this push]
-  #12 mode_tdm loadout via inventory   [closed this push]
-  #13 roles: hidden roles
-  #14 mode_homicide   #15 mode_hideseek   #16 mode_riot   #17 mode_defense   #18 mode_coop   #19 mode_dm
-  #20 City mode + jobs  #21 City economy  #22 City doors  #23 City police  #24 City UI (F4 + HUD)
-  #25 docs: README showcase and docs overhaul
-  #26 .ai knowledge base
+ISSUES -> COMMITS (all closed)
+  #1  platform: engine hooks + emulator                fe782d2   #2  storage                          5c6213c
+  #3  actions                                          7b17e4f   #4-#7 inventory core/net/world/UI    d229dd6
+  #8  equipment                                        be82edd   #9  medical                          0f17c90
+  #10 loot                                             43825d9   #11 content package lua/nextcity     f9a4f8f
+  #12 mode_tdm kits                                    7759d74   #13 roles (+ platform 12f81cf)       4421f9e
+  #14 mode_homicide (+ players names f202e75)          b09c71a   #15 mode_hideseek                    c95b6fe
+  #16 mode_riot (+ restraints a00a9a7)                 e456c2e   #17 mode_defense (+ npcs 54dd21f)    4a13997
+  #18 mode_coop                                        4e411f1   #19 mode_dm                          4c5a55e
+  #20 city mode + jobs                                 5572d98   #21 shop (+ economy 3796ce7)         9e62ccf
+  #22 doors                                            97ba56b   #23 law                              b0422a1
+  #24 city UI (F4 menu, HUD, door hints)               9dd14df   #25 docs: README showcase            349e87d
+  #26 .ai knowledge base (first a0fe18b)               this commit
+  no issue: notices 5780ce0, CI removal cbc867a
+  M8/M9 issues: not created yet (next.txt step 1)

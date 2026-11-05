@@ -1,34 +1,24 @@
 STATUS (update every step)
-  M0 foundation        done
-  M1 net and data      done
-  M2 players, rounds   done
-  M3 damage, organism  done
-  M4 ragdoll           done
-  M5 weapons           done (cbc867a removed CI)
-  M6 inventory+medical done (only real-GMod measurements left)
-       #1 platform hooks + emulator        done fe782d2
-       #26 .ai knowledge base              in progress (updated every step)
-       notices (no issue)                  done 5780ce0
-       #2 storage                          done 5c6213c
-       #3 actions                          done 7b17e4f
-       #4-#7 inventory core/net/world/UI   done d229dd6
-       #8 equipment                        done be82edd
-       #9 medical                          done 0f17c90
-       #10 loot                            done 43825d9
-       #11 content package lua/nextcity  done (this commit)
-       #12 mode_tdm kits via inventory     done (this commit)
-  M7 modes             done (#13-#24), ROADMAP M7 closed
-       #13 roles + platform (death notices, chat lines, silent_deaths, dead_mute, team names, loot.allow, stun melee)  done
-       #14 homicide: names, target ID, chat lines, mode_homicide (package), kits   done
-       #15 hideseek: hide phase (frozen, blindfold), kill/tag, late hiders, alive scores   done
-       #16 riot: restraints core module + mode_riot (package): police third, tie enemies/untie allies, standing = alive & not tied, firearms param   done
-       #17 defense: npcs core module, rounds status line + result params, hostiles package, mode_defense   done
-       #18 coop: mode_coop (package): map NPCs adopted + group spawned, shared lives, out players stay out   done
-       #19 dm: mode_dm (core) frags from zero, frag/time limits, leader status; tdm kit select refactor   done
-       #20 city: mode_city endless round, jobs/limits/cooldown/salaries/issued gear/models/rp names   done
-       #21 economy: core economy module + city shop of jobs (offers, Buy, nc_buy, net buy)   done
-       #22 doors: core doors module (property, keys, co-owners, titles, map groups, lockpick, ram) + city wiring   done
-       #23 law: core law module (wanted, warrants, arrest by cuffs, jail points/timer/rejoin, search, ram needs warrant) + city wiring   done
-       #24 ui: city F4 menu (jobs/name, shop x1/x5, bank, police tab), city HUD (money, salary, F4 key), door hints + F2 door menu   done
-  docs overhaul        done (#25): README showcase, CONTRIBUTING (no CI, module checklist), ARCHITECTURE 0.7 (D20 city = core modules + questions)
-  last full run        57 specs, 512 passed, 0 failed (~30 s)
+  M0 foundation          done   core, loader, bridge, devtools, emulator
+  M1 net and data        done   schemas, net with readiness and limits, i18n, components, replication, nc_net
+  M2 players, rounds     done   players, rounds (typed params, rule blocks), commands, spectator, mode_tdm
+  M3 damage, organism    done   damage pipeline, armor, organism (full realism), movement, HUD
+  M4 ragdoll             done   fall, body control, getting up, corpses, camera pipeline
+  M5 weapons             done   ammo, ballistics, firearm base, melee, hands, explosions, throwables (cbc867a no CI)
+  M6 inventory+medical   done   #1 platform hooks fe782d2, notices 5780ce0, #2 storage 5c6213c, #3 actions 7b17e4f,
+                                #4-#7 inventory d229dd6, #8 equipment be82edd, #9 medical 0f17c90, #10 loot 43825d9,
+                                #11 content package f9a4f8f, #12 mode_tdm kits 7759d74
+  M7 modes               done   #13 roles, #14 homicide, #15 hideseek, #16 riot (+restraints), #17 defense (+npcs),
+                                #18 coop, #19 dm, #20 city jobs, #21 economy + shop, #22 doors, #23 law, #24 city UI
+                                (commits: github.txt); GitHub milestones M6 and M7 closed
+  docs                   done   #25 349e87d: README showcase, CONTRIBUTING (no CI), ARCHITECTURE 0.7 (D20), topics
+  .ai base               done   #26: dense notes, tools/apimap.lua -> api.txt, modmap wraps at 120
+  M8 services            next   appearance and identity, profiles, permissions via CAMI, chat and voice (next.txt)
+  M9 polish              later  bot load tests, optimization passes, Workshop release
+
+  last full run        57 specs, 512 passed, 0 failed (30.3 s local; VPS aarch64 33.9 s at 349e87d)
+  lint                 glualint lint gamemodes tests lua and glualint lint tools: clean
+
+PENDING CHECKS (every milestone)
+  real GMod: boot on a dedicated server, nc_perf (scheduler jobs), nc_net (bytes/s per message) with 32-128
+  players (bots), visuals of Derma screens and HUD, client prediction of weapons; checklists in module READMEs

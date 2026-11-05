@@ -1,0 +1,421 @@
+API MAP (generated: luajit tools/apimap.lua > .ai/api.txt; do not edit by hand)
+contracts with arguments and returns: the header comment of every module file and the API section
+of its README; sh/sv/cl = realm, .Name = static function, Class: = methods of a class of the module;
+questions: Query (first non-nil answer wins), reductions: Reduce (a value through every listener)
+
+[core] actions
+  sv       Begin(ply,spec) Current(ply) IsBusy(ply) Progress(ply) Complete(ply) Cancel(ply,reason) Check(now)
+  cl       Current() Progress(now)
+  emits    actions.started actions.completed actions.cancelled
+  listens  players.died players.left players.stateChanged damage.hit gm.HUDPaint
+[core] ammo
+  sh       Register(id,def) Get(id) OfCaliber(caliber) All() At(id,distance)
+  commands nc_ammo
+[core] armor
+  sh       RegisterArmor(id,def) Kind(id) Kinds() .Covers(kind,region,side) .Threat(energy,projectile)
+  sv       Equip(ply,id,condition) Unequip(ply,slot) Worn(ply)
+  cl       Worn(ply)
+  emits    armor.hit armor.changed
+  listens  players.loadout players.died players.left players.stateChanged
+  commands nc_armor
+[core] ballistics
+  sv       Fire(owner,origin,dir,ammoId,opts) Launch(owner,origin,velocity,projectile,opts) Count() Clear()
+           SetMaterial(mat,def)
+  emits    ballistics.impact
+  commands nc_ballistics
+[core] damage
+  sv       RegisterAmmo(name,def) Ammo(name) Projectile(name,distance,damage) AddStage(id,order,fn) RemoveStage(id)
+           Stages() Apply(ply,hit) KindOf(ply,dmginfo) Inflict(ply,hit) History(count)
+  emits    damage.hit
+  asks     damage.kind gm.PlayerShouldTakeDamage
+  listens  gm.ScalePlayerDamage gm.EntityTakeDamage gm.GetFallDamage gm.OnPlayerHitGround players.left
+  commands nc_damage
+[core] doors
+  sh       IsDoor(ent) Info(ent) Owner(ent) Coowners(ent) IsOwner(ply,ent) IsCoowner(ply,ent) Group(ent) Title(ent)
+           HasKeys(ply,ent) ForSale(ent)
+  sv       All() Aimed(ply) Near(ply,door) IsLocked(door) MapSettings(door) SetMap(door,field,value) Price(ply,door)
+           Owned(ply) Buy(ply,door) Sell(ply,door) Release(door) ReleaseAll() AddCoowner(ply,door,target)
+           RemoveCoowner(ply,door,target) .CleanTitle(text) SetTitle(ply,door,text) Tool(ply,trait)
+           BeginPick(ply,door) BeginRam(ply,door) Request(ply,op,door,arg)
+  cl       Aimed() Ask(op,door,arg) IsLocked(door) IsProperty() Price() GroupName(group) HintLines(door)
+           OpenMenu(door) OpenTitle(door)
+  emits    doors.bought doors.sold doors.locked doors.picked doors.rammed
+  asks     doors.member doors.property doors.canBuy doors.groupName doors.price doors.canPick doors.canRam
+  reduces  doors.price
+  listens  gm.InitPostEntity gm.PostCleanupMap gm.KeyPress players.left gm.HUDPaint gm.PlayerBindPress i18n.changed
+  commands nc_door nc_doormap
+[core] economy
+  sh       Format(amount)
+  sv       Key(ply) Account(ply) Balance(ply) Cash(ply) Wealth(ply) CanAfford(ply,amount) SetBalance(ply,amount)
+           GiveCash(ply,amount,opts) TakeCash(ply,amount) Pay(ply,amount,reason) Charge(ply,amount,reason)
+           Deposit(ply,amount) Withdraw(ply,amount) Aimed(ply) Hand(ply,target,amount) Drop(ply,amount)
+           Tell(ply,key,params,kind) Handle(ply,op,amount)
+  cl       Balance() Cash() Request(op,amount)
+  emits    economy.balance economy.paid economy.charged economy.handed
+  listens  players.ready players.left
+  commands nc_bank nc_givemoney nc_dropmoney nc_money
+[core] equipment
+  sh       SlotFor(def) WeaponClass(id) AmmoItems(ammoId) CountAmmo(ply,ammoId) TakeAmmo(ply,ammoId,count)
+  sv       Of(ply) Item(ply,name) Equip(ply,item) SyncAll() SpeedFactor(ply) Refresh(ply)
+  listens  inventory.place inventory.changed players.left gm.DoPlayerDeath throwables.thrown armor.hit movement.speed
+[core] example
+  sh       Greeting(ply)
+  listens  net.ready i18n.changed
+[core] explosions
+  sv       .Overpressure(z) .FragmentSpeed(charge,casing) .Chunk(mass) Explode(pos,opts)
+  emits    explosions.exploded
+  listens  damage.kind
+  commands nc_explode
+[core] hands
+  sh       Name() Active(ply)
+  sv       Carried(ply) Grab(hands) Hold(hands) Throw(hands) Release(hands,thrown)
+  emits    hands.grabbed hands.dropped
+  asks     hands.grab
+  listens  players.loadout i18n.changed
+[core] hud
+  cl       RebuildStatuses()
+  listens  organism.vitals organism.capabilities armor.changed i18n.changed gm.HUDShouldDraw gm.HUDPaint
+           gm.RenderScreenspaceEffects
+[core] inventory
+  sh       RegisterItem(id,def) Def(id) Items() Trait(id,name) WithTrait(name) Name(id) Description(id)
+           RegisterVerb(id,spec) HandleVerb(id,fn) VerbApplies(id,item,where,kind) VerbsFor(item,where,kind)
+           WeightOf(id,count)
+  sv       CreateContainer(spec) Container(id) RemoveContainer(c) Create(id,count,state) Instance(uid) Destroy(item)
+           Detach(item) SetCount(item,count) Touch(item) ItemWeight(item) ContainerWeight(c) Root(c) IsInside(c,item)
+           CanPlace(c,slot,item,count,freed) CanStack(a,b) Insert(c,item,slot) Split(item,count)
+           Transfer(from,fromSlot,to,toSlot,count) Inside(c,out) ItemsIn(c,out) CountIn(c,id) TakeIn(c,id,count)
+           Pockets(ply) AddOwned(ply,c,order) Owned(ply) Own(ply) StoreOrder(ply) Load(ply) Carries(ply)
+           Give(target,id,count,state,opts) Count(target,id) Take(target,id,count) ItemsOf(target) Watching(ply,c)
+           Watchers(c) CanReach(ply,c) InReach(ply,ent) Open(ply,c) Close(ply,c) CheckReach() Flush()
+           Fail(ply,reason) Move(ply,fromId,fromSlot,toId,toSlot,count) Where(ply,c)
+           Act(ply,containerId,slot,verb,count) TakeItem(ply,item,count) TakeAll(ply,c) ItemOf(ent) PlaceOf(ent)
+           SpawnItem(item,pos,ang) DropPos(ply) DropItem(ply,item,count) Pickup(ply,ent) AttachPlace(ent,spec)
+           SpawnPlace(pos,ang,spec) DetachPlace(ent) Bury(ply,ent,spec) RegisterKit(id,entries) Kit(id) Kits()
+           GiveKit(target,id,opts)
+  cl       Get(id) Own() External() OwnOfKind(kind) Count(id) Spend(id,count) Where(c)
+           Move(fromId,fromSlot,toId,toSlot,count) Act(id,slot,verb,count) Close(id) Title(c) ScreenLoad()
+           IsScreenOpen() OpenScreen() CloseScreen() ToggleScreen() RebuildScreen() OpenMenu(button) QuickUse(button)
+           Aimed()
+  Container: Item(slot) IsEmpty() FreeSlot() SlotOf(name)
+  emits    inventory.opened inventory.changed inventory.moved inventory.used inventory.dropped inventory.picked
+           inventory.updated inventory.closed inventory.screen
+  asks     inventory.place inventory.canMove inventory.canAct
+  listens  players.spawned players.loadout players.left net.ready gm.PlayerUse gm.EntityRemoved ragdoll.corpse
+           players.died gm.PlayerBindPress gm.HUDPaint inventory.updated inventory.closed i18n.changed
+  commands nc_items nc_inv nc_item nc_kit nc_kits nc_inventory
+[core] law
+  sh       IsOfficer(ply) IsAuthority(ply) IsWanted(ply) WarrantOf(ply) HasWarrant(ply) IsJailed(ply) Left(data)
+           JailLeft(ply) .Clock(seconds)
+  sv       IsEnabled() Authority() Want(by,ply,reason) Unwant(by,ply) IssueWarrant(by,ply,reason) Arrest(by,ply)
+           Jail(by,ply,seconds) JailPoints() AddJailPoint(pos,yaw) ClearJailPoints() Release(by,ply) Amnesty()
+           Search(by,ply) Do(by,op,target,reason) Request(ply,op,target,reason) OrderCommand(op,caller,args)
+  cl       Ask(op,target,reason)
+  emits    law.wanted law.unwanted law.warrant law.jailed law.released law.searched
+  asks     law.officer law.authority law.enabled law.canSearch
+  listens  gm.StartCommand gm.PlayerSwitchWeapon restraints.tied players.spawned players.left inventory.canMove
+           inventory.canAct restraints.canTie restraints.canUntie doors.canBuy doors.canPick doors.canRam
+           movement.speed gm.HUDPaint players.targetLines i18n.changed
+  commands nc_want nc_unwant nc_warrant nc_release nc_arrest nc_search nc_wanted nc_jail nc_jails
+[core] loot
+  sv       RegisterTable(id,spec) RegisterCrate(id,spec) Table(id) Crate(id) Tables() Crates() Roll(id) Fill(c,id)
+           SpawnCrate(crateId,pos,ang,point) SpawnLoose(id,pos) Refill(now) ClearAll() Points()
+           AddPoint(kind,id,pos,yaw) RemovePoint(index) Nearest(pos,radius) SpawnAll(share)
+  asks     loot.allow
+  commands nc_loot
+[core] medical
+  sh       Trait(id)
+  sv       Fail(ply,reason) Aimed(ply) PatientOf(ply,others) CanTreat(ply,patient,kind,opts,itemId)
+           UseItem(ply,patient,item) UseHands(ply,patient,id,part) Examine(ply,patient) Diagnostics(ply)
+           Findings(exam,diag) Options(ply,patient,exam) Report(ply,patient) SendReport(ply,patient)
+  cl       Line(finding) OptionText(option) Show() Choose(option) Close() IsOpen()
+  emits    medical.treated medical.examined medical.report
+  asks     medical.canTreat
+  listens  gm.ShowSpare1 players.left i18n.changed
+  commands nc_examine
+[core] melee
+  sh       Register(class,def) Get(class) All() IsMelee(weapon) Name(class) Trace(owner,attack)
+           Strike(owner,weapon,attack,index,scale)
+  emits    melee.struck
+  listens  i18n.changed
+  commands nc_melee
+[core] mode_dm
+  sv       Leader(round) CheckWin(round) Update(round) GiveLoadout(ply,params) GiveKit(ply,id)
+[core] mode_tdm
+  sv       GiveLoadout(ply,params) GiveKit(ply,id)
+[core] movement
+  sh       .LimitOf(caps) Limit(ply)
+  sv       Speeds(caps) Refresh(ply)
+  reduces  movement.speed
+  listens  organism.capabilities players.spawned players.died players.left players.stateChanged gm.StartCommand
+[core] notices
+  sv       Encode(params) Send(target,key,params,kind,opts) Broadcast(key,params,kind,opts)
+  cl       Show(key,params,kind,opts) Active()
+  emits    notices.shown
+  listens  gm.HUDPaint i18n.changed
+[core] npcs
+  sv       RegisterKind(id,spec) RegisterGroup(id,entries) Kind(id) Group(id) Kinds() Groups() Roll(groupId)
+           Spawn(kindId,pos,opts) SpawnGroup(groupId,count,opts) Adopt(tag,opts) Count(tag) List(tag) TagOf(ent)
+           IsTracked(ent) Clear(tag) Hunt() Points() AddPoint(pos,yaw) RemovePoint(index) Nearest(pos,radius)
+           Spots(count)
+  emits    npcs.spawned npcs.killed npcs.removed
+  listens  gm.OnNPCKilled gm.EntityRemoved
+  commands nc_npcs
+[core] organism
+  sh       .DecodeCapabilities(vitals,into) .HasStatus(vitals,name)
+  sv       CompileBody(body) Cast(ply,ox,oy,oz,dx,dy,dz,grow) Locate(ply,ox,oy,oz,dx,dy,dz,grow)
+           SegmentStructures(segId) NearestSegment(ply,x,y,z) CanTrace(ply) RegisterInjury(kind,fn) .ClotLimit(w)
+           Injure(ply,hit) SetStep(id,fn,after) Steps() RegisterTreatment(kind,fn,check)
+           ApplyTreatment(ply,kind,opts) CanTreat(ply,kind,opts) Examine(ply) Succumb(ply) IsSimulated(ply)
+           IsDead(ply) IsUnconscious(ply) Exert(ply,share) Capabilities(ply) Vitals(ply) Carrier(ply)
+           SetCarrier(ply,ent) PlayerOf(ent) BodyEntity(ply) State(ply) Wounds(ply) Describe(ply)
+  cl       Capabilities(ply) Vitals(ply) IsUnconscious(ply) SuccumbIn()
+  emits    organism.wounded organism.treated organism.unconscious organism.capabilities organism.died organism.vitals
+  asks     organism.canSuccumb
+  listens  players.spawned players.died players.left players.stateChanged gm.KeyPress gm.PlayerBindPress
+  commands nc_organism nc_hurt nc_heal nc_treat
+[core] players
+  sh       Name(ply) State(ply) IsAlive(ply) IsReady(ply) RespawnAt(ply) List(state) Count(state) Find(text,caller)
+  sv       SpawnPoints(group) FindSpot(center,others,ply) PickSpawn(ply,candidates) List(state) Count(state)
+           ReadyPlayers() Adopt() Deploy(ply,opts) MakeSpectator(ply) SetRespawnAt(ply,at) Kill(ply,opts)
+           IsKilling(ply)
+  cl       Aimed()
+  emits    players.stateChanged players.ready players.left players.spawned players.loadout players.died
+  asks     players.spawnPoint players.targetLines
+  reduces  players.name players.targetLines
+  listens  gm.PlayerInitialSpawn net.ready gm.PlayerSpawn gm.PlayerSelectSpawn gm.PlayerDeathThink
+           gm.PlayerShouldTakeDamage gm.PlayerSpawned gm.PlayerLoadout gm.PlayerDeath gm.PlayerSilentDeath
+           gm.PlayerDisconnected gm.InitPostEntity gm.PostCleanupMap gm.HUDDrawTargetID gm.OnPlayerChat
+  commands nc_players
+[core] ragdoll
+  sv       Fall(ply,opts) GetUp(ply,force) Body(ply) Bodies() IsDown(ply) Corpses()
+  cl       State() IsDown() Ragdoll()
+  emits    ragdoll.fell ragdoll.stood ragdoll.corpse
+  asks     ragdoll.canFall ragdoll.canGetUp
+  listens  gm.StartCommand organism.unconscious organism.capabilities damage.hit gm.OnPlayerHitGround
+           gm.DoPlayerDeath gm.EntityRemoved players.spawned players.stateChanged players.left gm.CalcView
+           gm.HUDPaint gm.HUDShouldDraw i18n.changed
+  commands nc_ragdoll nc_fall
+[core] ragdoll_control
+  sv       Release(ply,hand) Grip(ply,hand)
+  emits    ragdoll_control.grabbed ragdoll_control.released
+  asks     ragdoll_control.canGrab
+  listens  ragdoll.fell ragdoll.stood ragdoll.corpse
+[core] restraints
+  sh       IsTied(ply)
+  sv       Restraint(ply) Aimed(ply) BeginTie(ply,target) BeginUntie(ply,target) Tie(ply,by,restraint)
+           Untie(ply,by,quiet)
+  emits    restraints.tied restraints.untied
+  asks     restraints.tool restraints.canTie restraints.canUntie
+  listens  gm.StartCommand gm.PlayerSwitchWeapon gm.KeyPress players.died players.spawned players.left movement.speed
+           inventory.canMove inventory.canAct gm.HUDPaint players.targetLines
+[core] roles
+  sh       Register(id,def) Def(id) Index(id) All() SideOfRole(id)
+  sv       Assign(ply,id) Of(ply) Side(ply) Members(id) OnSide(side) Clear() Reveal(on) IsRevealed()
+           Knows(viewer,target) Deal(list,spec,rest) Flush()
+  cl       Of(ply) Mine() IsRevealed() Allies()
+  emits    roles.assigned roles.changed
+  listens  players.left net.ready gm.HUDPaint i18n.changed
+  commands nc_roles nc_role
+[core] rounds
+  sh       .FormatTime(seconds) .EncodeParams(params) .DecodeParams(list)
+  sv       RegisterRule(def,owner) RegisterMode(def,owner) Mode(id) Rule(id) Modes() Rules() IsAvailable(id)
+           ParamSet(id) ResolveParams(id) SetParam(id,name,value) ResetParam(id,name) Overrides(id) Phase() Round()
+           SetNextMode(id) Restart(mode) EndRound(round,result) StatusLines()
+  cl       Status() Phase() State() Result() TimeLeft()
+  Round:   On(event,fn,opts) Every(id,interval,fn,opts) After(delay,fn) Defer(fn) RuleData(id) Phase() IsActive()
+           Participants() ParticipantCount() IsParticipant(ply) Alive() AliveCount() AddParticipant(ply)
+           Respawn(ply,delay) CancelRespawn(ply) IsRespawning(ply) RespawnCount() SetTimeLimit(seconds) TimeLeft()
+           Elapsed() SetStatus(key,params,endsAt) CheckWin() End(result)
+  emits    rounds.phase
+  listens  gm.PlayerDeathNotice gm.PlayerCanSeePlayersChat gm.PlayerCanHearPlayersVoice players.ready players.spawned
+           players.loadout players.died players.left players.spawnPoint gm.PlayerShouldTakeDamage net.ready
+           gm.HUDPaint i18n.changed
+  commands nc_round nc_modes
+[core] spectator
+  sv       Observe(ply) IsObserving(ply) Target(ply) Camera(ply) Viewers(target) CanObserve(viewer,target)
+           SetCamera(ply,camera) Follow(ply,target) Next(ply,step)
+  emits    spectator.target
+  asks     spectator.canObserve
+  listens  players.stateChanged players.left teams.changed gm.KeyPress gm.HUDPaint i18n.changed
+[core] storage
+  sv       Open(ns) IsOpen(ns) PlayerKey(ply)
+  Store:   Get(key) Set(key,value) Delete(key) Touch() Keys() Count() Each() Flush()
+  emits    storage.flushed
+  listens  gm.ShutDown
+  commands nc_storage
+[core] teams
+  sh       IsPlayable(index) NameKey(index) Color(index) Count() Score(index) Of(ply) Members(index)
+  sv       Assign(ply,index) Smallest(count) AliveCount(index) SetCount(count,names) SetScore(index,score)
+           AddScore(index,amount) Leader()
+  emits    teams.changed teams.scores
+  listens  players.stateChanged net.ready i18n.changed gm.HUDPaint
+[core] throwables
+  sh       Register(class,def) Get(class) All() Name(class) .Speed(energy,mass)
+  sv       Launch(owner,class,opts) Thrower(ent) IsLive(ent) Detonate(ent)
+  emits    throwables.thrown throwables.detonated
+  listens  gm.EntityRemoved i18n.changed
+  commands nc_throwables
+[core] weapons
+  sh       Register(class,def) Get(class) All() IsFirearm(weapon) Name(class) SetAmmoSource(source)
+           CountAmmo(ply,weapon,ammoId) TakeAmmo(ply,weapon,ammoId,count) ReloadAmmo(ply,weapon) Sprinting(ply)
+  sv       Give(ply,class,opts)
+  emits    weapons.fired
+  listens  i18n.changed
+  commands nc_weapons nc_give
+[addons] hostiles
+[addons] mode_city
+  sh       RegisterJob(id,def) Job(id) Jobs() DefaultJob() JobOf(ply) IsPolice(ply) IsMayor(ply)
+           RegisterOffer(id,def) Offer(id) Offers() MayBuy(ply,offer) OffersFor(ply) CitizenName(ply)
+  sv       Round() Setup(round) Arrive(round,ply) Begin(round) Cleanup() Members(id) ModelFor(ply,job) Equip(ply)
+           Unequip(ply) SetJob(ply,id,force) RequestJob(ply,id) Buy(ply,id,times) RequestBuy(ply,id,times)
+           Payday(round) StoredName(ply) .CleanName(text) SetName(ply,text) RequestName(ply,text)
+  cl       IsRunning() Count(id) Money(amount) HudLines() AskJob(id) AskName(name) AskBuy(id,times) MenuTabs()
+           IsMenuOpen() MenuTab() OpenMenu(tab) CloseMenu() ToggleMenu() MenuKey() ShowTab(tab) RefreshMenu(force)
+           MayWarrant()
+  emits    mode_city.job mode_city.bought
+  asks     mode_city.canJob mode_city.canBuy mode_city.salary
+  reduces  mode_city.salary
+  listens  players.name doors.member law.officer law.authority players.left gm.PlayerSetModel doors.property
+           doors.canRam law.enabled inventory.canMove inventory.canAct players.targetLines gm.HUDPaint
+           gm.PlayerBindPress doors.groupName roles.changed i18n.changed
+  commands nc_job nc_buy nc_rpname nc_setjob
+[addons] mode_coop
+  sv       Setup(round) Begin(round) Loadout(round,ply) Feed(round) Left(round) Update(round) Fell(round,ply)
+           CheckWin(round)
+  listens  npcs.killed npcs.removed
+[addons] mode_defense
+  sv       Setup(round) Begin(round) Loadout(round,ply) Pause(round,n) Regroup(round) Group(round,n)
+           WaveSize(round,n,living) Wave(round,n) Feed(round) Left(round) Update(round) Beaten(round) CheckWin(round)
+  listens  npcs.killed npcs.removed
+[addons] mode_hideseek
+  sv       Deal(round,ready) IsHiding(round) Side(ply) Loadout(round,ply) BeginHiding(round) Release(round)
+           AnswerDamage(round,ply,attacker) Tag(round,ply,seeker) Count(round) CheckWin(round)
+  cl       TimeLeft() IsBlind()
+  listens  net.ready gm.HUDPaint i18n.changed
+[addons] mode_homicide
+  sh       .AliasName(index) Alias(ply)
+  sv       IsFirearm(def) Setup(round) Deal(round,ready) Join(round,ply) Loadout(round,ply) Died(round,victim,killer)
+           DropFirearms(ply) CheckWin(round) Reveal(round)
+  listens  players.name loot.allow
+[addons] mode_riot
+  sv       IsFirearm(def) Setup(round) PoliceFor(params,count) Deal(round,ready) Join(round,ply) Side(round,ply)
+           Loadout(round,ply) Brief(round) Tied(round,ply,by) Untied(round,ply,by) Standing(ply) Count(round)
+           CheckWin(round) Timeout(round)
+  listens  loot.allow restraints.canTie restraints.canUntie restraints.tied restraints.untied
+[addons] supplies
+[addons] weaponry
+  sv       Detonate(ent,thrower,pos,spec)
+
+QUESTIONS AND REDUCTIONS (name  askers -> answerers)
+  damage.kind                  damage -> explosions
+  doors.canBuy                 doors -> law
+  doors.canPick                doors -> law
+  doors.canRam                 doors -> law,mode_city
+  doors.groupName              doors -> mode_city
+  doors.member                 doors -> mode_city
+  doors.price                  doors -> -
+  doors.property               doors -> mode_city
+  gm.PlayerShouldTakeDamage    damage -> players,rounds
+  hands.grab                   hands -> -
+  inventory.canAct             inventory -> law,restraints,mode_city
+  inventory.canMove            inventory -> law,restraints,mode_city
+  inventory.place              inventory -> equipment
+  law.authority                law -> mode_city
+  law.canSearch                law -> -
+  law.enabled                  law -> mode_city
+  law.officer                  law -> mode_city
+  loot.allow                   loot -> mode_homicide,mode_riot
+  medical.canTreat             medical -> -
+  mode_city.canBuy             mode_city -> -
+  mode_city.canJob             mode_city -> -
+  mode_city.salary             mode_city -> -
+  movement.speed               movement -> equipment,law,restraints
+  organism.canSuccumb          organism -> -
+  players.name                 players -> mode_city,mode_homicide
+  players.spawnPoint           players -> rounds
+  players.targetLines          players -> law,restraints,mode_city
+  ragdoll.canFall              ragdoll -> -
+  ragdoll.canGetUp             ragdoll -> -
+  ragdoll_control.canGrab      ragdoll_control -> -
+  restraints.canTie            restraints -> law,mode_riot
+  restraints.canUntie          restraints -> law,mode_riot
+  restraints.tool              restraints -> -
+  spectator.canObserve         spectator -> -
+
+EVENTS (name  emitters -> listeners)
+  actions.cancelled            actions -> -
+  actions.completed            actions -> -
+  actions.started              actions -> -
+  armor.changed                armor -> hud
+  armor.hit                    armor -> equipment
+  ballistics.impact            ballistics -> -
+  damage.hit                   damage -> actions,ragdoll
+  doors.bought                 doors -> -
+  doors.locked                 doors -> -
+  doors.picked                 doors -> -
+  doors.rammed                 doors -> -
+  doors.sold                   doors -> -
+  economy.balance              economy -> -
+  economy.charged              economy -> -
+  economy.handed               economy -> -
+  economy.paid                 economy -> -
+  explosions.exploded          explosions -> -
+  hands.dropped                hands -> -
+  hands.grabbed                hands -> -
+  inventory.changed            inventory -> equipment
+  inventory.closed             inventory -> inventory
+  inventory.dropped            inventory -> -
+  inventory.moved              inventory -> -
+  inventory.opened             inventory -> -
+  inventory.picked             inventory -> -
+  inventory.screen             inventory -> -
+  inventory.updated            inventory -> inventory
+  inventory.used               inventory -> -
+  law.jailed                   law -> -
+  law.released                 law -> -
+  law.searched                 law -> -
+  law.unwanted                 law -> -
+  law.wanted                   law -> -
+  law.warrant                  law -> -
+  medical.examined             medical -> -
+  medical.report               medical -> -
+  medical.treated              medical -> -
+  melee.struck                 melee -> -
+  mode_city.bought             mode_city -> -
+  mode_city.job                mode_city -> -
+  notices.shown                notices -> -
+  npcs.killed                  npcs -> mode_coop,mode_defense
+  npcs.removed                 npcs -> mode_coop,mode_defense
+  npcs.spawned                 npcs -> -
+  organism.capabilities        organism -> hud,movement,ragdoll
+  organism.died                organism -> -
+  organism.treated             organism -> -
+  organism.unconscious         organism -> ragdoll
+  organism.vitals              organism -> hud
+  organism.wounded             organism -> -
+  players.died                 players -> actions,armor,inventory,movement,organism,restraints,rounds
+  players.left                 players -> actions,armor,damage,doors,economy,equipment,inventory,law,medical,movement,
+                                          organism,ragdoll,restraints,roles,rounds,spectator,mode_city
+  players.loadout              players -> armor,hands,inventory,rounds
+  players.ready                players -> economy,rounds
+  players.spawned              players -> inventory,law,movement,organism,ragdoll,restraints,rounds
+  players.stateChanged         players -> actions,armor,movement,organism,ragdoll,spectator,teams
+  ragdoll.corpse               ragdoll -> inventory,ragdoll_control
+  ragdoll.fell                 ragdoll -> ragdoll_control
+  ragdoll.stood                ragdoll -> ragdoll_control
+  ragdoll_control.grabbed      ragdoll_control -> -
+  ragdoll_control.released     ragdoll_control -> -
+  restraints.tied              restraints -> law,mode_riot
+  restraints.untied            restraints -> mode_riot
+  roles.assigned               roles -> -
+  roles.changed                roles -> mode_city
+  rounds.phase                 rounds -> -
+  spectator.target             spectator -> -
+  storage.flushed              storage -> -
+  teams.changed                teams -> spectator
+  teams.scores                 teams -> -
+  throwables.detonated         throwables -> -
+  throwables.thrown            throwables -> equipment
+  weapons.fired                weapons -> -
+
+43 modules, 595 public methods

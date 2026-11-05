@@ -1,25 +1,31 @@
 STACK
-  target        Garry's Mod (Source, LuaJIT 2.1 / Lua 5.1 semantics, GLua extensions: != && || ! continue, // comments)
-  code          GLua; gamemode folder gamemodes/nextcity; content packages in lua/nextcity (addon layout)
-  style         docs/CODESTYLE.md: tabs, double quotes only, max line 120, no shadowing, english comments,
-                docs in russian (README.md, docs/*.md, module README.md)
-  tests         plain LuaJIT 2.1 + own GMod emulator (tests/gmod/*.lua, tests/support/*.lua); no busted
-  lint          glualint (config .glualint.json at repo root); warnings are treated as errors
-  ci            none (GitHub Actions removed on purpose, cbc867a); checks are local: tests + lint before push
-  packaging     addon.json (type gamemode; ignore lists for *.md, docs, tests, tools, .ai, dotfiles)
+  target      Garry's Mod (Source), LuaJIT 2.1 / Lua 5.1 semantics; GLua extensions allowed by the engine
+              (!= && || ! continue //) but the repo uses plain Lua syntax only
+  code        gamemode folder gamemodes/nextcity (gamemode/core, platform, modules/<id>, lang); content package
+              lua/nextcity (modules, lang) in addon layout; server settings lua/nextcity/config/server.lua (optional)
+  style       docs/CODESTYLE.md: tabs, double quotes, max line 120, no shadowing, english identifiers and comments;
+              docs in russian (README.md, CONTRIBUTING.md, docs/*.md, module README.md)
+  tests       plain LuaJIT 2.1 + own GMod emulator (tests/gmod), zero dependencies, no busted (testing.txt)
+  lint        glualint 1.30 (config .glualint.json: warnings are errors, line 120, shadowing, unused vars,
+              redundant parentheses, scope depth 7)
+  ci          none on purpose (GitHub Actions removed in cbc867a; user rule: no Actions); checks are local
+  packaging   addon.json (type gamemode; ignores *.md, docs, tests, tools, .ai, dotfiles); Workshop later (M9)
+  tools       tools/modmap.lua (module map), tools/apimap.lua (API map) -> .ai/modules.txt, .ai/api.txt
 
-TOOLCHAIN (agent sandbox, resets between sessions)
-  /data/tools/luajit/bin/luajit     LuaJIT 2.1 built from source
-  /data/tools/glualint/glualint     glualint linux binary
+TOOLCHAIN (agent sandbox; may reset between sessions)
+  /data/tools/luajit/bin/luajit     LuaJIT 2.1 (rolling v2.1 branch) built from source
+  /data/tools/glualint/glualint     glualint linux binary 1.30.0
   export PATH=/data/tools/luajit/bin:/data/tools/glualint:$PATH
-  rebuild if missing: git clone https://github.com/LuaJIT/LuaJIT && make && make install PREFIX=/data/tools/luajit
-                      glualint release binary from github.com/FPtje/GLuaFixer/releases
+  rebuild if missing: git clone https://github.com/LuaJIT/LuaJIT && cd LuaJIT && make && make install
+                      PREFIX=/data/tools/luajit; glualint: release binary from github.com/FPtje/GLuaFixer/releases
 
-TOOLCHAIN (VPS, persistent) see vps.txt
-  /home/opc/ai_workspace/next-city/tools/luajit/bin/luajit  (LuaJIT 2.1, aarch64, built in tmux next-city_build)
+TOOLCHAIN (VPS, persistent; vps.txt)
+  /home/opc/ai_workspace/next-city/tools/luajit/bin/luajit  (LuaJIT 2.1, aarch64); no glualint there
 
-COMMANDS
-  luajit tests/run.lua            all specs (~15 s), exit code != 0 on failure
-  luajit tests/run.lua <filter>   only specs whose path contains <filter> (first arg only)
-  glualint lint gamemodes tests   lint; must print nothing
-  luajit tools/modmap.lua         module map for .ai/modules.txt
+COMMANDS (repo root)
+  luajit tests/run.lua                  all 57 specs (~30 s), exit code != 0 on failure
+  luajit tests/run.lua <filter>         specs whose path contains <filter> (first argument only)
+  luajit tests/bench.lua [nojit]        hot-path benchmarks in the emulator (nojit = interpreter, closer to GMod)
+  glualint lint gamemodes tests lua     must print nothing;  glualint lint tools  (generators)
+  luajit tools/modmap.lua               module map (README.txt: REGENERATE)
+  luajit tools/apimap.lua > .ai/api.txt API map

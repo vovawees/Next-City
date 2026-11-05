@@ -1,6 +1,15 @@
-NEXT (ordered)
-  1 done: M6 complete (notices, storage #2, actions #3, inventory #4-#7, equipment #8, medical #9, loot #10,
-    content package #11, tdm kits #12); ROADMAP M6 done, ARCHITECTURE v0.5 has D17/D18
-  4 done: roles #13, homicide #14, hideseek #15, riot #16, defense #17 (npcs, hostiles), coop #18, dm #19, city #20, shop #21, doors #22, law #23, ui #24 -> M7 closed
-  5 done: docs overhaul #25 (README showcase: badges, TOC, why table, features, modes, install, server config, keys, Mermaid layers/flow/round, module and command tables; CONTRIBUTING without CI; ARCHITECTURE 0.7 D20)
-  6 NEXT .ai final update #26 (architecture, module map, API, tests, status, VPS, plan; fix old lint command in README.txt/stack.txt)
+NEXT (ordered; M0-M7, #25 and #26 done)
+  1 M8 services (milestone #9; ROADMAP: appearance and identity, profiles, permissions via CAMI, chat and voice).
+    First create the issues (labels type:/priority:, milestone M8), then one issue per step, each with
+    tests, module README (russian, API + "Проверить в реальном GMod"), lang en/ru, .ai refresh. Proposed split:
+    a permissions: CAMI privileges for admin nc_* commands (platform/commands.lua says "CAMI permissions come in
+      M8"): CAMI global optional (admin mods), fallback IsSuperAdmin; privileges declared per module/command
+    b profiles: persistent player profile in storage (first/last seen, playtime, language, settings) + API
+    c appearance and identity: model/skin/bodygroups/colours chosen on a screen and kept in the profile; identity
+      as a service; mode_city rp names and mode_homicide aliases keep answering players.name
+    d chat and voice: channels (local radius, whisper, yell, OOC, /me, team, radio), voice by distance ("3d")
+      and radio, all as answers to the bridge questions (PlayerSay, PlayerCanSeePlayersChat,
+      PlayerCanHearPlayersVoice); round rules dead_mute/silent_deaths stay in rounds
+  2 real-GMod verification of M0-M7 on an x86_64 machine (srcds is x86 only; the VPS is aarch64): boot,
+    sections "Проверить в реальном GMod" of 27 module READMEs, nc_perf/nc_net numbers with bots -> docs, status
+  3 M9 polish (milestone #10): bot load tests 32-128, optimization passes from the measurements, Workshop release
