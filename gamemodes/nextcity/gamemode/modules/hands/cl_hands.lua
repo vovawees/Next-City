@@ -6,6 +6,12 @@ local M = NC.Module("hands")
 
 function M:_InitClient(ctx)
 	ctx:On("i18n.changed", "_Rename")
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("hands.raise", { bind = "+reload", fallback = "r", text = "hands.help.raise", order = 76 })
+		playerMenu:AddHelp("hands.carry", { bind = "+attack2", fallback = "mouse2", text = "hands.help.carry",
+			order = 77 })
+	end
 end
 
 function M:_Rename()

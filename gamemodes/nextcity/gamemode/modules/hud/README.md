@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Интерфейс | `hud` (только клиент) |
-| Зависимости | `organism`; необязательно `armor` |
+| Зависимости | `organism`; необязательно `armor`, `menu` (клавиша в справке F1) |
 | Слушает | `organism.vitals`, `organism.capabilities`, `armor.changed`, `i18n.changed`, `gm.HUDShouldDraw`, `gm.HUDPaint` (раньше других модулей: их тексты поверх чёрного экрана), `gm.RenderScreenspaceEffects` |
 | Настройки | `effects` = `true` — эффекты экрана; `statuses` = 8 — больше строк состояния не показывается |
 | Строки | `lang/<код>/hud.lua`: `hud.status.<флаг>` для каждого флага `organism`, `hud.unconscious`, `hud.succumbIn`, `hud.succumb`, `hud.armor`; названия брони — `armor.<id>` |

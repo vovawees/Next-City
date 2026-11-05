@@ -143,6 +143,13 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   emits    melee.struck
   listens  i18n.changed
   commands nc_melee
+[core] menu
+  sv       CommandsFor(ply)
+  cl       AddTab(id,spec) RemoveTab(id) Tabs() AddHelp(id,spec) RemoveHelp(id) Keys() Key() Commands() AskCommands()
+           IsOpen() Tab() Open(tab) Close() Toggle() ShowTab(tab) Refresh(force) Label(parent,text,color,font)
+           Heading(parent,text) Row(parent,tall) Caption(row,text,wide) Value(row,text,color)
+           Button(parent,text,fn,wide,dock) Entry(parent,id,default) Text(id) Typing() SetLanguage(code)
+  listens  gm.PlayerBindPress i18n.changed permissions.changed
 [core] mode_dm
   sv       Leader(round) CheckWin(round) Update(round) GiveLoadout(ply,params) GiveKit(ply,id)
 [core] mode_tdm
@@ -195,6 +202,7 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
   sh       Summary(ply) SummaryPlaytime(ply)
   sv       .Now() Key(ply) Get(ply) IsLoaded(ply) ByKey(key) Section(ply,id) Touch(ply) Playtime(ply) Save(ply)
            Stat(ply,name) AddStat(ply,name,amount) Won(ply,result,round)
+  cl       FormatPlaytime(seconds)
   emits    profiles.loaded profiles.leaving profiles.stat
   asks     profiles.won
   listens  gm.PlayerInitialSpawn gm.PlayerDisconnected gm.ShutDown players.died npcs.killed rounds.phase
@@ -437,4 +445,4 @@ EVENTS (name  emitters -> listeners)
   throwables.thrown            throwables -> equipment
   weapons.fired                weapons -> -
 
-45 modules, 612 public methods
+46 modules, 640 public methods

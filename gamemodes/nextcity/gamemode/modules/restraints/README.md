@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Интерфейс | `restraints` |
-| Зависимости | `players`, `actions`; необязательно `inventory`, `organism`, `movement`, `hands`, `notices` |
+| Зависимости | `players`, `actions`; необязательно `inventory`, `organism`, `movement`, `hands`, `notices`, `menu` (клавиша в справке F1) |
 | Компоненты | `tied` (видят все): с какого момента связан |
 | Спрашивает | `restraints.canTie (ply, target) -> false`, `restraints.canUntie (ply, target) -> false` — запретить; `restraints.tool (ply) -> restraint` — связывать без предмета (например, полиции) |
 | Отвечает | `movement.speed` (доля `speed`), `inventory.canMove` и `inventory.canAct` (`false`, пока связан), `gm.PlayerSwitchWeapon` (только руки), `gm.StartCommand` (убирает клавиши); на клиенте `players.targetLines` («Связан» под именем) |

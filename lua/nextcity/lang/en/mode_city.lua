@@ -81,4 +81,8 @@ return {
 	["hud.money"] = "{balance} in the bank · {cash} cash",
 	["hud.salary"] = "Salary: {amount}",
 	["hud.menu"] = "{key}: the menu of the city",
+	["help.menu"] = "The menu of the city: jobs, the shop, the bank, the police",
+	["command.nc_job"] = "[job] — the jobs of the city, or become one",
+	["command.nc_buy"] = "[offer [times]] — the shop of your job, or buy",
+	["command.nc_rpname"] = "<name> — the name you go by in the city",
 }

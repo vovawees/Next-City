@@ -5,6 +5,7 @@ return {
 	id = "hands",
 	description = "Hands of every player: fists on the melee base, carrying props and bodies",
 	requires = { "players", "organism", "melee" },
+	optional = { "menu" },
 	files = {
 		sh = { "sh_hands.lua" },
 		sv = { "sv_hands.lua" },

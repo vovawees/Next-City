@@ -15,4 +15,5 @@ return {
 	["reason.last"] = "Остался последним",
 	["reason.admin"] = "Завершён администратором",
 	["reason.abandoned"] = "Все ушли",
+	["command.nc_modes"] = "режимы, их правила и параметры",
 }

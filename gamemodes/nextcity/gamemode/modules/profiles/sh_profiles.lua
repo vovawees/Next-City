@@ -17,6 +17,8 @@ local max = math.max
 function M:Init(ctx)
 	if SERVER then
 		self:_InitServer(ctx)
+	else
+		self:_InitClient(ctx)
 	end
 end
 

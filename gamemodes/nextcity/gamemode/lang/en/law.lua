@@ -26,4 +26,11 @@ return {
 	["fail.free"] = "He is not in jail",
 	["fail.denied"] = "You cannot do that now",
 	["fail.op"] = "Unknown order",
+	["command.nc_want"] = "<player> <reason> — want a player (the police)",
+	["command.nc_unwant"] = "<player> — call the search for a player off",
+	["command.nc_warrant"] = "<player> <reason> — a warrant for a player (the mayor)",
+	["command.nc_release"] = "<player> — let a player out of jail",
+	["command.nc_arrest"] = "[player] — arrest the wanted player you tied up",
+	["command.nc_search"] = "[player] — search the player in front, tied up or jailed",
+	["command.nc_wanted"] = "the wanted, the warrants and the jail",
 }

@@ -127,4 +127,6 @@ return {
 	["part.arm_r"] = "Right arm",
 	["part.leg_l"] = "Left leg",
 	["part.leg_r"] = "Right leg",
+	["help.examine"] = "Examine the one in front of you, or yourself, and treat",
+	["command.nc_examine"] = "examine the one in front of you (or yourself)",
 }

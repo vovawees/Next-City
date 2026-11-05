@@ -74,6 +74,12 @@ function M:_InitScreen(ctx)
 	self.hintKey = nil  -- what the hint was built for
 	self.hintLines = nil
 	ctx.commands:Add("nc_inventory", { help = "opens or closes the inventory screen" }, "ScreenCommand")
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("inventory.screen", { bind = "+menu_context", fallback = "c", text = "inventory.help.screen",
+			order = 50 })
+		playerMenu:AddHelp("inventory.use", { bind = "+use", fallback = "e", text = "inventory.help.use", order = 60 })
+	end
 end
 
 function M:_StartScreen(ctx)

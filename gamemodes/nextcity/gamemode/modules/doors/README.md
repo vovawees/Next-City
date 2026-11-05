@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Интерфейс | `doors` |
-| Зависимости | `players`; необязательно `economy`, `storage`, `inventory`, `actions`, `notices` |
+| Зависимости | `players`; необязательно `economy`, `storage`, `inventory`, `actions`, `notices`, `menu` (клавиши в справке F1) |
 | Компоненты | `door` (видят все; только у дверей, на которых что-то есть): владелец, совладельцы, табличка, группа, заперта, снята с продажи |
 | Сеть | `door` (клиент → сервер): меню двери — `buy`, `sell`, `lock`, `unlock`, `add`, `remove`, `title` |
 | Спрашивает | `doors.property (ply, door) -> true` — двери продаются (режим; на клиенте без аргументов — для подсказки); `doors.canBuy (ply, door) -> false`; `doors.price (price, ply, door) -> price` (свёртка); `doors.canPick (ply, door) -> false`; `doors.canRam (ply, door) -> false`; `doors.member (ply, group) -> true` — игрок из группы двери (обе стороны); `doors.groupName (group) -> текст` — как назвать группу в подсказке (клиент) |

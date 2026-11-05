@@ -8,7 +8,7 @@ return {
 	id = "doors",
 	description = "Doors: own, buy and sell map doors, locks, co-owners, titles, map groups, lockpicks and rams",
 	requires = { "players" },
-	optional = { "economy", "storage", "inventory", "actions", "notices" },
+	optional = { "economy", "storage", "inventory", "actions", "notices", "menu" },
 	files = {
 		sh = { "sh_doors.lua" },
 		sv = { "sv_doors.lua" },

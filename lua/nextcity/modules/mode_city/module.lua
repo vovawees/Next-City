@@ -6,7 +6,7 @@ return {
 	id = "mode_city",
 	description = "City: endless city life with jobs, salaries, the gear and the shop of jobs, names of citizens",
 	requires = { "rounds", "roles", "players" },
-	optional = { "inventory", "economy", "notices", "storage", "doors", "law" },
+	optional = { "inventory", "economy", "notices", "storage", "doors", "law", "menu" },
 	files = {
 		sh = { "sh_city.lua" },
 		sv = { "sv_city.lua" },

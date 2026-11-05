@@ -15,4 +15,5 @@ return {
 	["reason.last"] = "Last one standing",
 	["reason.admin"] = "Ended by an administrator",
 	["reason.abandoned"] = "Everybody left",
+	["command.nc_modes"] = "the registered modes, their rules and parameters",
 }

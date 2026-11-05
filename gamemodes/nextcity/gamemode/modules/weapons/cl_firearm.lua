@@ -27,6 +27,14 @@ local HINT = Color(235, 235, 235, 255)
 
 function M:_InitClient(ctx)
 	ctx:On("i18n.changed", "_Rename")
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("weapons.aim", { bind = "+attack2", fallback = "mouse2", text = "weapons.help.aim", order = 70 })
+		playerMenu:AddHelp("weapons.reload", { bind = "+reload", fallback = "r", text = "weapons.help.reload",
+			order = 71 })
+		playerMenu:AddHelp("weapons.mode", { bind = { "+use", "+reload" }, fallback = { "e", "r" },
+			text = "weapons.help.mode", order = 72 })
+	end
 end
 
 -- The registered weapons and the ones that exist take their translated names.

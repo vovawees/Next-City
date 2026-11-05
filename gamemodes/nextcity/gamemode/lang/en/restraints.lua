@@ -10,4 +10,5 @@ return {
 	["fail.tied"] = "Already tied up",
 	["fail.free"] = "Not tied up",
 	["fail.denied"] = "You cannot do that now",
+	["help.tie"] = "With zip ties or handcuffs: tie up the one in front (or his body); untie",
 }

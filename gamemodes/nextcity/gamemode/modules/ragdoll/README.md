@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Интерфейс | `ragdoll` |
-| Зависимости | `players`, `organism`, `damage` |
+| Зависимости | `players`, `organism`, `damage`; необязательно `menu` (клавиши в справке F1) |
 | Слушает | `organism.unconscious`, `organism.capabilities`, `damage.hit`, `gm.OnPlayerHitGround`, `gm.DoPlayerDeath`, `gm.EntityRemoved`, `players.spawned`, `players.stateChanged`, `players.left`, `gm.StartCommand` (сервер и клиент, приоритет 10); клиент: компонент `body`, `gm.CalcView` (приоритет 100), `gm.HUDPaint`, `gm.HUDShouldDraw`, `i18n.changed` |
 | Испускает | `ragdoll.fell (ply, ent, cause)` — упал; `cause`: `unconscious`, `weak`, `hit`, `landing`, `voluntary`, `command`; `ragdoll.stood (ply)` — встал; `ragdoll.corpse (ply, ent)` — оставил труп |
 | Спрашивает | `ragdoll.canFall (ply, cause)` → `false` — остаётся на ногах; `ragdoll.canGetUp (ply)` → `false` — остаётся лежать |

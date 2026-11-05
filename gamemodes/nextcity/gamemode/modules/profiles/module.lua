@@ -1,14 +1,15 @@
 -- Profiles: what the server remembers of every player across visits (by SteamID64): the
 -- first and the last visit, the time in the game, the visits, statistics and sections of
 -- other modules (the character, the appearance), one record per player in a storage
--- collection. A player sees the summary of his own profile.
+-- collection. A player sees the summary of his own profile (the profile tab of the menu).
 return {
 	id = "profiles",
 	description = "Profiles: visits, playtime, statistics and module sections of every player, kept in storage",
-	optional = { "storage" },
+	optional = { "storage", "menu" },
 	files = {
 		sh = { "sh_profiles.lua" },
 		sv = { "sv_profiles.lua" },
+		cl = { "cl_profiles.lua" },
 	},
 	config = {
 		collection = "profiles", -- storage collection of the records

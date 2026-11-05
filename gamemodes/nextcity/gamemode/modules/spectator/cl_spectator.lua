@@ -29,6 +29,13 @@ function M:Init(ctx)
 	self.players = ctx:Require("players")
 	self.text = { label = nil, name = nil, color = WHITE, respawn = nil, hint = nil }
 	self.shown = {} -- state, mode, target, respawn second and clock second on screen
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("spectator.next", { bind = { "+attack", "+attack2" }, fallback = { "mouse1", "mouse2" },
+			text = "spectator.help.next", order = 90 })
+		playerMenu:AddHelp("spectator.camera", { bind = "+jump", fallback = "space", text = "spectator.help.camera",
+			order = 91 })
+	end
 end
 
 function M:Start(ctx)

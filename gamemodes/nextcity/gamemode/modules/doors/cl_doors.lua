@@ -42,6 +42,12 @@ function M:_InitClient(ctx)
 	self.players = ctx:Require("players")
 	self.economy = ctx:Require("economy")
 	self.hint = nil -- { door, expires, lines }
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("doors.menu", { bind = "gm_showteam", fallback = "f2", text = "doors.help.menu", order = 20 })
+		playerMenu:AddHelp("doors.lock", { bind = { "+walk", "+use" }, fallback = { "alt", "e" },
+			text = "doors.help.lock", order = 62 })
+	end
 end
 
 function M:_StartClient(ctx)

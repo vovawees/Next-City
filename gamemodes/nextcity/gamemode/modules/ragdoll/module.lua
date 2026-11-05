@@ -8,6 +8,7 @@ return {
 	id = "ragdoll",
 	description = "Fallen bodies: falling, getting up, the camera of a fallen player, corpses",
 	requires = { "players", "organism", "damage" },
+	optional = { "menu" },
 	files = {
 		sh = { "sh_ragdoll.lua" },
 		sv = { "sv_bodies.lua", "sv_ragdoll.lua" },

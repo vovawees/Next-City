@@ -28,4 +28,5 @@ return {
 	["status.exhausted"] = "Exhausted",
 	["status.tourniquet"] = "Tourniquet on",
 	["status.bandaged"] = "Bandaged",
+	["help.succumb"] = "Unconscious: give up when the screen says you may",
 }

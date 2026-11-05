@@ -14,4 +14,7 @@ return {
 	["fail.target"] = "Look at the player you want to give the money to",
 	["fail.range"] = "Too far away",
 	["fail.dead"] = "Not now",
+	["command.nc_bank"] = "[deposit | withdraw <amount | all>] — your account and cash",
+	["command.nc_givemoney"] = "<amount> — hand cash to the player in front of you",
+	["command.nc_dropmoney"] = "<amount> — put cash on the ground",
 }

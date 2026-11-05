@@ -6,7 +6,7 @@
 |---|---|
 | Модуль | `mode_city` (официальный пакет, `lua/nextcity/modules/mode_city/`) |
 | Режим | `city`, от 1 игрока |
-| Зависимости | `rounds`, `roles`, `players`; необязательно `inventory`, `economy`, `notices`, `storage`, `doors`, `law` |
+| Зависимости | `rounds`, `roles`, `players`; необязательно `inventory`, `economy`, `notices`, `storage`, `doors`, `law`, `menu` (F4 в справке F1) |
 | Правила | `respawn` (возрождение и вход во время раунда), `roles` (профессии — публичные роли) |
 | Переводы | `lua/nextcity/lang/<код>/mode_city.lua` |
 

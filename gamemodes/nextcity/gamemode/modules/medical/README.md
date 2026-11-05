@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Интерфейс | `medical` |
-| Зависимости | `players`, `inventory`, `organism`, `actions`; необязательно `notices` |
+| Зависимости | `players`, `inventory`, `organism`, `actions`; необязательно `notices`, `menu` (клавиша в справке F1) |
 | Слушает | `gm.ShowSpare1` (F3 — осмотр), `players.left`; на клиенте `i18n.changed` |
 | Спрашивает | `medical.canTreat (ply, patient, kind, itemId) -> false` — запретить лечение (например, режиму) |
 | Испускает | `medical.treated (ply, patient, kind, itemId)`, `medical.examined (ply, patient)`; на клиенте `medical.report (data)` |

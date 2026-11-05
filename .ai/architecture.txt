@@ -10,14 +10,14 @@ LAYERS (dependencies point down only, D2)
                strings, readiness, rate buckets, validation, stats), components (replication), i18n (lang files,
                client language), permissions (privileges, D21), commands (nc_*), devtools (nc_modules, nc_perf,
                nc_net, nc_components, nc_lang, nc_privileges, autorefresh)
-  L2 systems   gamemode/modules/<id>/: players teams roles spectator | storage profiles notices actions hud | organism damage
-               armor movement ragdoll ragdoll_control medical | ammo ballistics weapons melee hands throwables
-               explosions | inventory equipment loot | economy doors law restraints npcs
+  L2 systems   gamemode/modules/<id>/: players teams roles spectator | storage profiles menu notices actions hud |
+               organism damage armor movement ragdoll ragdoll_control medical | ammo ballistics weapons melee hands
+               throwables explosions | inventory equipment loot | economy doors law restraints npcs
   L3 modes     core: rounds (FSM, registry), mode_tdm (reference, default), mode_dm; package lua/nextcity: mode_city
                mode_homicide mode_hideseek mode_riot mode_defense mode_coop + content modules weaponry supplies
                hostiles
   L4 client    cl_* files of modules: HUD, screens (Derma), camera pipeline, effects; sends intents only
-  counts       35 core modules (example disabled by default) + 9 package modules; ~41k lines Lua in 254 files
+  counts       37 core modules (example disabled by default) + 9 package modules; ~43k lines Lua in 272 files
 
 BOOT
   init.lua / cl_init.lua -> platform/boot.lua: kernel (core objects) -> packages.List (core, derived gamemode, addons)
@@ -130,10 +130,12 @@ CITY (D20; package mode_city + core economy, doors, law, restraints)
   without a mode answering: doors are not for sale, the law sleeps; another mode/package can build its own city.
 
 CLIENT (L4)
-  keys: C inventory (+menu_context via gm.PlayerBindPress), F2 door menu (gm_showteam, doors), F3 examine (server
-  ShowSpare1, medical), F4 city menu (gm_showspare2, mode_city), E use (pick up, search, open crates, tie, lockpick,
-  ram), Alt+E lock/unlock, bind g nc_fall. Screens are Derma, rebuilt by a fingerprint of their data at a bounded
-  rate (never per frame, never while an entry has focus); hints show the player's binding (input.LookupBinding).
+  keys: C inventory (+menu_context via gm.PlayerBindPress), F1 player menu (gm_showhelp, menu: tabs of modules via
+  AddTab, settings/language, help = AddHelp keys + commands asked from the server), F2 door menu (gm_showteam,
+  doors), F3 examine (server ShowSpare1, medical), F4 city menu (gm_showspare2, mode_city), E use (pick up, search,
+  open crates, tie, lockpick, ram), Alt+E lock/unlock, bind g nc_fall. Screens are Derma, rebuilt by a fingerprint
+  of their data at a bounded rate (never per frame, never while an entry has focus); hints show the player's
+  binding (input.LookupBinding).
   HUD: view-model updated by events/rates; one RenderScreenspaceEffects; materials/fonts created at load only.
 
 DATA FLOW

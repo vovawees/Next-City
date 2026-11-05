@@ -6,7 +6,7 @@ return {
 	id = "inventory",
 	description = "Inventory: items, containers, bags, things on the ground, bodies to search and the screen",
 	requires = { "players" },
-	optional = { "notices", "ragdoll" },
+	optional = { "notices", "ragdoll", "menu" },
 	files = {
 		sh = { "sh_items.lua" },
 		sv = { "sv_containers.lua", "sv_inventory.lua", "sv_world.lua", "sv_kits.lua" },

@@ -6,7 +6,7 @@ return {
 	id = "restraints",
 	description = "Restraints: tie players up with the use key and an item, untie them; tied players are helpless",
 	requires = { "players", "actions" },
-	optional = { "inventory", "organism", "movement", "hands", "notices" },
+	optional = { "inventory", "organism", "movement", "hands", "notices", "menu" },
 	files = {
 		sh = { "sh_restraints.lua" },
 		sv = { "sv_restraints.lua" },

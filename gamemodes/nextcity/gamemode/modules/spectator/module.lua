@@ -4,7 +4,7 @@ return {
 	id = "spectator",
 	description = "Spectating: death camera, following living players, free camera",
 	requires = { "players" },
-	optional = { "teams" },
+	optional = { "teams", "menu" },
 	files = {
 		sv = { "sv_spectator.lua" },
 		cl = { "cl_spectator.lua" },

@@ -345,7 +345,18 @@ describe("city", function()
 		expect(drawn):toContain("Salary: $45")
 		expect(drawn):toContain("F4: the menu of the city")
 
-		-- F4 opens the menu on the jobs, F4 in the menu closes it.
+		-- F4 opens the menu on the jobs, F4 in the menu closes it; the help of F1 tells so.
+		local help = client:Get("NC").Modules:Instance("menu")
+		expect(help.help["mode_city.menu"] ~= nil):toBe(true)
+		local function cityKey()
+			for _, key in ipairs(help:Keys()) do
+				if key.id == "mode_city.menu" then
+					return key.key .. " " .. key.text
+				end
+			end
+			return nil
+		end
+		expect(cityKey()):toBe("F4 The menu of the city: jobs, the shop, the bank, the police")
 		expect(Env.BindPress(client, "gm_showspare2")):toBe(true)
 		expect({ cl:IsMenuOpen(), cl:MenuTab() }):toEqual({ true, "jobs" })
 		local frame = panels(client, "ncCityMenu")[1]
@@ -459,6 +470,7 @@ describe("city", function()
 		settle()
 		expect(cl:IsMenuOpen()):toBe(false)
 		expect(Env.BindPress(client, "gm_showspare2")):toBe(nil)
+		expect(cityKey()):toBeNil()
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
 	end)

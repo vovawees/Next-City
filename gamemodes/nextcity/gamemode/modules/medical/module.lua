@@ -6,7 +6,7 @@ return {
 	id = "medical",
 	description = "Medicine: treating oneself and others with items and hands, examining the wounded",
 	requires = { "players", "inventory", "organism", "actions" },
-	optional = { "notices" },
+	optional = { "notices", "menu" },
 	files = {
 		sh = { "sh_medical.lua" },
 		sv = { "sv_medical.lua" },

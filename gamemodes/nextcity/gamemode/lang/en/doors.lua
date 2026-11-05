@@ -52,4 +52,7 @@ return {
 	["menu.none"] = "Nothing to do here",
 	["menu.sign"] = "The sign of the door",
 	["menu.save"] = "Save",
+	["help.menu"] = "The menu of the door you look at: buy, sell, keys, sign",
+	["help.lock"] = "Lock or unlock a door you have the keys of",
+	["command.nc_door"] = "[buy | sell | lock | unlock | add <player> | remove <player> | title <text>] — the door",
 }

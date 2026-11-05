@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Интерфейс | `hands` |
-| Зависимости | `players`, `organism`, `melee` |
+| Зависимости | `players`, `organism`, `melee`; необязательно `menu` (клавиши в справке F1) |
 | Слушает | `players.loadout` (рано, приоритет 90) — выдаёт руки до снаряжения режима |
 | Запросы | `hands.grab (ply, ent)` — `false` запрещает брать (защищённые пропы) |
 | Испускает | `hands.grabbed (ply, ent)`, `hands.dropped (ply, ent, thrown)` — сервер |

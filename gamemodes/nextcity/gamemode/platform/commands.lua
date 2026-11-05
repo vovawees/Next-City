@@ -207,6 +207,11 @@ function Service:ForModule(ctx)
 		service:_Remove(name, ctx.id)
 	end
 
+	-- Every registered command of every module (copies, see Service:List).
+	function facade:List()
+		return service:List()
+	end
+
 	function facade:Dispose()
 		for name in pairs(names) do
 			service:_Remove(name, ctx.id)

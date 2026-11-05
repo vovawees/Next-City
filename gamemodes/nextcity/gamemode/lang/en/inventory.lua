@@ -47,4 +47,9 @@ return {
 	["slot.secondary"] = "Sidearm",
 	["slot.melee"] = "Melee",
 	["slot.throwable"] = "Grenade",
+	["help.screen"] = "The inventory: your containers and what you search",
+	["help.use"] = "Pick up a thing, search a crate or a body",
+	["command.nc_items"] = "[filter] — the registered items",
+	["command.nc_kits"] = "the registered kits",
+	["command.nc_inventory"] = "opens or closes the inventory screen",
 }

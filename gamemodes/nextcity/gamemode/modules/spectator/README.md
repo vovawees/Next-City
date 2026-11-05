@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Интерфейс | `spectator` |
-| Зависимости | `players`; необязательно `teams` (без него ограничения по командам нет) |
+| Зависимости | `players`; необязательно `teams` (без него ограничения по командам нет), `menu` (клавиши в справке F1) |
 | Слушает | `players.stateChanged`, `players.left`, `teams.changed`, `gm.KeyPress` |
 | Спрашивает | `spectator.canObserve (viewer, target)` → `false` запрещает следить за целью |
 | Испускает | `spectator.target (viewer, target, old)` — сменилась цель (`nil` — свободная камера) |

@@ -68,6 +68,10 @@ function M:Init(ctx)
 	self.title = ""
 	self.hint = nil
 	self.hintShown = nil
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("hud.succumb", { bind = "+reload", fallback = "r", text = "hud.help.succumb", order = 84 })
+	end
 	self.colorModify = {
 		["$pp_colour_addr"] = 0, ["$pp_colour_addg"] = 0, ["$pp_colour_addb"] = 0,
 		["$pp_colour_brightness"] = 0, ["$pp_colour_contrast"] = 1, ["$pp_colour_colour"] = 1,

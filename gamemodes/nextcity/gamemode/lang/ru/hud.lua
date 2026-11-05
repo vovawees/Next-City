@@ -28,4 +28,5 @@ return {
 	["status.exhausted"] = "Изнеможение",
 	["status.tourniquet"] = "Наложен жгут",
 	["status.bandaged"] = "Перевязан",
+	["help.succumb"] = "Без сознания: сдаться, когда экран скажет, что можно",
 }

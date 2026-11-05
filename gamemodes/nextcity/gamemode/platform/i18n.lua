@@ -15,6 +15,8 @@
 --
 --   ctx.i18n:T("rounds.win", { team = "red" })   -- client language (server: its own)
 --   ctx.i18n:TFor(ply, "rounds.kicked")          -- language of a player (server)
+--   ctx.i18n:SetLanguage("ru"), ctx.i18n:Choice() -- client: save the choice ("auto" or nil
+--                                                    follows the game), read it back
 
 local I18nLib = NC.Lib.I18n
 
@@ -295,6 +297,17 @@ function Service:SetLanguage(code)
 	end
 	self.convar:SetString(value)
 	return self:_Apply()
+end
+
+-- Client: the saved choice of the player, "auto" (the game language) or a code.
+function Service:Choice()
+	local choice = self.convar and self.convar:GetString() or "auto"
+	return I18nLib.Normalize(choice) or "auto"
+end
+
+-- The language the server shows to everybody (config i18n.force), or nil.
+function Service:Forced()
+	return self.force
 end
 
 -- Languages with metadata: { code, name, english, plural, fallback, keys, loaded }.

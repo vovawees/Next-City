@@ -6,7 +6,7 @@ return {
 	id = "hud",
 	description = "Minimal HUD: screen effects of the body, its statuses, armor, unconsciousness",
 	requires = { "organism" },
-	optional = { "armor" },
+	optional = { "armor", "menu" },
 	files = {
 		cl = { "cl_hud.lua" },
 	},

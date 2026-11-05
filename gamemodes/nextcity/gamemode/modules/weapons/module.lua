@@ -7,7 +7,7 @@ return {
 	id = "weapons",
 	description = "Firearm base: weapons of packages, fire control, recoil, aiming and reloading",
 	requires = { "players", "organism", "ammo" },
-	optional = { "ballistics" },
+	optional = { "ballistics", "menu" },
 	files = {
 		sh = { "sh_weapons.lua", "sh_firearm.lua" },
 		sv = { "sv_weapons.lua" },

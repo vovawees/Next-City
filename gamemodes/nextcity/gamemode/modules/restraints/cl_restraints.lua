@@ -17,6 +17,10 @@ surface.CreateFont(FONT, { font = "Roboto", size = 24, weight = 700, extended = 
 function M:_StartClient(ctx)
 	ctx:On("gm.HUDPaint", "Paint")
 	ctx:On("players.targetLines", "AddTargetLine")
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("restraints.tie", { bind = "+use", fallback = "e", text = "restraints.help.tie", order = 64 })
+	end
 end
 
 function M:Paint()

@@ -11,9 +11,9 @@
 [![Lua](https://img.shields.io/badge/Lua-5.1%20%7C%20LuaJIT%202.1-2C2D72?logo=lua&logoColor=white)](https://luajit.org/)
 [![License](https://img.shields.io/badge/license-Next--City%201.0-lightgrey)](LICENSE)
 
-[![Tests](https://img.shields.io/badge/tests-512%20passed-brightgreen)](#разработка)
+[![Tests](https://img.shields.io/badge/tests-545%20passed-brightgreen)](#разработка)
 [![glualint](https://img.shields.io/badge/glualint-clean-brightgreen)](https://github.com/FPtje/GLuaFixer)
-[![Modules](https://img.shields.io/badge/modules-35%20core%20%2B%209%20package-blueviolet)](#модули)
+[![Modules](https://img.shields.io/badge/modules-37%20core%20%2B%209%20package-blueviolet)](#модули)
 [![i18n](https://img.shields.io/badge/i18n-en%20%7C%20ru-informational)](#языки)
 
 [![Last commit](https://img.shields.io/github/last-commit/vovawees/Next-City)](https://github.com/vovawees/Next-City/commits/main)
@@ -198,6 +198,7 @@ return {
 | E | поднять вещь, обыскать тело, открыть ящик; с предметом — связать игрока, вскрыть дверь отмычкой или выбить тараном |
 | Alt + E | запереть или отпереть дверь, от которой есть ключи |
 | C | инвентарь |
+| F1 | меню игрока: профиль и статистика, настройки (язык), справка по клавишам и командам |
 | F2 | меню двери перед глазами |
 | F3 | осмотр раненого перед собой или себя |
 | F4 | меню города (режим City): профессии, магазин, банк, полиция |
@@ -281,7 +282,9 @@ stateDiagram-v2
 | | [`roles`](gamemodes/nextcity/gamemode/modules/roles/README.md) | роли режимов: знает владелец, союзники или все, раскрытие в конце раунда | `players` |
 | | [`spectator`](gamemodes/nextcity/gamemode/modules/spectator/README.md) | наблюдение: камера смерти, слежение за живыми, свободная камера | `players` |
 | | [`rounds`](gamemodes/nextcity/gamemode/modules/rounds/README.md) | автомат раунда, реестр режимов и блоков правил с типизированными параметрами | `players` |
-| Сервисы | [`storage`](gamemodes/nextcity/gamemode/modules/storage/README.md) | постоянные данные модулей в JSON-файлах папки DATA | — |
+| Сервисы | [`storage`](gamemodes/nextcity/gamemode/modules/storage/README.md) | постоянные данные модулей: JSON-файлы папки DATA или SQLite, коллекции с записью на ключ | — |
+| | [`profiles`](gamemodes/nextcity/gamemode/modules/profiles/README.md) | профили игроков между заходами: визиты, время в игре, статистика, разделы модулей | — |
+| | [`menu`](gamemodes/nextcity/gamemode/modules/menu/README.md) | меню игрока на F1: вкладки модулей, настройки (язык), справка по клавишам и командам | — |
 | | [`notices`](gamemodes/nextcity/gamemode/modules/notices/README.md) | переведённые сообщения игрокам: всплывающие и в чат | — |
 | | [`cami`](gamemodes/nextcity/gamemode/modules/cami/README.md) | права из админок (ULX, SAM) через CAMI: привилегии в админке, решает она; без админки ничего не делает | — |
 | | [`actions`](gamemodes/nextcity/gamemode/modules/actions/README.md) | действия со временем: полоса прогресса, отмена движением, уроном, смертью или потерей цели | `players` |
@@ -355,6 +358,7 @@ stateDiagram-v2
 | `nc_round` | раунд и параметры; `restart [режим]`, `end`, `next <режим>`, `param <режим> <имя> [значение]` |
 | `nc_modes` | режимы, их правила и параметры — все |
 | `nc_roles` / `nc_role <игрок> [роль]` | роли игроков / дать роль (`none` — снять) |
+| `nc_profile [игрок \| steamid64]` | профиль: визиты, время в игре, статистика — свой все, чужой с правом `profiles.view` |
 
 </details>
 
@@ -456,7 +460,7 @@ Next-City/
 
 ## Языки
 
-Язык выбирается сам по языку игры; вручную — `nc_language ru` в консоли клиента (`nc_language auto` — снова язык игры). Сервер может показать всем один язык: `i18n.force` в настройках.
+Язык выбирается сам по языку игры; вручную — во вкладке «Настройки» меню F1 или `nc_language ru` в консоли клиента (`nc_language auto` — снова язык игры). Сервер может показать всем один язык: `i18n.force` в настройках.
 
 | Код | Язык | Где |
 |---|---|---|
@@ -478,9 +482,9 @@ glualint lint gamemodes tests lua  # линтер (настройки в .gluali
 
 | Что | Сколько |
 |---|---|
-| Спеки | 57: 11 юнит-тестов ядра, 46 — модули в эмуляции GMod (загрузка обоих realm, сеть, режимы, долгий прогон) |
-| Проверки | 512, все проходят; полный прогон ~30 с |
-| Код | ~40 тыс. строк Lua в 251 файле, ~23 тыс. строк тестов |
+| Спеки | 61: 11 юнит-тестов ядра, 50 — модули в эмуляции GMod (загрузка обоих realm, сеть, режимы, долгий прогон) |
+| Проверки | 545, все проходят; полный прогон ~38 с |
+| Код | ~43 тыс. строк Lua в 272 файлах, ~25 тыс. строк тестов |
 | Перед коммитом | тесты, линтер и обновлённые документы — [CONTRIBUTING](CONTRIBUTING.md) |
 
 В реальном GMod модули проверяются по чек-листам «Проверить в реальном GMod» в их README; стоимость в игре меряется `nc_perf` и `nc_net`.

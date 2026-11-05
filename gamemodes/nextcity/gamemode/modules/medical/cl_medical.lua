@@ -52,6 +52,11 @@ function M:Init(ctx)
 	self.report = nil   -- the last report (net data)
 	self.reportAt = 0
 	self.frame = nil
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("medical.examine", { bind = "gm_showspare1", fallback = "f3", text = "medical.help.examine",
+			order = 30 })
+	end
 end
 
 function M:Start(ctx)

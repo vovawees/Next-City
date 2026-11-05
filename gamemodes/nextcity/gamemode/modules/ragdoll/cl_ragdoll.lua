@@ -64,6 +64,11 @@ function M:Init(ctx)
 	self.hintKey = nil      -- what the hint was built for
 	ctx.components.body:OnChange("OnBody")
 	ctx.commands:Add("nc_fall", { help = "fall down, or get up" }, "FallCommand")
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("ragdoll.up", { bind = "+jump", fallback = "space", text = "ragdoll.help.up", order = 80 })
+		playerMenu:AddHelp("ragdoll.fall", { bind = "nc_fall", text = "ragdoll.help.fall", order = 81 })
+	end
 end
 
 function M:Start(ctx)

@@ -35,6 +35,11 @@ function M:_InitClient(ctx)
 	self.law = ctx:Require("law")
 	self.hud = nil -- { expires, money, salary }
 	self:_InitMenu()
+	local playerMenu = ctx:Require("menu")
+	if playerMenu ~= nil then
+		playerMenu:AddHelp("mode_city.menu", { bind = "gm_showspare2", fallback = "f4", text = "mode_city.help.menu",
+			order = 40, visible = function() return self:IsRunning() end })
+	end
 end
 
 function M:_StartClient(ctx)
