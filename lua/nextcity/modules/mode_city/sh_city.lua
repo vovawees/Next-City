@@ -11,6 +11,8 @@
 --   city:CitizenName(ply) -> the name he goes by in the city, or nil (players.name)
 --   doors.member (ply, group): a job holds the keys of the doors of its group (by its key;
 --   "police": every job that keeps the law and the mayor)
+--   law.officer (ply), law.authority (ply): the jobs that keep the law are its officers, the
+--   mayor heads it (the law module: the wanted, warrants, arrests, the jail)
 --
 -- The shop: offers in the order of the menu, registered on both realms in the same order
 -- (RegisterOffer in Init of a package). An offer sells `count` of an item (default: the
@@ -115,6 +117,8 @@ end
 function M:Start(ctx)
 	ctx:On("players.name", "AnswerName")
 	ctx:On("doors.member", "AnswerMember")
+	ctx:On("law.officer", "AnswerOfficer")
+	ctx:On("law.authority", "AnswerAuthority")
 	if SERVER then
 		self:_StartServer(ctx)
 	else
@@ -262,6 +266,18 @@ end
 function M:AnswerMember(ply, group)
 	local job = self:JobOf(ply)
 	if job ~= nil and (job.id == group or (group == "police" and (job.police or job.mayor))) then
+		return true
+	end
+end
+
+function M:AnswerOfficer(ply)
+	if self:IsPolice(ply) then
+		return true
+	end
+end
+
+function M:AnswerAuthority(ply)
+	if self:IsMayor(ply) then
 		return true
 	end
 end

@@ -40,3 +40,6 @@ PITFALLS
 - Rounds call game.CleanUpMap at round start: map entities (doors) are NEW objects afterwards - look them up again (by MapCreationID); emulator keeps MapCreationID across cleanup (mapId).
 - Mode Cleanup runs only when the next round starts (after endTime 8 s), not at round:End.
 - Component fields cannot be optional: use uint 0 for 'none' (e.g. player entity index).
+- Lua keyword 'until' cannot be a component field accessed as data.until: name time fields 'ends'.
+- Two modules answering doors.canRam: Query takes the first non-nil; answer nil to allow, false to deny, so order does not matter.
+- law Jail inside restraints.tied handler: restraints:Tie emits after its state is set, so untying inside the listener is safe.

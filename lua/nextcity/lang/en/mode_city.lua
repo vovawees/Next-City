@@ -25,6 +25,7 @@ return {
 		other = "You can change your job in {count} seconds",
 	},
 	["fail.denied"] = "You cannot change your job now",
+	["fail.jailed"] = "You cannot change your job in jail",
 	["fail.name.short"] = "The name is too short",
 	["fail.name.long"] = "The name is too long",
 	["fail.name.chars"] = "The name has characters that are not allowed",
@@ -41,5 +42,6 @@ return {
 	["fail.buy.job"] = "Your job cannot buy that",
 	["fail.buy.times"] = "From 1 to {count} purchases at once",
 	["fail.buy.denied"] = "You cannot buy that now",
+	["fail.buy.jailed"] = "Nobody sells to you in jail",
 	["fail.buy.funds"] = "Not enough money",
 }

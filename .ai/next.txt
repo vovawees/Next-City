@@ -1,6 +1,6 @@
 NEXT (ordered)
   1 done: M6 complete (notices, storage #2, actions #3, inventory #4-#7, equipment #8, medical #9, loot #10,
     content package #11, tdm kits #12); ROADMAP M6 done, ARCHITECTURE v0.5 has D17/D18
-  4 done: roles #13, homicide #14, hideseek #15, riot #16, defense #17 (npcs, hostiles), coop #18, dm #19, city #20, shop #21, doors #22 -> NEXT law #23
-  5 law core #23 (wanted/warrant/arrest/jail/search; ram needs warrant or wanted owner) -> F4/HUD/F2 + door hints #24 -> close M7
+  4 done: roles #13, homicide #14, hideseek #15, riot #16, defense #17 (npcs, hostiles), coop #18, dm #19, city #20, shop #21, doors #22, law #23 -> NEXT ui #24
+  5 F4 menu (jobs/shop/bank/police tabs), HUD (money, job, wanted), door hints + F2 door menu #24 -> close M7 in ROADMAP
   6 docs overhaul #25 (README showcase, ARCHITECTURE D17+, ROADMAP, CONTRIBUTING without CI) -> .ai final update #26

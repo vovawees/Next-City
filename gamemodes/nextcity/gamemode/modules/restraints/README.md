@@ -53,7 +53,7 @@ sequenceDiagram
 local restraints = ctx:Require("restraints")
 restraints:IsTied(ply)                     -- оба реалма
 restraints:Tie(ply, by, restraint)         -- сразу, без действия: true или false, причина
-restraints:Untie(ply, by)
+restraints:Untie(ply, by, quiet)           -- quiet: без уведомления «Вы свободны» (тюрьма law)
 restraints:BeginTie(ply, target)           -- действие: true или false, причина
 restraints:BeginUntie(ply, target)
 restraints:Restraint(ply)                  -- черта restraint предмета, что у него есть, и id предмета

@@ -17,10 +17,10 @@
 -- storage (namespace city) and shown to everybody instead of the nick (players.name).
 --
 --   city:SetJob(ply, id, force) -> true or false, reason[, seconds]   reasons: mode, unknown,
---                                  same, limit, cooldown, denied
+--                                  same, limit, cooldown, jailed, denied
 --   city:SetName(ply, name) -> true or false, reason                  reasons: short, long, chars, taken
 --   city:Buy(ply, offer, times) -> true, things or false, reason      reasons: closed, mode, dead,
---                                  unknown, job, times, denied, funds
+--                                  unknown, job, times, jailed, denied, funds
 --   city:Round() -> the running round of the city, or nil; city:Members(id); city:Payday(round)
 --
 -- Asks:     mode_city.canJob (ply, id) -> false, mode_city.canBuy (ply, offer, times) -> false,
@@ -28,6 +28,9 @@
 -- Emits:    mode_city.job (ply, id, old), mode_city.bought (ply, offer, times, price).
 -- Doors (the doors module): property while the city lives, only the police use a battering
 -- ram (doors.property, doors.canRam); every door goes back to the market at the end.
+-- The law (the law module) is in force while the city lives (law.enabled): the police want
+-- and arrest, the mayor issues warrants (sh_city.lua); the jailed get no salary, change no
+-- job and buy nothing (reason jailed); the end of the city is an amnesty.
 --
 -- Commands: nc_job [job], nc_buy [offer [times]], nc_rpname <name> (everybody),
 --           nc_setjob <player> <job> (admin).
@@ -54,6 +57,7 @@ function M:_InitServer(ctx)
 	self.notices = ctx:Require("notices")
 	self.storage = ctx:Require("storage")
 	self.doors = ctx:Require("doors")
+	self.law = ctx:Require("law")
 	self.store = self.storage ~= nil and self.storage:Open("city") or nil
 	self.memory = {}  -- names without storage: key -> { name }
 	self.changed = {} -- ply -> CurTime of his last job change
@@ -130,6 +134,9 @@ function M:Setup(round)
 			return false
 		end
 	end)
+	round:On("law.enabled", function()
+		return true
+	end)
 	local inventory = self.inventory
 	if inventory == nil then
 		return
@@ -173,6 +180,13 @@ function M:Cleanup()
 	if self.doors ~= nil then
 		self.doors:ReleaseAll()
 	end
+	if self.law ~= nil then
+		self.law:Amnesty()
+	end
+end
+
+function M:_Jailed(ply)
+	return self.law ~= nil and self.law:IsJailed(ply)
 end
 
 function M:OnLeft(ply)
@@ -242,6 +256,9 @@ function M:SetJob(ply, id, force)
 		if wait > 0 then
 			return false, "cooldown", ceil(wait)
 		end
+		if self:_Jailed(ply) then
+			return false, "jailed"
+		end
 		if self.ctx.events:Query("mode_city.canJob", ply, id) == false then
 			return false, "denied"
 		end
@@ -307,6 +324,9 @@ function M:Buy(ply, id, times)
 	if type(times) ~= "number" or times ~= floor(times) or times < 1 or times > M.MAX_TIMES then
 		return false, "times"
 	end
+	if self:_Jailed(ply) then
+		return false, "jailed"
+	end
 	if self.ctx.events:Query("mode_city.canBuy", ply, id, times) == false then
 		return false, "denied"
 	end
@@ -357,7 +377,8 @@ function M:Payday(round)
 	local events = self.ctx.events
 	for _, ply in ipairs(round:Participants()) do
 		local job = self:JobOf(ply)
-		local salary = events:Reduce("mode_city.salary", job ~= nil and job.salary or 0, ply)
+		local base = job ~= nil and not self:_Jailed(ply) and job.salary or 0
+		local salary = events:Reduce("mode_city.salary", base, ply)
 		if type(salary) == "number" and salary >= 1 then
 			economy:Pay(ply, salary, "salary")
 			if self.notices ~= nil then

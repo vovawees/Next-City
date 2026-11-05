@@ -8,7 +8,7 @@
 -- away breaks it, so a resisting one has to be stopped first.
 --
 --   restraints:Tie(ply, by)     -> true or false, reason (at once, without an action)
---   restraints:Untie(ply, by)   -> true or false
+--   restraints:Untie(ply, by, quiet) -> true or false (quiet: he is not told)
 --   restraints:IsTied(ply)
 --   restraints:Restraint(ply)   -> the restraint a player carries (trait), its item id
 --   restraints:Aimed(ply)       -> the player the use key of ply reaches, the entity hit
@@ -195,14 +195,14 @@ function M:Tie(ply, by, restraint)
 	return true
 end
 
-function M:Untie(ply, by)
+function M:Untie(ply, by, quiet)
 	if not self:IsTied(ply) then
 		return false
 	end
 	self.ctx.components.tied:Remove(ply)
 	self.untieTime[ply] = nil
 	self:_Refresh(ply)
-	if self.notices ~= nil and IsValid(ply) then
+	if self.notices ~= nil and IsValid(ply) and not quiet then
 		self.notices:Send(ply, "restraints.untied", nil, "good")
 	end
 	self.ctx.events:Emit("restraints.untied", ply, by)
