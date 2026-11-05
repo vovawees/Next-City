@@ -11,7 +11,7 @@ GITHUB
 
 MILESTONES (GitHub numbers)
   M0-M5 (#1-#6) closed (work before GitHub issues)   M6 Inventory and medicine (#7) closed, 12 issues
-  M7 Modes (#8) closed, 12 issues   M8 Services (#9) open, issues #27-#36   M9 Polish (#10) open, no issues yet
+  M7 Modes (#8) closed, 12 issues   M8 Services (#9) closed, issues #27-#36   M9 Polish (#10) open, no issues yet
   ROADMAP: docs/ROADMAP.md (M0-M5 before GitHub issues; M6-M9 with issues)
 
 ISSUES -> COMMITS (all closed)
@@ -31,6 +31,6 @@ ISSUES -> COMMITS (all closed)
   #29 storage collections + SQLite               17339b6   #30 profiles                          3d029a5
   #31 F1 menu (tabs, help, settings)             3c3d426   #32 identity                          1939092
   #33 appearance (+ package wardrobe)            654f483   #34 chat                              8e012f8
-  #35 voice: hash in the next commit
+  #35 voice                                      0aa3b86   #36 docs: M8 (last M8 commit, see git log)
   no issue: notices 5780ce0, CI removal cbc867a
-  M8 open: #36 docs (plan: next.txt); M9 issues: not created yet
+  M8 closed; M9 issues: not created yet (plan: next.txt)

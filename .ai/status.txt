@@ -11,13 +11,14 @@ STATUS (update every step)
   M7 modes               done   #13 roles, #14 homicide, #15 hideseek, #16 riot (+restraints), #17 defense (+npcs),
                                 #18 coop, #19 dm, #20 city jobs, #21 economy + shop, #22 doors, #23 law, #24 city UI
                                 (commits: github.txt); GitHub milestones M6 and M7 closed
-  docs                   done   #25 349e87d: README showcase, CONTRIBUTING (no CI), ARCHITECTURE 0.7 (D20), topics
+  docs                   done   #25 349e87d: README showcase, CONTRIBUTING (no CI), ARCHITECTURE 0.7 (D20), topics;
+                                #36: M8 in README, ARCHITECTURE 0.8 (D22-D25, services section), ROADMAP
   .ai base               done   #26 696eae3: dense notes, tools/apimap.lua -> api.txt, modmap wraps at 120
-  M8 services            doing  #27 permissions (platform service, D21) 69bea44, #28 cami (adapter module) 919c4bd,
+  M8 services            done   #27 permissions (platform service, D21) 69bea44, #28 cami (adapter module) 919c4bd,
                                 #29 storage collections + SQLite 17339b6, #30 profiles 3d029a5, #31 F1 menu 3c3d426,
                                 #32 identity 1939092, #33 appearance (+ wardrobe) 654f483, #34 chat 8e012f8,
-                                #35 voice done; next #36 docs
-  M9 polish              later  bot load tests, optimization passes, Workshop release
+                                #35 voice 0aa3b86, #36 docs; GitHub milestone M8 closed
+  M9 polish              next   bot load tests, optimization passes, Workshop release (issues to create)
 
   last full run        65 specs, 571 passed, 0 failed (52 s local x86_64; VPS aarch64 33.7 s at 696eae3)
   lint                 glualint lint gamemodes tests lua and glualint lint tools: clean

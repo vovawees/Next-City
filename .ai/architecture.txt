@@ -1,4 +1,4 @@
-ARCHITECTURE (full text: docs/ARCHITECTURE.md v0.7, russian; this file = dense digest, current after M7 + M8 #34)
+ARCHITECTURE (full text: docs/ARCHITECTURE.md v0.8, russian; this file = dense digest, current after M8)
 
 LAYERS (dependencies point down only, D2)
   L0 core      gamemode/core/*.lua (10 files): pure Lua, no GMod API, unit tested. modules (registry, resolve
@@ -11,9 +11,9 @@ LAYERS (dependencies point down only, D2)
                client language), permissions (privileges, D21), commands (nc_*), devtools (nc_modules, nc_perf,
                nc_net, nc_components, nc_lang, nc_privileges, autorefresh)
   L2 systems   gamemode/modules/<id>/: players teams roles spectator | storage profiles identity appearance chat
-               menu notices actions hud | organism damage armor movement ragdoll ragdoll_control medical | ammo
-               ballistics weapons melee hands throwables explosions | inventory equipment loot | economy doors law
-               restraints npcs
+               voice menu notices cami actions hud | organism damage armor movement ragdoll ragdoll_control
+               medical | ammo ballistics weapons melee hands throwables explosions | inventory equipment loot |
+               economy doors law restraints npcs
   L3 modes     core: rounds (FSM, registry), mode_tdm (reference, default), mode_dm; package lua/nextcity: mode_city
                mode_homicide mode_hideseek mode_riot mode_defense mode_coop + content modules weaponry supplies
                hostiles wardrobe
@@ -134,7 +134,9 @@ CLIENT (L4)
   keys: C inventory (+menu_context via gm.PlayerBindPress), F1 player menu (gm_showhelp, menu: tabs of modules via
   AddTab, settings/language, help = AddHelp keys + commands asked from the server), F2 door menu (gm_showteam,
   doors), F3 examine (server ShowSpare1, medical), F4 city menu (gm_showspare2, mode_city), E use (pick up, search,
-  open crates, tie, lockpick, ram), Alt+E lock/unlock, bind g nc_fall. Screens are Derma, rebuilt by a fingerprint
+  open crates, tie, lockpick, ram), Alt+E lock/unlock, bind g nc_fall, voice +voicerecord (HUD of talkers instead of
+  the base voice panels), radio +nc_radio (key command pair -nc_radio; turns the microphone on), nc_voice cycle.
+  Screens are Derma, rebuilt by a fingerprint
   of their data at a bounded rate (never per frame, never while an entry has focus); hints show the player's
   binding (input.LookupBinding).
   HUD: view-model updated by events/rates; one RenderScreenspaceEffects; materials/fonts created at load only.
@@ -160,3 +162,13 @@ KEY DECISIONS
   D20 city life = core modules (economy, doors, law, restraints) switched on by answers of a mode
   D21 permissions = platform abstraction: modules declare privileges, sources answer permissions.can (CAMI adapter,
   own admin panel), else levels vs ranks from the config; clients know their own privileges for the UI only
+  D22 persistent data = core module storage (namespaces + collections, json or sqlite, delayed flush); a profile =
+  a collection record per SteamID64 (visits, playtime, stats, sections of modules)
+  D23 character = core services a mode switches on: identity (name + gender, players.name answer, identity.enabled),
+  appearance (sets of packages by gender, look in the profile, gm.PlayerSetModel at -10 under the modes, Reduce
+  appearance.look for aliases)
+  D24 chat and voice = core modules with own transport: chat lines are an own net message (PlayerSay -> ""), voice
+  hearing = a matrix rebuilt by the scheduler (the engine asks per pair many times a tick); local by the mode
+  questions chat.proximity / voice.proximity; /word = module command; radios = items with trait radio + +nc_radio
+  D25 F1 player menu = one entry point to the services: AddTab, settings, AddHelp (keys by binds, chat rows),
+  commands from the server by the player's privileges

@@ -1,11 +1,11 @@
 NEXT-CITY / .ai — KNOWLEDGE BASE FOR AGENTS AND MAINTAINERS
 format   dry dense plain text, english identifiers, lines <= 120; no secrets (tokens/keys never here or in git)
 rule     refresh after every logical step, in the same commit as the code it describes
-state    M0-M7 done (issues #1-#24), docs #25 and this base #26 done; M8 services in progress (status.txt, next.txt)
+state    M0-M8 done (issues #1-#36), docs #25 and this base #26 done; next: real-GMod checks, M9 (next.txt)
 
 FILES
   architecture.txt  layers L0-L4, boot, packages, module contract (ctx), event bus, bridge, rounds and modes, city,
-                    client, data flow, key decisions D1-D20 (digest of docs/ARCHITECTURE.md)
+                    client, data flow, key decisions D1-D25 (digest of docs/ARCHITECTURE.md)
   api.txt           GENERATED: per module public methods by realm, emits/asks/reduces/listens, console commands;
                     cross refs: question/reduction -> askers and answerers, event -> emitters and listeners
   modules.txt       GENERATED module map (provides/requires/optional/files/net/components) + hand notes under NOTES

@@ -1,23 +1,13 @@
-NEXT (ordered; M0-M7, #25-#35 done)
-  1 M8 services (milestone #9, issues #27-#36 in this order; each: code, tests, module README in russian with API
-    and "Проверить в реальном GMod", lang en/ru, .ai refresh, commit "Closes #N", check the issue closed):
-    #29 done: storage:Collection (record per key, lazy Get, Release, file per record) + backend sqlite
-    #30 done: profiles (collection 'profiles', sections, stats, summary owner component, nc_profile)
-    #31 done: menu (F1: AddTab/AddHelp API, profile tab of profiles, settings/language, help keys + commands)
-    #32 done: identity (name + gender in the profile section, random names en/ru, cooldown, uniqueness by the
-        registry, players.name answer, on by identity.enabled; mode_city names moved; F1 tab character)
-    #33 done: appearance (sets of packages: wardrobe = HL2 citizens/refugees by gender; model, skin, bodygroups,
-        clothes color in the profile section; gm.PlayerSetModel answer at -10 under the modes; Reduce
-        appearance.look; F1 tab with DModelPanel preview; clothes color on ragdolls); city: own looks for
-        citizens, uniforms by gender; homicide: alias looks
-    #34 done: chat (own net line, answer gm.PlayerSay ""; local by chat.proximity: city param localChat;
-        whisper/yell/me/it/ooc/looc/pm/r, /word -> chat.command or nc_word via ctx.commands:Execute, antispam,
-        unconscious OOC only, dead apart where local + gm.PlayerCanSeePlayersChat; F1 help section chat)
-    #35 done: voice (matrix listener->talker rebuilt every 0.25 s, answer gm.PlayerCanHearPlayersVoice at -10
-        under dead_mute; 3D by mode range where voice.proximity (city param localVoice), dead to non-alive,
-        radios: trait radio items, frequency/off in the item state, +nc_radio PTT, police 102 / medic 103 kits;
-        HUD of talkers instead of the base voice panels: bridge PlayerStartVoice/PlayerEndVoice questions)
-    #36 docs: README, ARCHITECTURE (M8 decisions D22+, section 6 persistence row, version 0.8), ROADMAP, .ai
-  2 real-GMod verification of M0-M8 on an x86_64 machine (srcds is x86 only; the VPS is aarch64): boot,
-    sections "Проверить в реальном GMod" of module READMEs, nc_perf/nc_net numbers with bots -> docs, status
-  3 M9 polish (milestone #10): bot load tests 32-128, optimization passes from the measurements, Workshop release
+NEXT (ordered; M0-M8 done: issues #1-#36, commits in github.txt, details of M8 modules in modules.txt NOTES)
+  1 real-GMod verification of M0-M8 on an x86_64 machine (srcds is x86 only; the VPS is aarch64): boot on a
+    dedicated server, sections "Проверить в реальном GMod" of module READMEs (M8: permissions with ULX/SAM via
+    CAMI, storage json + sqlite, profiles across reconnects, F1 menu tabs, identity names, appearance models and
+    preview, chat lines and filters, 3D voice ranges, radios, voice HUD), nc_perf/nc_net numbers with bots ->
+    docs (ARCHITECTURE section 14 budgets), status.txt, bugs.txt (emulator vs engine gaps found)
+  2 M9 polish (GitHub milestone #10, issues to create first, one per step, "Closes #N" as before):
+    bot load tests 32-128 players (scheduler jobs, organism, voice matrix rebuild, replication bytes/s),
+    optimization passes from the measurements, Workshop release (addon.json, gmad, icon, description)
+  3 later (docs/ARCHITECTURE.md "Позже"): body poses and leaning, appearance accessories, killfeed and karma, own
+    admin panel (a permissions.can source), integrations (vehicles etc.) through adapters
+  rules for every step: code + tests (luajit tests/run.lua), glualint clean, module README in russian (API and
+    "Проверить в реальном GMod"), lang en/ru, root README counts (badges, dev table), .ai refresh, commit + push
