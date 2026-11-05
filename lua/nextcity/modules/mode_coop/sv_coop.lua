@@ -99,6 +99,10 @@ function M:Setup(round)
 			self:Update(round)
 		end
 	end)
+	-- Profiles: a won round is a win of every participant.
+	round:On("profiles.won", function(_, result)
+		return result ~= nil and result.key == "mode_coop.result.won"
+	end)
 end
 
 -- The round starts: the lives, the creatures of the map and of the group, the briefing.

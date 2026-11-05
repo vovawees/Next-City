@@ -14,10 +14,10 @@ STATUS (update every step)
   docs                   done   #25 349e87d: README showcase, CONTRIBUTING (no CI), ARCHITECTURE 0.7 (D20), topics
   .ai base               done   #26 696eae3: dense notes, tools/apimap.lua -> api.txt, modmap wraps at 120
   M8 services            doing  #27 permissions (platform service, D21) 69bea44, #28 cami (adapter module) 919c4bd,
-                                #29 storage collections + SQLite backend done; next #30 profiles ... #36 (next.txt)
+                                #29 storage collections + SQLite 17339b6, #30 profiles done; next #31 F1 menu ... #36
   M9 polish              later  bot load tests, optimization passes, Workshop release
 
-  last full run        59 specs, 534 passed, 0 failed (36 s local x86_64; VPS aarch64 33.7 s at 696eae3)
+  last full run        60 specs, 539 passed, 0 failed (38 s local x86_64; VPS aarch64 33.7 s at 696eae3)
   lint                 glualint lint gamemodes tests lua and glualint lint tools: clean
 
 PENDING CHECKS (every milestone)

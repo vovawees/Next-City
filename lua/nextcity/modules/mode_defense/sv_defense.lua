@@ -101,6 +101,10 @@ function M:Setup(round)
 			self:Update(round)
 		end
 	end)
+	-- Profiles: a won round is a win of every participant.
+	round:On("profiles.won", function(_, result)
+		return result ~= nil and result.key == "mode_defense.result.won"
+	end)
 end
 
 -- The round starts: the briefing, the feed of waves, the first pause.

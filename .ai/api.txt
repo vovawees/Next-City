@@ -191,6 +191,14 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
            gm.PlayerShouldTakeDamage gm.PlayerSpawned gm.PlayerLoadout gm.PlayerDeath gm.PlayerSilentDeath
            gm.PlayerDisconnected gm.InitPostEntity gm.PostCleanupMap gm.HUDDrawTargetID gm.OnPlayerChat
   commands nc_players
+[core] profiles
+  sh       Summary(ply) SummaryPlaytime(ply)
+  sv       .Now() Key(ply) Get(ply) IsLoaded(ply) ByKey(key) Section(ply,id) Touch(ply) Playtime(ply) Save(ply)
+           Stat(ply,name) AddStat(ply,name,amount) Won(ply,result,round)
+  emits    profiles.loaded profiles.leaving profiles.stat
+  asks     profiles.won
+  listens  gm.PlayerInitialSpawn gm.PlayerDisconnected gm.ShutDown players.died npcs.killed rounds.phase
+  commands nc_profile
 [core] ragdoll
   sv       Fall(ply,opts) GetUp(ply,force) Body(ply) Bodies() IsDown(ply) Corpses()
   cl       State() IsDown() Ragdoll()
@@ -289,11 +297,11 @@ questions: Query (first non-nil answer wins), reductions: Reduce (a value throug
 [addons] mode_coop
   sv       Setup(round) Begin(round) Loadout(round,ply) Feed(round) Left(round) Update(round) Fell(round,ply)
            CheckWin(round)
-  listens  npcs.killed npcs.removed
+  listens  npcs.killed npcs.removed profiles.won
 [addons] mode_defense
   sv       Setup(round) Begin(round) Loadout(round,ply) Pause(round,n) Regroup(round) Group(round,n)
            WaveSize(round,n,living) Wave(round,n) Feed(round) Left(round) Update(round) Beaten(round) CheckWin(round)
-  listens  npcs.killed npcs.removed
+  listens  npcs.killed npcs.removed profiles.won
 [addons] mode_hideseek
   sv       Deal(round,ready) IsHiding(round) Side(ply) Loadout(round,ply) BeginHiding(round) Release(round)
            AnswerDamage(round,ply,attacker) Tag(round,ply,seeker) Count(round) CheckWin(round)
@@ -341,6 +349,7 @@ QUESTIONS AND REDUCTIONS (name  askers -> answerers)
   players.name                 players -> mode_city,mode_homicide
   players.spawnPoint           players -> rounds
   players.targetLines          players -> law,restraints,mode_city
+  profiles.won                 profiles -> mode_coop,mode_defense
   ragdoll.canFall              ragdoll -> -
   ragdoll.canGetUp             ragdoll -> -
   ragdoll_control.canGrab      ragdoll_control -> -
@@ -391,7 +400,7 @@ EVENTS (name  emitters -> listeners)
   mode_city.bought             mode_city -> -
   mode_city.job                mode_city -> -
   notices.shown                notices -> -
-  npcs.killed                  npcs -> mode_coop,mode_defense
+  npcs.killed                  npcs -> profiles,mode_coop,mode_defense
   npcs.removed                 npcs -> mode_coop,mode_defense
   npcs.spawned                 npcs -> -
   organism.capabilities        organism -> hud,movement,ragdoll
@@ -400,13 +409,16 @@ EVENTS (name  emitters -> listeners)
   organism.unconscious         organism -> ragdoll
   organism.vitals              organism -> hud
   organism.wounded             organism -> -
-  players.died                 players -> actions,armor,inventory,movement,organism,restraints,rounds
+  players.died                 players -> actions,armor,inventory,movement,organism,profiles,restraints,rounds
   players.left                 players -> actions,armor,damage,doors,economy,equipment,inventory,law,medical,movement,
                                           organism,ragdoll,restraints,roles,rounds,spectator,mode_city
   players.loadout              players -> armor,hands,inventory,rounds
   players.ready                players -> economy,rounds
   players.spawned              players -> inventory,law,movement,organism,ragdoll,restraints,rounds
   players.stateChanged         players -> actions,armor,movement,organism,ragdoll,spectator,teams
+  profiles.leaving             profiles -> -
+  profiles.loaded              profiles -> -
+  profiles.stat                profiles -> -
   ragdoll.corpse               ragdoll -> inventory,ragdoll_control
   ragdoll.fell                 ragdoll -> ragdoll_control
   ragdoll.stood                ragdoll -> ragdoll_control
@@ -416,7 +428,7 @@ EVENTS (name  emitters -> listeners)
   restraints.untied            restraints -> mode_riot
   roles.assigned               roles -> -
   roles.changed                roles -> mode_city
-  rounds.phase                 rounds -> -
+  rounds.phase                 rounds -> profiles
   spectator.target             spectator -> -
   storage.flushed              storage -> -
   teams.changed                teams -> spectator
@@ -425,4 +437,4 @@ EVENTS (name  emitters -> listeners)
   throwables.thrown            throwables -> equipment
   weapons.fired                weapons -> -
 
-44 modules, 598 public methods
+45 modules, 612 public methods

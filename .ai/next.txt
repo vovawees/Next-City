@@ -1,9 +1,8 @@
-NEXT (ordered; M0-M7, #25-#29 done)
+NEXT (ordered; M0-M7, #25-#30 done)
   1 M8 services (milestone #9, issues #27-#36 in this order; each: code, tests, module README in russian with API
     and "Проверить в реальном GMod", lang en/ru, .ai refresh, commit "Closes #N", check the issue closed):
     #29 done: storage:Collection (record per key, lazy Get, Release, file per record) + backend sqlite
-    #30 profiles: per SteamID64 first/last seen, playtime, visits, stats kills/deaths/rounds/wins, module sections,
-        event profiles.loaded, save on leave + periodic, owner summary component, nc_profile
+    #30 done: profiles (collection 'profiles', sections, stats, summary owner component, nc_profile)
     #31 UI: F1 player menu (gm_showhelp via gm.PlayerBindPress), tabs API: profile, settings/language, help
     #32 identity: name + gender in the profile, validation/uniqueness, random names, cooldown, on when a mode
         answers identity.enabled; move mode_city rp names (storage ns city, component citizen, nc_rpname, F4 name

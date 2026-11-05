@@ -10,7 +10,7 @@ LAYERS (dependencies point down only, D2)
                strings, readiness, rate buckets, validation, stats), components (replication), i18n (lang files,
                client language), permissions (privileges, D21), commands (nc_*), devtools (nc_modules, nc_perf,
                nc_net, nc_components, nc_lang, nc_privileges, autorefresh)
-  L2 systems   gamemode/modules/<id>/: players teams roles spectator | storage notices actions hud | organism damage
+  L2 systems   gamemode/modules/<id>/: players teams roles spectator | storage profiles notices actions hud | organism damage
                armor movement ragdoll ragdoll_control medical | ammo ballistics weapons melee hands throwables
                explosions | inventory equipment loot | economy doors law restraints npcs
   L3 modes     core: rounds (FSM, registry), mode_tdm (reference, default), mode_dm; package lua/nextcity: mode_city
