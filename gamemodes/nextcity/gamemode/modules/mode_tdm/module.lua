@@ -3,7 +3,7 @@ return {
 	id = "mode_tdm",
 	description = "Team Deathmatch: teams score kills of enemies, instant respawns, a time limit",
 	requires = { "rounds", "teams" },
-	optional = { "armor" },
+	optional = { "armor", "inventory", "loot" },
 	files = {
 		sv = { "sv_tdm.lua" },
 	},

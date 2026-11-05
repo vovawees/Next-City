@@ -1,7 +1,13 @@
 -- Team Deathmatch: two to four teams, a kill of an enemy scores for the team; the score
 -- limit or the leader when time is up wins. Respawns are instant (after respawnDelay).
 -- Everything but the loadout comes from rule blocks: time_limit, teams, team_score,
--- respawn, team_elimination (a team that lost every member is out).
+-- respawn, team_elimination (a team that lost every member is out) and, while the loot
+-- module runs, loot (the loot of the map points).
+--
+-- Loadout: with the inventory running and a kit of the parameter kit registered
+-- (inventory:RegisterKit, e.g. "tdm" of the supplies package), the things of the kit as
+-- items: weapons, ammunition and armor go into the equipment. Otherwise the weapons of
+-- loadout with spareMags magazines in the engine reserve and the kinds of armor.
 
 local M = NC.Module("mode_tdm")
 
@@ -9,16 +15,22 @@ local ipairs = ipairs
 local IsValid = IsValid
 
 local LOADOUT = { "weapon_crowbar", "weapon_pistol", "weapon_smg1" }
+local HANDS = { primary = 1, secondary = 2, melee = 3 } -- what a kit puts in the hands first
 
 function M:Init(ctx)
 	self.armor = ctx:Require("armor")
+	self.inventory = ctx:Require("inventory")
 	self.warned = {}
+	local rules = { "time_limit", "teams", "team_score", "respawn", "team_elimination" }
+	if ctx:Require("loot") ~= nil then
+		rules[#rules + 1] = "loot"
+	end
 	ctx:Require("rounds"):RegisterMode({
 		id = "tdm",
 		name = "mode_tdm.name",
 		description = "teams score kills of enemies",
 		minPlayers = 2,
-		rules = { "time_limit", "teams", "team_score", "respawn", "team_elimination" },
+		rules = rules,
 		params = {
 			roundTime = { type = "number", default = 600, min = 60, max = 7200, desc = "round length, s" },
 			respawnDelay = { type = "number", default = 5, min = 0, max = 60, desc = "seconds before a respawn" },
@@ -28,6 +40,8 @@ function M:Init(ctx)
 			spareMags = { type = "integer", default = 3, min = 0, max = 20, desc = "spare magazines per weapon" },
 			armor = { type = "list", of = { type = "string", max = 32 }, max = 8, default = {},
 				desc = "kinds of armor a spawning player wears (the armor module)" },
+			kit = { type = "string", max = 32, default = "tdm",
+				desc = "kit of items a spawning player gets while the inventory runs (instead of loadout and armor)" },
 		},
 		Loadout = function(round, ply)
 			self:GiveLoadout(ply, round.params)
@@ -35,9 +49,12 @@ function M:Init(ctx)
 	}, ctx)
 end
 
--- Weapons of the loadout with spareMags magazines of reserve ammo each (the last one is
--- in the hands) and the armor.
+-- The kit as items, or the weapons of the loadout with spareMags magazines of reserve
+-- ammo each (the last one is in the hands) and the armor.
 function M:GiveLoadout(ply, params)
+	if self:GiveKit(ply, params.kit) then
+		return
+	end
 	if self.armor ~= nil then
 		for _, id in ipairs(params.armor) do
 			if self.armor:Kind(id) == nil then
@@ -64,4 +81,34 @@ function M:GiveLoadout(ply, params)
 	if last ~= nil then
 		ply:SelectWeapon(last)
 	end
+end
+
+-- Gives the kit `id` when the inventory runs and has it; whether it did. The weapon of the
+-- primary slot (else the sidearm) goes into the hands.
+function M:GiveKit(ply, id)
+	local inventory = self.inventory
+	if inventory == nil or id == "" then
+		return false
+	end
+	local kit = inventory:Kit(id)
+	if kit == nil then
+		if not self.warned["kit:" .. id] then
+			self.warned["kit:" .. id] = true
+			self.ctx.log:Warn("unknown kit '%s' in the parameter kit: the loadout of weapons instead", id)
+		end
+		return false
+	end
+	inventory:GiveKit(ply, id, { drop = true })
+	local best, bestRank
+	for _, entry in ipairs(kit) do
+		local weapon = inventory:Trait(entry.item, "weapon")
+		local rank = weapon ~= nil and HANDS[weapon.slot or "primary"] or nil
+		if rank ~= nil and (bestRank == nil or rank < bestRank) then
+			best, bestRank = weapon.class, rank
+		end
+	end
+	if best ~= nil and ply:HasWeapon(best) then
+		ply:SelectWeapon(best)
+	end
+	return true
 end

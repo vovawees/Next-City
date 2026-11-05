@@ -261,9 +261,9 @@ describe("armor", function()
 		expect(server:Errors()):toEqual({})
 	end)
 
-	it("dresses the players of Team Deathmatch by the parameter armor", function()
+	it("dresses the players of Team Deathmatch by the parameter armor without a kit", function()
 		local server = Env.Server({ patch = { [Env.CONFIG] = function(cfg)
-			cfg.modules.settings.rounds = { params = { tdm = { armor = { "vest", "helmet", "cardboard" } } } }
+			cfg.modules.settings.rounds = { params = { tdm = { armor = { "vest", "helmet", "cardboard" }, kit = "" } } }
 			return cfg
 		end } })
 		server:Boot()
@@ -279,6 +279,11 @@ describe("armor", function()
 		expect(#armor:Worn(b)):toBe(2)
 		local warnings = server:Lines("unknown kind of armor 'cardboard'")
 		expect(#warnings):toBe(1)
+		-- The weapons of the parameter loadout, the last one in the hands, magazines in reserve.
+		expect(a:WeaponClasses()):toEqual({ "nc_hands", "weapon_crowbar", "weapon_pistol", "weapon_smg1" })
+		expect(a:GetAmmoCount(3)):toBe(54)
+		expect(a:GetAmmoCount(4)):toBe(135)
+		expect(a.selected):toBe("weapon_smg1")
 		expect(server:Errors()):toEqual({})
 	end)
 end)
