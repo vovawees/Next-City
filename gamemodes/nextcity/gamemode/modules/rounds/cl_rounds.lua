@@ -1,8 +1,9 @@
 -- Rounds module, client part: the phase from the server and a small HUD at the top of
--- the screen (mode, round number, timer) with the result banner after a round.
+-- the screen (mode, round number, timer, the status line of the mode under the scores of
+-- the teams) with the result banner after a round.
 --
--- Texts are rebuilt when the shown second changes, the state arrives or the language
--- changes, never every frame.
+-- Texts are rebuilt when a shown second changes, the state or the status arrives or the
+-- language changes, never every frame.
 --
 -- Emits: rounds.phase (phase, old) when the phase changes.
 
@@ -21,6 +22,8 @@ local WHITE = Color(255, 255, 255)
 local OUTLINE = Color(0, 0, 0, 200)
 local STATES = { "spectator", "alive", "dead" }
 
+M.STATUS_Y = 98 -- under the scores of the teams (the teams module, y 70)
+
 surface.CreateFont(FONT_SMALL, { font = "Roboto", size = 20, weight = 500, extended = true })
 surface.CreateFont(FONT_LARGE, { font = "Roboto", size = 34, weight = 700, extended = true })
 
@@ -28,10 +31,14 @@ function M:Init(ctx)
 	self.players = ctx:Require("players")
 	self.state = { phase = "waiting", mode = "", name = "", number = 0, endsAt = 0, minPlayers = 0 }
 	self.result = nil
-	self.text = { top = "", timer = "", headline = nil, subtitle = nil, color = WHITE }
+	self.status = { key = "", endsAt = 0, params = {} }
+	self.statusParams = {}
+	self.text = { top = "", timer = "", status = "", headline = nil, subtitle = nil, color = WHITE }
 	self.shown = nil
+	self.statusShown = nil
 	ctx.net:Receive("state", "OnState")
 	ctx.net:Receive("result", "OnResult")
+	ctx.net:Receive("status", "OnStatus")
 end
 
 function M:Start(ctx)
@@ -54,6 +61,26 @@ end
 function M:OnResult(data)
 	self.result = data
 	self:Invalidate()
+end
+
+function M:OnStatus(data)
+	self.status = data
+	self.statusParams = self.DecodeParams(data.params)
+	self:Invalidate()
+end
+
+-- The status line as the server sent it: { key ("" for none), endsAt, params } (do not modify).
+function M:Status()
+	return self.status
+end
+
+-- Seconds until the countdown of the status line ends, nil without one.
+function M:_StatusLeft()
+	local endsAt = self.status.endsAt
+	if self.status.key == "" or endsAt <= 0 then
+		return nil
+	end
+	return max(endsAt - CurTime(), 0)
 end
 
 -- Current phase and state as the server sent them (do not modify the state).
@@ -141,6 +168,17 @@ function M:_Refresh()
 		text.top = i18n:T("rounds.title", { mode = mode, number = state.number })
 		text.timer = left and i18n:T("rounds." .. state.phase, { time = self.FormatTime(left) }) or ""
 	end
+	local status = self.status
+	if status.key ~= "" then
+		local params = self.statusParams
+		local statusLeft = self:_StatusLeft()
+		if statusLeft ~= nil then
+			params.time = self.FormatTime(statusLeft)
+		end
+		text.status = translate(i18n, status.key, params)
+	else
+		text.status = ""
+	end
 	local result = self.result
 	if state.phase == "ended" and result ~= nil then
 		text.headline, text.subtitle, text.color = self:_Headline(result)
@@ -151,10 +189,13 @@ end
 
 function M:Paint()
 	local left = self:TimeLeft()
-	-- What is on screen changes with the shown second (or each second while waiting).
+	-- What is on screen changes with the shown second (or each second while waiting) and
+	-- the second of the countdown of the status line.
 	local shown = left and ceil(left - 1e-3) or -floor(CurTime())
-	if shown ~= self.shown then
-		self.shown = shown
+	local statusLeft = self:_StatusLeft()
+	local statusShown = statusLeft and ceil(statusLeft - 1e-3) or -1
+	if shown ~= self.shown or statusShown ~= self.statusShown then
+		self.shown, self.statusShown = shown, statusShown
 		self:_Refresh()
 	end
 	local text = self.text
@@ -162,6 +203,10 @@ function M:Paint()
 	draw.SimpleTextOutlined(text.top, FONT_SMALL, x, 8, WHITE, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, OUTLINE)
 	if text.timer ~= "" then
 		draw.SimpleTextOutlined(text.timer, FONT_LARGE, x, 30, WHITE, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, OUTLINE)
+	end
+	if text.status ~= "" then
+		draw.SimpleTextOutlined(text.status, FONT_SMALL, x, M.STATUS_Y, WHITE, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1,
+			OUTLINE)
 	end
 	if text.headline ~= nil then
 		local y = ScrH() * 0.28

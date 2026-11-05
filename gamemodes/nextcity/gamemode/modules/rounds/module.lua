@@ -35,6 +35,18 @@ return {
 			{ "endsAt", "double", min = 0 }, -- game time the phase ends, 0 without a limit
 			{ "minPlayers", "uint", bits = 8 },
 		} },
+		-- Server -> client: the status line of the round under the timer (Round:SetStatus):
+		-- a translation key ("" for none), {time} counting down to endsAt (0: none) and the
+		-- params as notices carry them. Sent on every change and to a player that becomes ready.
+		status = { from = "server", fields = {
+			{ "key", "string", max = 64 },
+			{ "endsAt", "double", min = 0 },
+			{ "params", "array", max = 8, of = { "struct", fields = {
+				{ "name", "string", max = 24 },
+				{ "kind", "enum", values = { "text", "key", "number" } },
+				{ "value", "string", max = 128 },
+			} } },
+		} },
 		-- Server -> client: how the round ended, sent when it ends.
 		result = { from = "server", fields = {
 			{ "reason", "string", max = 64 },        -- time, elimination, ... or a translation key

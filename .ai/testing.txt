@@ -20,3 +20,6 @@ TESTING
   lint       glualint lint gamemodes tests lua -> must be empty (warnings fail): line <=120, double quotes, no shadowing,
              no unused vars, GLua syntax allowed but repo uses plain Lua syntax.
   emulator vs GMod gaps: see bugs.txt
+  npcs       World.NewNPC(realm, index, class, opts); Env.Spawn(server, {class='npc_*', pos, map=true}) makes map
+             NPCs; npc fields .schedule .lastPosition .enemyMemory{enemy,pos} .relationships[ent]={disp,prio}
+             .relationText .proficiency .model .skin, GetKeyValues(); Env.KillNPC(npc, attacker) fires OnNPCKilled.

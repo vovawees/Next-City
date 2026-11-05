@@ -1362,7 +1362,8 @@ end
 
 -- Engine creatures (ents.Create("npc_*")): health 100 by default, weapons of Give,
 -- relationships (.relationships[ent] = { disposition, priority }), the enemy, the last
--- position and the schedule they were given. Env.KillNPC kills one like the engine.
+-- position and the schedule they were given. Env.KillNPC kills one like the engine;
+-- Env.Spawn of an npc_* class makes one of the map (map = true).
 local Npc = setmetatable({}, { __index = Entity })
 local NpcMeta = {
 	__index = Npc,
@@ -1370,8 +1371,8 @@ local NpcMeta = {
 }
 World.NpcMethods = Npc
 
-function World.NewNPC(realm, index, class)
-	local ent = World.NewEntity(realm, index, class)
+function World.NewNPC(realm, index, class, opts)
+	local ent = World.NewEntity(realm, index, class, opts)
 	ent.npc, ent.health, ent.maxHealth = true, 100, 100
 	ent.relationships, ent.npcWeapons = {}, {}
 	return setmetatable(ent, NpcMeta)
@@ -1391,6 +1392,8 @@ function Npc:Disposition(target)
 	return entry and entry[1] or 0
 end
 function Npc:SetEnemy(ent) self.enemy = ent end
+-- What it remembers of an enemy: .enemyMemory = { enemy, pos }.
+function Npc:UpdateEnemyMemory(enemy, pos) self.enemyMemory = { enemy, Vector(pos) } end
 function Npc:GetEnemy() return self.enemy or World.NULL end
 function Npc:SetLastPosition(pos) self.lastPosition = Vector(pos) end
 function Npc:SetSchedule(schedule) self.schedule = schedule end

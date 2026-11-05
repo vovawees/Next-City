@@ -10,6 +10,7 @@
 --   round:AddParticipant(ply)                    joins and spawns a ready player
 --   round:Respawn(ply, delay), CancelRespawn(ply), IsRespawning(ply), RespawnCount()
 --   round:SetTimeLimit(seconds), TimeLeft(), Elapsed()
+--   round:SetStatus(key, params, endsAt)         the status line under the timer (nil clears)
 --   round:CheckWin()                             asks CheckWin on the next tick
 --   round:End(result)                            { reason, team, winner, key, ... }
 --
@@ -356,6 +357,13 @@ function Round:Elapsed()
 		return 0
 	end
 	return CurTime() - self.startedAt
+end
+
+-- The status line under the timer every client sees: a translation key with params
+-- (numbers, texts, { key = ... }) and, with endsAt, {time} counting down to that game time;
+-- SetStatus(nil) clears it. The end of the round clears it too.
+function Round:SetStatus(key, params, endsAt)
+	self._module:_SetStatus(self, key, params, endsAt)
 end
 
 -- Ending --------------------------------------------------------------------------------

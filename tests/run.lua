@@ -58,6 +58,7 @@ local SPECS = {
 	"tests/gmod/hideseek_spec.lua",
 	"tests/gmod/restraints_spec.lua",
 	"tests/gmod/riot_spec.lua",
+	"tests/gmod/npcs_spec.lua",
 	"tests/gmod/soak_spec.lua",
 }
 

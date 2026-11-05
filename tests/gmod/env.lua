@@ -1292,7 +1292,12 @@ end
 function Env.Spawn(server, opts)
 	opts = opts or {}
 	local index = opts.index or server:_NextIndex()
-	local ent = World.NewEntity(server, index, opts.class, opts)
+	local ent
+	if type(opts.class) == "string" and opts.class:find("^npc_") then
+		ent = World.NewNPC(server, index, opts.class, opts)
+	else
+		ent = World.NewEntity(server, index, opts.class, opts)
+	end
 	ent.spawned = true
 	server.entities[index] = ent
 	server:_Network(ent)

@@ -9,7 +9,7 @@
 | Слушает | `players.ready`, `players.spawned`, `players.loadout`, `players.died`, `players.left`, `net.ready` |
 | Отвечает | `players.spawnPoint`, `gm.PlayerShouldTakeDamage` |
 | Испускает | `rounds.phase (phase, old, round)` — на сервере и на клиенте |
-| Сеть | `state` (фаза, режим, номер, конец фазы), `result` (итог раунда) |
+| Сеть | `state` (фаза, режим, номер, конец фазы), `status` (строка состояния режима), `result` (итог раунда) |
 | Команды | `nc_round` (админ), `nc_modes` (все) |
 | Переводы | `lang/<код>/rounds.lua` |
 
@@ -54,6 +54,7 @@ end
 - `round:Participants()`, `ParticipantCount()`, `IsParticipant(ply)`, `Alive()`, `AliveCount()`, `AddParticipant(ply)`.
 - `round:Respawn(ply, delay)`, `CancelRespawn(ply)`, `IsRespawning(ply)`, `RespawnCount()` — клиенты видят время возрождения (`players.life.respawnAt`).
 - `round:SetTimeLimit(seconds)`, `TimeLeft()`, `Elapsed()`, `Phase()`, `IsActive()`.
+- `round:SetStatus(key, params, endsAt)` — строка состояния режима под таймером у всех клиентов (опоздавшим тоже): ключ перевода с параметрами (числа — для множественного числа, тексты, `{ key = "..." }` — переводит клиент; до 8) и, с `endsAt`, обратный отсчёт `{time}` до этого игрового времени. `SetStatus(nil)` убирает её, конец раунда — тоже. Например, оборона: `round:SetStatus("mode_defense.status.pause", { wave = 2, waves = 5 }, CurTime() + 20)` → «Волна 2 из 5 через 0:20».
 - `round:CheckWin()` — проверить победу на следующем тике; `round:End(result)` — `{ reason, team, winner, key }` и свои поля режима. `reason` — короткая причина (`time`, `elimination`, …: подзаголовок `rounds.reason.<reason>`) или собственный ключ перевода с точкой (`"mode_homicide.reason.fled"`); `key` — ключ заголовка с параметрами `{team}` и `{player}` (имя победителя — `players:Name`).
 
 ## Встроенные правила

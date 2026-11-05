@@ -55,17 +55,18 @@ local function take(log)
 end
 
 -- A server with players and rounds; opts.settings go over { mode = "test", shuffle = false },
--- opts.modes are registered after the boot (in waiting).
+-- opts.modes are registered after the boot (in waiting), opts.files are extra files.
 local function boot(opts)
 	opts = opts or {}
 	local settings = { mode = "test", shuffle = false }
 	for key, value in pairs(opts.settings or {}) do
 		settings[key] = value
 	end
-	local server = Env.Server({ modules = { "players", "rounds" }, patch = { [Env.CONFIG] = function(cfg)
-		cfg.modules.settings.rounds = settings
-		return cfg
-	end } })
+	local server = Env.Server({ modules = { "players", "rounds" }, files = opts.files,
+		patch = { [Env.CONFIG] = function(cfg)
+			cfg.modules.settings.rounds = settings
+			return cfg
+		end } })
 	for _, point in ipairs(SPAWNS) do
 		Env.Spawn(server, point)
 	end
@@ -301,6 +302,49 @@ describe("rounds", function()
 		server:Advance(5)
 		server:Advance(30)
 		expect(rounds:Round().result):toEqual({ reason = "time" })
+	end)
+
+	it("shows the status line of the mode with its countdown, to late clients too, until the end", function()
+		local server, rounds
+		server, rounds = boot({
+			files = { ["nextcity/lang/en/test.lua"] = "return { wave = 'Wave {wave} of {who}: {time}',"
+				.. " calm = 'Calm', who = 'the dead' }" },
+			modes = { { id = "test", name = "Test", minPlayers = 2,
+				Start = function(round)
+					round:SetStatus("test.wave", { wave = 2, who = { key = "test.who" } }, server.time + 20)
+				end,
+			} },
+		})
+		local client = Env.Join(server, { name = "Gordon" })
+		bots(server, "B")
+		server:Advance(5)
+		sync(server, client)
+		expect(hud(client)):toEqual({ "Test: round 1", "Wave 2 of the dead: 0:20" })
+		server:Advance(1.5)
+		client.time = server.time
+		expect(hud(client)):toEqual({ "Test: round 1", "Wave 2 of the dead: 0:19" })
+		expect(client:Get("NC").Modules:Instance("rounds"):Status().key):toBe("test.wave")
+
+		-- A late client gets it when he becomes ready; nil clears it.
+		local late = Env.Join(server, { name = "Late" })
+		server:Advance(1)
+		sync(server, late)
+		expect(hud(late)):toContain("Wave 2 of the dead: 0:18")
+		rounds:Round():SetStatus("test.calm")
+		sync(server, client)
+		expect(hud(client)):toEqual({ "Test: round 1", "Calm" })
+		rounds:Round():SetStatus(nil)
+		sync(server, client)
+		expect(hud(client)):toEqual({ "Test: round 1" })
+
+		-- The end of the round clears it.
+		rounds:Round():SetStatus("test.calm")
+		rounds:Round():End({ reason = "admin" })
+		server:Advance(0.1)
+		sync(server, client)
+		expect(hud(client)):notToContain("Calm")
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
 	end)
 
 	it("respawns dead participants and lets late players join", function()

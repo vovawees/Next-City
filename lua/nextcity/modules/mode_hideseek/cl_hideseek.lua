@@ -74,7 +74,8 @@ function M:Paint()
 		draw.SimpleTextOutlined(self.text, FONT_BLIND, w * 0.5, h * 0.45, WHITE, TEXT_ALIGN_CENTER,
 			TEXT_ALIGN_CENTER, 1, OUTLINE)
 	else
-		draw.SimpleTextOutlined(self.text, FONT_TEXT, w * 0.5, 76, WHITE, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1,
-			OUTLINE)
+		-- Where the status line of a round goes: under the scores of the teams.
+		draw.SimpleTextOutlined(self.text, FONT_TEXT, w * 0.5, self.rounds.STATUS_Y or 98, WHITE, TEXT_ALIGN_CENTER,
+			TEXT_ALIGN_TOP, 1, OUTLINE)
 	end
 end

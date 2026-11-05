@@ -378,6 +378,7 @@ function M:_EnterEnded(result)
 	round:_CancelRespawns()
 	self:_Unfreeze(round)
 	round:_Call("End", result)
+	self:_ClearStatus()
 	self.ctx.net:Broadcast("result", self:_ResultMessage(result))
 	self.phaseScope:After(self.settings.endTime, function()
 		self:_AdvanceRotation()
@@ -394,6 +395,7 @@ function M:_CloseRound()
 	self.round = nil
 	self:_StopClock(round)
 	round:_CancelRespawns()
+	self:_ClearStatus()
 	round:_Call("Cleanup")
 	round._scope:Dispose()
 	self:_Unfreeze(round)
@@ -710,5 +712,28 @@ function M:OnNetReady(ply)
 	local round = self.round
 	if self:Phase() == "ended" and round ~= nil and round.result ~= nil then
 		self.ctx.net:Send("result", ply, self:_ResultMessage(round.result))
+	end
+	if self.status ~= nil then
+		self.ctx.net:Send("status", ply, self.status)
+	end
+end
+
+-- The status line of the current round (Round:SetStatus); nil key clears it.
+function M:_SetStatus(round, key, params, endsAt)
+	if round ~= self.round then
+		return
+	end
+	if type(key) ~= "string" or key == "" then
+		self:_ClearStatus()
+		return
+	end
+	self.status = { key = key, endsAt = type(endsAt) == "number" and endsAt or 0, params = self.EncodeParams(params) }
+	self.ctx.net:Broadcast("status", self.status)
+end
+
+function M:_ClearStatus()
+	if self.status ~= nil then
+		self.status = nil
+		self.ctx.net:Broadcast("status", { key = "", endsAt = 0, params = {} })
 	end
 end

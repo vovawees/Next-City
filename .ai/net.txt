@@ -13,5 +13,5 @@ NET
   stats     nc_net (sent/received/dropped by reason: notReady, rate, size, invalid, noHandler, unpooled), nc_net_reset.
 
 MESSAGES BY MODULE (from manifests; regenerate with luajit tools/modmap.lua)
-  rounds: state<server>, result<server>      teams: scores<server>
+  rounds: state<server>, status<server>, result<server>      teams: scores<server>
   (M6/M7 additions are listed in modules.txt)
