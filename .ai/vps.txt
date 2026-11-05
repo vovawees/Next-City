@@ -5,7 +5,7 @@ VPS
             never TERMINATE the OCI instance; keep every project file inside the project folder
 
 PROJECT FOLDER  /home/opc/ai_workspace/next-city/
-  repo/             git clone of vovawees/Next-City (pull before use; last pulled at 349e87d)
+  repo/             git clone of vovawees/Next-City (pull before use; last pulled at 696eae3)
   tools/luajit/     LuaJIT 2.1 installed from luajit-src (bin/luajit)
   luajit-src/       LuaJIT sources (github.com/LuaJIT/LuaJIT, v2.1 branch)
   luajit-build.log  build log (ends with "done")
@@ -21,4 +21,4 @@ SERVICES / PORTS
 
 USAGE
   tests: cd ~/ai_workspace/next-city/repo && git pull -q && ../tools/luajit/bin/luajit tests/run.lua
-  last run there: 57 specs, 512 passed, 0 failed (33.9 s) at 349e87d
+  last run there: 57 specs, 512 passed, 0 failed (33.7 s) at 696eae3

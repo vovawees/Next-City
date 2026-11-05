@@ -26,6 +26,6 @@ ISSUES -> COMMITS (all closed)
   #20 city mode + jobs                                 5572d98   #21 shop (+ economy 3796ce7)         9e62ccf
   #22 doors                                            97ba56b   #23 law                              b0422a1
   #24 city UI (F4 menu, HUD, door hints)               9dd14df   #25 docs: README showcase            349e87d
-  #26 .ai knowledge base (first a0fe18b)               this commit
+  #26 .ai knowledge base (first a0fe18b)               696eae3
   no issue: notices 5780ce0, CI removal cbc867a
   M8/M9 issues: not created yet (next.txt step 1)
