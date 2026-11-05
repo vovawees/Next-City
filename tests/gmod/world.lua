@@ -591,7 +591,9 @@ function Player:Give(class, noAmmo)
 	return weapon
 end
 function Player:SelectWeapon(class)
-	World.Sweps.Select(self, class)
+	if World.Sweps.Select(self, class) == false then
+		return
+	end
 	self.selected = class
 end
 -- Ammo is kept by name; ids of custom types are the ones of the server (game.AddAmmoType).
@@ -1469,6 +1471,7 @@ World.BASE = {
 	PlayerShouldTakeDamage = function() return true end,
 	PlayerUse = function() return true end,
 	PlayerCanPickupWeapon = function() return true end,
+	PlayerSwitchWeapon = function() return false end,
 	PlayerSay = function(_, _, _, text) return text end,
 	PlayerCanSeePlayersChat = function(_, _, _, teamOnly, listener, speaker)
 		return not teamOnly or listener:Team() == speaker:Team()

@@ -9,7 +9,7 @@
 | Слушает | `gm.PlayerInitialSpawn`, `net.ready`, `gm.PlayerSpawned`, `gm.PlayerLoadout`, `gm.PlayerDeath`, `gm.PlayerSilentDeath`, `gm.PlayerDisconnected`, `gm.InitPostEntity`, `gm.PostCleanupMap` |
 | Отвечает | `gm.PlayerSpawn`, `gm.PlayerSelectSpawn`, `gm.PlayerDeathThink`, `gm.PlayerShouldTakeDamage` (только во время `Kill`); на клиенте `gm.HUDDrawTargetID` (всегда `true`: свой показ имени), `gm.OnPlayerChat` (строки переименованных игроков) |
 | Испускает | `players.ready`, `players.stateChanged`, `players.loadout`, `players.spawned`, `players.died`, `players.left` |
-| Спрашивает | `players.spawnPoint (ply)` → сущность, `{ pos, ang }`, группа (`"a"`, `"b"`, `"any"`) или `nil`; свёртка `players.name (name, ply)` → имя, которое видят другие |
+| Спрашивает | `players.spawnPoint (ply)` → сущность, `{ pos, ang }`, группа (`"a"`, `"b"`, `"any"`) или `nil`; свёртка `players.name (name, ply)` → имя, которое видят другие; на клиенте свёртка `players.targetLines (lines, ply)` → строки под именем игрока под прицелом («Связан», профессия) |
 | Компоненты | `life` игрока (`state`, `respawnAt`), реплицируется всем 10 раз в секунду |
 | Команды | `nc_players` — игроки и их состояния |
 | Настройки | `clearance` = 40 — точка занята, пока ближе стоит живой игрок; `targetNames` = `true` — имя игрока под прицелом, `targetRange` = 800 юнитов — дальше имени не видно (клиент) |

@@ -21,6 +21,7 @@
 -- GetFallDamage. StartCommand runs for every user command (shared and predicted).
 --
 -- Interaction (D17): PlayerUse and PlayerCanPickupWeapon are questions (false blocks),
+-- PlayerSwitchWeapon a shared question (true keeps the old weapon),
 -- WeaponEquip and OnNPCKilled notifications, the F1-F4 keys (ShowHelp, ShowTeam,
 -- ShowSpare1, ShowSpare2) replacements. Chat and voice: PlayerSay is a question
 -- whose answer replaces the text ("" drops the message), PlayerCanSeePlayersChat a
@@ -107,6 +108,12 @@ end
 function GM:StartCommand(ply, cmd)
 	base(self, "StartCommand", ply, cmd)
 	NC.Events:Emit("gm.StartCommand", ply, cmd)
+end
+
+-- Question (shared and predicted): `ply` switches from `old` to `new` (weapons, old may be
+-- NULL). An answer true keeps the old weapon (restraints keep tied hands empty).
+function GM:PlayerSwitchWeapon(ply, old, new)
+	return ask(self, "PlayerSwitchWeapon", ply, old, new)
 end
 
 -- Replacement and question: a bullet hit a player (shared; before EntityTakeDamage on

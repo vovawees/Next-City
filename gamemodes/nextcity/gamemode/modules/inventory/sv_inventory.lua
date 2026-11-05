@@ -17,7 +17,8 @@
 --           player), players.left, net.ready.
 -- Asks:     inventory.place (ply, item, def) -> container, slot: where a thing a player
 --           gets goes before the pockets (the equipment answers for what it wears);
---           inventory.canMove (ply, item, from, to) -> false forbids a move
+--           inventory.canMove (ply, item, from, to) -> false forbids a move,
+--           inventory.canAct (ply, item, verb, c) -> false forbids a verb
 -- Emits:    inventory.changed (container, owner)  once per tick per changed container
 --           inventory.moved (ply, item, from, to), inventory.used (ply, item, verb, c),
 --           inventory.opened (ply, container)
@@ -615,6 +616,9 @@ function M:Act(ply, containerId, slot, verb, count)
 	local handler = self.handlers[verb]
 	if handler == nil or not self:VerbApplies(verb, item, self:Where(ply, c), c.kind) then
 		return false, "verb"
+	end
+	if self.ctx.events:Query("inventory.canAct", ply, item, verb, c) == false then
+		return false, "denied"
 	end
 	local ok, result, reason = xpcall(handler, traceback, ply, item, c, count or 0)
 	if not ok then

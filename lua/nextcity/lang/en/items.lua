@@ -85,4 +85,6 @@ return {
 	["chest_rig.desc"] = "6 places for small things, up to 10 kg. Worn on the chest.",
 	pouch = "Pouch",
 	["pouch.desc"] = "3 places for small things. Fits in a pocket.",
+	zipties = "Zip ties",
+	["zipties.desc"] = "Tie the hands of a player: the use key on him. One per tie.",
 }

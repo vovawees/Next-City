@@ -8,8 +8,9 @@
 --              runs its own code on its own state. Env.Sync(server) copies what the
 --              engine networks (NetworkVars, clips, next attacks) from the server to the
 --              clients, like a snapshot
---   switching  ply:SelectWeapon(class): Holster of the active weapon (false keeps it),
---              then Deploy, on every realm; StripWeapon / StripWeapons: Holster of the
+--   switching  ply:SelectWeapon(class): GM:PlayerSwitchWeapon (true keeps the active
+--              weapon), Holster of the active weapon (false keeps it), then Deploy, on
+--              every realm; StripWeapon / StripWeapons: Holster of the
 --              active one, then OnRemove
 --   commands   Env.Use(realm, ply, buttons, opts): one user command: GM:StartCommand
 --              (which may change the buttons), KeyDown / KeyPressed / KeyReleased, then
@@ -363,6 +364,13 @@ function Sweps.Select(ply, class)
 	local current = ply.selected ~= nil and find(ply, ply.selected) or nil
 	if current == target then
 		return
+	end
+	-- GM:PlayerSwitchWeapon of the realm whose code runs (else the player's): true keeps
+	-- the old weapon.
+	local realm = World.realm or ply.server or ply.realm
+	if realm ~= nil and realm.G ~= nil and realm.G.GM ~= nil and realm.G.GM.PlayerSwitchWeapon ~= nil
+		and realm:Call("PlayerSwitchWeapon", ply, current or World.NULL, target) == true then
+		return false
 	end
 	if current ~= nil and Sweps.IsScripted(current) then
 		if call(current, "Holster", target) == false then

@@ -1,0 +1,13 @@
+-- Строки фиксаторов: ключи "restraints.<ключ>".
+return {
+	["action.tie"] = "Связываете: {target}",
+	["action.untie"] = "Развязываете: {target}",
+	tied = "Вас связали",
+	untied = "Вы свободны",
+	["hud.tied"] = "Руки связаны",
+	["target.tied"] = "Связан",
+	["fail.none"] = "Нечем связать",
+	["fail.tied"] = "Уже связан",
+	["fail.free"] = "Не связан",
+	["fail.denied"] = "Сейчас нельзя",
+}

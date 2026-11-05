@@ -1,9 +1,11 @@
 -- Players module, client part: the names players show to each other. The name of the
 -- player under the crosshair replaces the target ID of the base gamemode (no engine
 -- health: D6), within targetRange; chat lines of renamed players (players.name: an alias
--- in Homicide, a character in the city) show that name instead of the nickname.
+-- in Homicide, a character in the city) show that name instead of the nickname. Under the
+-- name the lines other modules add (players.targetLines: tied up, a job of the city).
 --
 -- Listens: gm.HUDDrawTargetID (answers true: the base one never draws), gm.OnPlayerChat.
+-- Asks:    players.targetLines (lines, ply) -> lines: texts under the name of a target.
 
 local M = NC.Module("players")
 
@@ -13,6 +15,7 @@ local ScrW = ScrW
 local ScrH = ScrH
 
 local FONT = "NC.Players.Target"
+local FONT_LINE = "NC.Players.TargetLine"
 local OUTLINE = Color(0, 0, 0, 200)
 local DEAD = Color(255, 30, 40)
 local TEAM = Color(30, 160, 40)
@@ -20,6 +23,7 @@ local WHITE = Color(255, 255, 255)
 local REFRESH = 0.5 -- s before the name of the same target is asked again
 
 surface.CreateFont(FONT, { font = "Roboto", size = 22, weight = 700, extended = true })
+surface.CreateFont(FONT_LINE, { font = "Roboto", size = 18, weight = 500, extended = true })
 
 function M:Init()
 	self.target = nil -- { ent, name, color, until }
@@ -54,11 +58,19 @@ function M:DrawTargetID()
 	end
 	local target, now = self.target, CurTime()
 	if target == nil or target.ent ~= ent or now >= target.refresh then
-		target = { ent = ent, name = self:Name(ent), color = team.GetColor(ent:Team()), refresh = now + REFRESH }
+		target = { ent = ent, name = self:Name(ent), color = team.GetColor(ent:Team()), refresh = now + REFRESH,
+			lines = self.ctx.events:Reduce("players.targetLines", {}, ent) }
 		self.target = target
 	end
-	draw.SimpleTextOutlined(target.name, FONT, ScrW() * 0.5, ScrH() * 0.5 + 32, target.color, TEXT_ALIGN_CENTER,
-		TEXT_ALIGN_TOP, 1, OUTLINE)
+	local x, y = ScrW() * 0.5, ScrH() * 0.5 + 32
+	draw.SimpleTextOutlined(target.name, FONT, x, y, target.color, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP, 1, OUTLINE)
+	local lines = target.lines
+	if type(lines) == "table" then
+		for i, line in ipairs(lines) do
+			draw.SimpleTextOutlined(tostring(line), FONT_LINE, x, y + 6 + i * 20, WHITE, TEXT_ALIGN_CENTER,
+				TEXT_ALIGN_TOP, 1, OUTLINE)
+		end
+	end
 	return true
 end
 

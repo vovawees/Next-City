@@ -7,7 +7,7 @@
 | Интерфейс | `inventory` |
 | Зависимости | `players`; необязательно `notices` (причины отказа), `ragdoll` (вещи остаются на теле) |
 | Слушает | `players.spawned`, `players.loadout` (первым: опустошает контейнеры), `players.left`, `players.died` (первым), `ragdoll.corpse`, `net.ready`, `gm.PlayerUse`, `gm.EntityRemoved`; на клиенте `gm.PlayerBindPress`, `gm.HUDPaint`, `i18n.changed` |
-| Спрашивает | `inventory.place (ply, item, def) -> container, slot` — куда положить полученное раньше карманов (так снаряжение забирает то, что надевается); `inventory.canMove (ply, item, from, to) -> false` — запретить перемещение |
+| Спрашивает | `inventory.place (ply, item, def) -> container, slot` — куда положить полученное раньше карманов (так снаряжение забирает то, что надевается); `inventory.canMove (ply, item, from, to) -> false` — запретить перемещение; `inventory.canAct (ply, item, verb, c) -> false` — запретить действие с предметом (связанные руки) |
 | Испускает | `inventory.changed (container, owner)` раз в тик, `inventory.moved`, `inventory.used (ply, item, verb, c)`, `inventory.opened`, `inventory.picked (ply, id, count)`, `inventory.dropped (ply, item, ent)`; на клиенте `inventory.updated (id, c, new)`, `inventory.closed (id)`, `inventory.screen (open)` |
 | Сеть | `contents`, `closed` (сервер → клиент); `move`, `act`, `close` (клиент → сервер, с лимитами частоты) |
 | Компоненты | `ground` (всем): что лежит на земле; `place` (всем): вид, заголовок и имя контейнера сущности |

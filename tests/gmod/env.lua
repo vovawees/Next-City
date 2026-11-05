@@ -44,7 +44,7 @@ local HOOK_NAMES = {
 	"CanPlayerSuicide", "PlayerRequestTeam", "PostCleanupMap", "HUDPaint", "StartCommand", "OnPlayerHitGround",
 	"EntityTakeDamage", "GetFallDamage", "HUDShouldDraw", "RenderScreenspaceEffects", "PlayerBindPress",
 	"CalcView", "PlayerUse", "PlayerCanPickupWeapon", "WeaponEquip", "OnNPCKilled", "PlayerSay",
-	"PlayerCanSeePlayersChat", "PlayerCanHearPlayersVoice", "HUDDrawTargetID", "OnPlayerChat",
+	"PlayerCanSeePlayersChat", "PlayerCanHearPlayersVoice", "HUDDrawTargetID", "OnPlayerChat", "PlayerSwitchWeapon",
 }
 
 Env.World = World

@@ -74,6 +74,9 @@ M.ITEMS = {
 		traits = { wear = "rig", container = { slots = 6, maxWeight = 10, maxSize = 1 } } } },
 	{ "pouch", { model = BOX, weight = 0.15, size = 1, category = "gear",
 		traits = { container = { slots = 3, maxWeight = 3, maxSize = 1 } } } },
+	-- Tools.
+	{ "zipties", { model = "models/items/crossbowrounds.mdl", weight = 0.02, stack = 10, category = "gear",
+		traits = { restraint = { time = 3, untie = 4, consume = true } } } },
 }
 
 function M:Init(ctx)

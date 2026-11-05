@@ -5,7 +5,7 @@
 | Модуль | Что даёт | Зависимости |
 |---|---|---|
 | [`weaponry`](modules/weaponry/) | 6 видов патронов, 5 стволов, 3 вида холодного и 2 метательного оружия, их 16 предметов, таблицы лута оружия и патронов | `ammo`, `weapons`, `melee`, `throwables`; необязательно `inventory`, `loot`, `explosions` |
-| [`supplies`](modules/supplies/) | 26 предметов: медицина, броня, сумки; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `homicide`, `hideseek` | `inventory`; необязательно `loot`, `weaponry` |
+| [`supplies`](modules/supplies/) | 27 предметов: медицина, броня, сумки, стяжки; таблицы лута, 3 вида ящиков, наборы режимов `tdm`, `homicide`, `hideseek` | `inventory`; необязательно `loot`, `weaponry` |
 | [`mode_homicide`](modules/mode_homicide/README.md) | режим «Хомисайд»: скрытые роли убийцы, шерифа и мирных, псевдонимы, варианты `standard`, `gunfree`, `wildwest` | `rounds`, `roles`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 | [`mode_hideseek`](modules/mode_hideseek/README.md) | режим «Прятки»: фаза пряток с ослеплёнными ищущими, охота с убийством или осаливанием | `rounds`, `teams`, `players`; необязательно `inventory`, `loot`, `notices`, `hands` |
 
@@ -118,6 +118,12 @@ flowchart LR
 | `duffel_bag` | Баул | `back` | 16 мест, до 35 кг, до размера 3 | 1,6 | 3 | длинное оружие |
 | `chest_rig` | Разгрузка | `rig` | 6 мест, до 10 кг, мелочь | 0,9 | 2 | |
 | `pouch` | Подсумок | — | 3 места, до 3 кг, мелочь | 0,15 | 1 | кладётся в карман |
+
+## Инструменты
+
+| Предмет | Название | Черта | Вес, кг | В слоте | |
+|---|---|---|---|---|---|
+| `zipties` | Стяжки | `restraint`: 3 с связать, 4 с развязать, расходуются | 0,02 | 10 | `E` на игроке ([`restraints`](../../gamemodes/nextcity/gamemode/modules/restraints/README.md)) |
 
 ## Лут
 

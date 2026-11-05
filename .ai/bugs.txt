@@ -24,3 +24,5 @@ PITFALLS
   rounds start preparing as soon as minPlayers are ready (same tick): with minPlayers 2 only the first two
     ready are in Participants; the rest are late joiners of preparing (Deal tests: call M:Deal on a fake round).
   spec WeaponClasses() keeps the give order (hands first, then the kit order).
+  emulator: ply:SelectWeapon asks GM:PlayerSwitchWeapon of World.realm or ply.server (players have .server,
+    not .realm); component replication needs server:Advance before Env.Flush (rate batches).

@@ -25,7 +25,7 @@ local PROBE = {
 			"gm.CanPlayerSuicide", "gm.EntityTakeDamage", "gm.ScalePlayerDamage", "gm.GetFallDamage",
 			"gm.OnPlayerHitGround", "gm.HUDShouldDraw", "gm.PlayerBindPress", "gm.PlayerUse",
 			"gm.PlayerCanPickupWeapon", "gm.PlayerSay", "gm.PlayerCanSeePlayersChat", "gm.PlayerCanHearPlayersVoice",
-			"gm.HUDDrawTargetID", "gm.PlayerDeathNotice", "gm.OnPlayerChat",
+			"gm.HUDDrawTargetID", "gm.PlayerDeathNotice", "gm.OnPlayerChat", "gm.PlayerSwitchWeapon",
 		}
 		function M:Start(ctx)
 			for _, name in ipairs(NOTIFY) do
@@ -163,6 +163,12 @@ describe("bridge", function()
 		expect(GM:PlayerShouldTakeDamage(victim, attacker)):toBe(false)
 		expect(GM:PlayerShouldTakeDamage(attacker, victim)):toBe(true)
 		expect(GM:CanPlayerSuicide(victim)):toBe(false)
+
+		-- A weapon switch: true keeps the old weapon; the base allows it.
+		local crowbar = victim:Give("weapon_crowbar")
+		expect(GM:PlayerSwitchWeapon(victim, Env.World.NULL, crowbar)):toBe(false)
+		probe.answers["gm.PlayerSwitchWeapon"] = true
+		expect(GM:PlayerSwitchWeapon(victim, Env.World.NULL, crowbar)):toBe(true)
 	end)
 
 	it("forwards key presses, team requests and map cleanups", function()
