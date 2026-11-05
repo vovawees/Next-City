@@ -35,3 +35,5 @@ PITFALLS
   (nc_give is weapons'; economy uses nc_givemoney).
 - inventory:Move into a place needs inventory:Open(ply, place) first (CanReach checks watching set + InReach of eyes), else 'reach' before any canMove question.
 - SpawnPlace returns ent, container (not container) - PlaceOf takes the entity.
+- Client->server net in specs: call hud(server, client) (Env.Flush) after cl:Ask*/Request, server:Advance alone does not deliver.
+- Server console command output (caller nil) goes to server.console: check with server:Lines(fragment).

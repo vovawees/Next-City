@@ -60,7 +60,7 @@ economy:Cash()                          -- наличные в своих кон
 economy:Request("withdraw", 100)        -- deposit | withdraw | give | drop
 ```
 
-Экран банка и показ денег на HUD — у режима (город, `mode_city`).
+Экран банка и показ денег на HUD — у режима: город ([`mode_city`](../../../../../lua/nextcity/modules/mode_city/README.md)) платит зарплаты через `Pay` и продаёт товары профессий через `Charge`.
 
 ## Проверить в реальном GMod
 

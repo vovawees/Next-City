@@ -1,7 +1,7 @@
 -- City (the official package): an endless round, the jobs with their limits, cooldown and
 -- gear (it stays with its owner and goes with the job), respawns, salaries into the bank
--- accounts and the names of citizens kept in storage, with the real gamemode and package
--- files.
+-- accounts, the names of citizens kept in storage and the shop of the jobs, with the real
+-- gamemode and package files.
 
 local Env = dofile(T.root .. "tests/gmod/env.lua")
 
@@ -193,6 +193,97 @@ describe("city", function()
 		expect(m2.players:Name(back)):toBe("John Freeman")
 		expect(m2.economy:Balance(back)):toBe(670)
 		expect(again:Errors()):toEqual({})
+		expect(server:Errors()):toEqual({})
+		expect(client:Errors()):toEqual({})
+	end)
+	it("sells each job the goods of its trade for the money of the account and then the cash", function()
+		local server, m = boot()
+		local client, gordon = Env.Join(server, { name = "Gordon", language = "en" })
+		run(server, 5.3)
+		local city, economy, inventory = m.mode_city, m.economy, m.inventory
+		local cl = client:Get("NC").Modules:Instance("mode_city")
+		expect(economy:Balance(gordon)):toBe(500)
+
+		-- What a citizen may buy, and what not.
+		gordon.printed = {}
+		server:Command("nc_buy", gordon, {})
+		expect(gordon.printed):toEqual({ "bandage        x1        $15", "pouch          x1        $40",
+			"backpack       x1       $180" })
+		server:Command("nc_buy", nil, {})
+		expect(server:Lines("usp ")[1]):toContain("usp            x1       $250  gundealer")
+		expect({ city:Buy(gordon, "usp") }):toEqual({ false, "job" })
+		expect({ city:Buy(gordon, "caviar") }):toEqual({ false, "unknown" })
+		expect({ city:Buy(gordon, "bandage", 0) }):toEqual({ false, "times" })
+		expect({ city:Buy(gordon, "bandage", 21) }):toEqual({ false, "times" })
+		expect({ city:Buy(gordon, "bandage", 1.5) }):toEqual({ false, "times" })
+		expect(economy:Balance(gordon)):toBe(500)
+
+		-- Bought things are his own: apart from the gear of the job, free to drop.
+		expect({ city:Buy(gordon, "bandage", 2) }):toEqual({ true, 2 })
+		expect({ economy:Balance(gordon), inventory:Count(gordon, "bandage") }):toEqual({ 470, 3 })
+		local own
+		for _, item in ipairs(inventory:ItemsOf(gordon)) do
+			if item.id == "bandage" and not (item.state and item.state.issued) then
+				own = item
+			end
+		end
+		expect(own.count):toBe(2)
+		expect(inventory:Act(gordon, own.container.id, own.slot, "drop")):toBe(true)
+		expect(inventory:Count(gordon, "bandage")):toBe(1)
+		gordon.printed = {}
+		server:Command("nc_buy", gordon, { "bandage", "2" })
+		expect(gordon.printed[1]):toBe("nc_buy bandage: bought 2 for $30")
+		expect(hud(server, client)):toContain("Bought: Bandage ×2 for $30")
+
+		-- The gun dealer buys guns: the account first, then the cash he carries.
+		city:SetJob(gordon, "gundealer", true)
+		expect({ inventory:Count(gordon, "bandage"), inventory:Count(gordon, "usp") }):toEqual({ 2, 1 })
+		expect({ city:Buy(gordon, "usp") }):toEqual({ true, 1 })
+		expect({ inventory:Count(gordon, "usp"), economy:Balance(gordon) }):toEqual({ 2, 190 })
+		expect({ city:Buy(gordon, "mp7") }):toEqual({ false, "funds" })
+		economy:GiveCash(gordon, 1000)
+		expect(city:Buy(gordon, "mp7")):toBe(true)
+		expect({ economy:Balance(gordon), economy:Cash(gordon) }):toEqual({ 0, 90 })
+		expect({ city:Buy(gordon, "ammo_9x19", 3) }):toEqual({ false, "funds" })
+		expect(city:Buy(gordon, "ammo_9x19", 2)):toBe(true)
+		expect({ inventory:Count(gordon, "ammo_9x19"), economy:Wealth(gordon) }):toEqual({ 75, 0 })
+
+		-- Another module may forbid a purchase.
+		economy:SetBalance(gordon, 100000)
+		local handle = m.NC.Events:On("mode_city.canBuy", function(_, id)
+			if id == "python" then
+				return false
+			end
+		end)
+		expect({ city:Buy(gordon, "python") }):toEqual({ false, "denied" })
+		handle:Off()
+
+		-- The menu buys over the net; what does not fit falls at his feet.
+		local ground = #inventory.groundList
+		cl:AskBuy("backpack", 20)
+		local drawn = hud(server, client)
+		expect(drawn):toContain("Bought: Backpack ×20 for $3 600")
+		expect(economy:Balance(gordon)):toBe(100000 - 3600)
+		expect(#inventory.groundList > ground):toBe(true)
+		local dropped = false
+		for _, text in ipairs(drawn) do
+			if text:find("did not fit and fell at your feet", 1, true) then
+				dropped = true
+			end
+		end
+		expect(dropped):toBe(true)
+
+		-- The menu changes jobs and names over the net too.
+		run(server, 30)
+		cl:AskJob("medic")
+		cl:AskName("Gordon Freeman")
+		hud(server, client)
+		expect({ m.roles:Of(gordon), m.players:Name(gordon) }):toEqual({ "medic", "Gordon Freeman" })
+
+		-- The dead do not shop.
+		Env.Kill(gordon)
+		server:Advance(0.1)
+		expect({ city:Buy(gordon, "bandage") }):toEqual({ false, "dead" })
 		expect(server:Errors()):toEqual({})
 		expect(client:Errors()):toEqual({})
 	end)

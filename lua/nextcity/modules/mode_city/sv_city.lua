@@ -9,17 +9,25 @@
 -- issued = true in the state of every thing) stays with its owner: it cannot be dropped or
 -- put into somebody else's container; the dead leave it on the body like the rest.
 --
+-- The shop (offers of sh_city.lua): a citizen buys what his job may buy, the money comes off
+-- his account and then his cash (economy:Charge), the things go into his inventory and what
+-- does not fit falls at his feet. Bought things are his own, unlike the gear of the job.
+--
 -- Names: with param names a citizen goes by the name he chooses (nc_rpname), kept in
 -- storage (namespace city) and shown to everybody instead of the nick (players.name).
 --
 --   city:SetJob(ply, id, force) -> true or false, reason[, seconds]   reasons: mode, unknown,
 --                                  same, limit, cooldown, denied
 --   city:SetName(ply, name) -> true or false, reason                  reasons: short, long, chars, taken
+--   city:Buy(ply, offer, times) -> true, things or false, reason      reasons: closed, mode, dead,
+--                                  unknown, job, times, denied, funds
 --   city:Round() -> the running round of the city, or nil; city:Members(id); city:Payday(round)
 --
--- Asks:     mode_city.canJob (ply, id) -> false, mode_city.salary (salary, ply) -> salary.
--- Emits:    mode_city.job (ply, id, old).
--- Commands: nc_job [job], nc_rpname <name> (everybody), nc_setjob <player> <job> (admin).
+-- Asks:     mode_city.canJob (ply, id) -> false, mode_city.canBuy (ply, offer, times) -> false,
+--           mode_city.salary (salary, ply) -> salary.
+-- Emits:    mode_city.job (ply, id, old), mode_city.bought (ply, offer, times, price).
+-- Commands: nc_job [job], nc_buy [offer [times]], nc_rpname <name> (everybody),
+--           nc_setjob <player> <job> (admin).
 
 local M = NC.Module("mode_city")
 
@@ -27,6 +35,8 @@ local IsValid = IsValid
 local CurTime = CurTime
 local ipairs = ipairs
 local ceil = math.ceil
+local floor = math.floor
+local type = type
 local format = string.format
 local concat = table.concat
 
@@ -78,8 +88,11 @@ end
 function M:_StartServer(ctx)
 	ctx.net:Receive("job", "OnJobRequest")
 	ctx.net:Receive("name", "OnNameRequest")
+	ctx.net:Receive("buy", "OnBuyRequest")
 	ctx:On("players.left", "OnLeft")
 	ctx.commands:Add("nc_job", { help = "[job] - the jobs of the city, or become one", admin = false }, "JobCommand")
+	ctx.commands:Add("nc_buy", { help = "[offer [times]] - the shop of your job, or buy", admin = false },
+		"BuyCommand")
 	ctx.commands:Add("nc_rpname", { help = "<name> - the name you go by in the city", admin = false },
 		"NameCommand")
 	ctx.commands:Add("nc_setjob", { help = "<player> <job> - give a player a job at once" }, "SetJobCommand")
@@ -253,6 +266,72 @@ function M:OnJobRequest(data, ply)
 	end
 end
 
+-- Buys `times` (1 to MAX_TIMES, default 1) purchases of an offer (see the top of the file).
+-- Returns true and how many things went into the inventory, or false and the reason.
+function M:Buy(ply, id, times)
+	times = times or 1
+	local inventory, economy = self.inventory, self.economy
+	if inventory == nil or economy == nil then
+		return false, "closed"
+	end
+	local round = self:Round()
+	if round == nil or not round:IsParticipant(ply) then
+		return false, "mode"
+	end
+	if not self.players:IsAlive(ply) then
+		return false, "dead"
+	end
+	local offer = self.offers[id]
+	if offer == nil or inventory:Def(offer.item) == nil then
+		return false, "unknown"
+	end
+	if not self:MayBuy(ply, offer) then
+		return false, "job"
+	end
+	if type(times) ~= "number" or times ~= floor(times) or times < 1 or times > M.MAX_TIMES then
+		return false, "times"
+	end
+	if self.ctx.events:Query("mode_city.canBuy", ply, id, times) == false then
+		return false, "denied"
+	end
+	local price = offer.price * times
+	local ok, reason = economy:Charge(ply, price, "mode_city.buy")
+	if not ok then
+		return false, reason
+	end
+	local given = inventory:Give(ply, offer.item, offer.count * times, nil, { drop = true })
+	self.ctx.events:Emit("mode_city.bought", ply, id, times, price)
+	return true, given
+end
+
+-- A purchase asked by a player; he learns what he got or why not.
+function M:RequestBuy(ply, id, times)
+	local ok, given = self:Buy(ply, id, times)
+	local notices = self.notices
+	if notices == nil then
+		return ok, given
+	end
+	local offer = self.offers[id]
+	if not ok then
+		notices:Send(ply, "mode_city.fail.buy." .. given, { count = M.MAX_TIMES }, "bad")
+		return ok, given
+	end
+	local count = offer.count * (times or 1)
+	notices:Send(ply, "mode_city.bought", { item = { key = self.inventory:Def(offer.item).name }, count = count,
+		price = self.economy:Format(offer.price * (times or 1)) }, "good")
+	if given < count then
+		notices:Send(ply, "mode_city.dropped", { count = count - given }, "info")
+	end
+	return ok, given
+end
+
+function M:OnBuyRequest(data, ply)
+	local id = self.offerOrder[data.offer]
+	if id ~= nil then
+		self:RequestBuy(ply, id, data.times)
+	end
+end
+
 -- Pays every citizen the salary of his job.
 function M:Payday(round)
 	local economy = self.economy
@@ -384,6 +463,34 @@ function M:JobCommand(caller, args)
 		return "nc_job: you are " .. id
 	end
 	return format("nc_job %s: %s%s", id, reason, wait ~= nil and format(" (%d s)", wait) or "")
+end
+
+function M:BuyCommand(caller, args)
+	local id = args[1]
+	if id == nil then
+		local lines = {}
+		local economy = self.economy
+		for _, offerId in ipairs(self.offerOrder) do
+			local offer = self.offers[offerId]
+			if not IsValid(caller) or self:MayBuy(caller, offer) then
+				local price = economy ~= nil and economy:Format(offer.price) or tostring(offer.price)
+				lines[#lines + 1] = format("%-14s x%-3d %8s%s", offerId, offer.count, price,
+					not IsValid(caller) and offer.jobs ~= nil and "  " .. concat(offer.jobs, ", ") or "")
+			end
+		end
+		return lines
+	end
+	if not IsValid(caller) then
+		return "nc_buy: run it in the game"
+	end
+	local times = args[2] ~= nil and tonumber(args[2]) or 1
+	local ok, given = self:RequestBuy(caller, id, times)
+	if not ok then
+		return format("nc_buy %s: %s", id, given)
+	end
+	local offer = self.offers[id]
+	return format("nc_buy %s: bought %d for %s", id, offer.count * times,
+		self.economy:Format(offer.price * times))
 end
 
 function M:NameCommand(caller, args)

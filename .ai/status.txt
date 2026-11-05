@@ -26,6 +26,6 @@ STATUS (update every step)
        #18 coop: mode_coop (package): map NPCs adopted + group spawned, shared lives, out players stay out   done
        #19 dm: mode_dm (core) frags from zero, frag/time limits, leader status; tdm kit select refactor   done
        #20 city: mode_city endless round, jobs/limits/cooldown/salaries/issued gear/models/rp names   done
-       #21 economy core: cash item money, bank accounts in storage, Pay/Charge/Deposit/Withdraw/Hand/Drop   in progress (core done; shop in mode_city next)
+       #21 economy: core economy module + city shop of jobs (offers, Buy, nc_buy, net buy)   done
   docs overhaul        todo (#25)
-  last full run        55 specs, 503 passed, 0 failed (~28 s)
+  last full run        55 specs, 504 passed, 0 failed (~29 s)

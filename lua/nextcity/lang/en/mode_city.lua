@@ -29,4 +29,17 @@ return {
 	["fail.name.long"] = "The name is too long",
 	["fail.name.chars"] = "The name has characters that are not allowed",
 	["fail.name.taken"] = "Somebody goes by that name already",
+	bought = "Bought: {item} ×{count} for {price}",
+	dropped = {
+		one = "{count} thing did not fit and fell at your feet",
+		other = "{count} things did not fit and fell at your feet",
+	},
+	["fail.buy.closed"] = "The shop is closed",
+	["fail.buy.mode"] = "The shop is only in the city",
+	["fail.buy.dead"] = "The dead do not shop",
+	["fail.buy.unknown"] = "No such goods",
+	["fail.buy.job"] = "Your job cannot buy that",
+	["fail.buy.times"] = "From 1 to {count} purchases at once",
+	["fail.buy.denied"] = "You cannot buy that now",
+	["fail.buy.funds"] = "Not enough money",
 }

@@ -127,6 +127,23 @@ describe("official package", function()
 				end
 			end
 		end
+		local city = m.mode_city
+		for _, id in ipairs(city:Jobs()) do
+			if inventory:Kit(city:Job(id).kit) == nil then
+				problem("job " .. id .. ": kit " .. city:Job(id).kit)
+			end
+		end
+		for _, id in ipairs(city:Offers()) do
+			local offer = city:Offer(id)
+			if inventory:Def(offer.item) == nil then
+				problem("offer " .. id .. ": " .. offer.item)
+			end
+			for _, job in ipairs(offer.jobs or {}) do
+				if city:Job(job) == nil then
+					problem("offer " .. id .. ": job " .. job)
+				end
+			end
+		end
 		expect(problems):toEqual({})
 	end)
 
